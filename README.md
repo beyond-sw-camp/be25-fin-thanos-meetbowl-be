@@ -50,6 +50,31 @@ sample-jpa: JPA Entity / Spring Data Repository / Adapter 예시
 
 기본 profile에서는 샘플 Controller와 샘플 JPA scan이 켜지지 않는다.
 
+## Security
+
+API 인증은 JWT Bearer Token을 기본으로 한다.
+
+```http
+Authorization: Bearer {accessToken}
+```
+
+로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다.
+
+```bash
+MEETBOWL_JWT_SECRET=change-me-to-a-secure-256-bit-secret
+```
+
+초기 JWT claim 기준은 다음과 같다.
+
+```text
+sub: 사용자 UUID
+organizationId: 조직 UUID
+role: USER | ADMIN | GUEST | SYSTEM
+displayName: 표시 이름
+```
+
+Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`를 사용한다.
+
 ## Architecture Checks
 
 `./gradlew check`는 ArchUnit으로 모듈 의존 방향을 검증한다.

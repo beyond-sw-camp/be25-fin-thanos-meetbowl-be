@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -30,6 +31,7 @@ import com.meetbowl.application.sampletask.SampleTaskResult;
 
 @ActiveProfiles("sample")
 @WebMvcTest(controllers = SampleTaskController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({
     CurrentUserArgumentResolver.class,
     GlobalExceptionHandler.class,

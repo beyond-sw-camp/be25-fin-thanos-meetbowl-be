@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,6 +20,7 @@ import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.common.response.ApiResponse;
 
 @WebMvcTest(controllers = CurrentUserSampleController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})
 class CurrentUserArgumentResolverTest {
 

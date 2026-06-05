@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
@@ -87,6 +88,14 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_REQUEST;
+        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+    }
+
+    /** 매핑되지 않은 URL 또는 정적 리소스 요청은 공통 404 응답으로 변환한다. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
+            NoResourceFoundException exception) {
+        ErrorCode errorCode = ErrorCode.COMMON_NOT_FOUND;
         return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
     }
 
