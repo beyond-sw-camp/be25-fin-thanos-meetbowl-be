@@ -20,3 +20,21 @@ common          공통 응답, 예외, Event Envelope, 시간/ID 유틸
 ./gradlew clean build
 ./gradlew :app-api:bootRun
 ```
+
+## Profiles
+
+기본 profile은 `local`이다. Flyway는 아직 사용하지 않고, 초기 개발 단계에서는 JPA `ddl-auto`를 profile별로 분리한다.
+
+```text
+local: ddl-auto=update
+test: ddl-auto=create-drop
+prod: ddl-auto=validate
+```
+
+로컬 MariaDB 접속 정보는 환경 변수로 덮어쓸 수 있다.
+
+```bash
+MEETBOWL_DB_URL=jdbc:mariadb://localhost:3306/meetbowl
+MEETBOWL_DB_USERNAME=meetbowl
+MEETBOWL_DB_PASSWORD=meetbowl
+```
