@@ -1,4 +1,4 @@
-package com.meetbowl.meetbowlbe;
+package com.meetbowl.api;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,5 +9,4 @@ class MeetbowlBeApplicationTests {
     @Test
     void contextLoads() {
     }
-
 }
