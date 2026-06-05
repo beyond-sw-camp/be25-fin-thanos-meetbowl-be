@@ -1,15 +1,17 @@
 package com.meetbowl.application.sampletask;
 
-import com.meetbowl.domain.sampletask.SampleTask;
-import com.meetbowl.domain.sampletask.SampleTaskRepositoryPort;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import com.meetbowl.domain.sampletask.SampleTask;
+import com.meetbowl.domain.sampletask.SampleTaskRepositoryPort;
 
 class CreateSampleTaskUseCaseTest {
 
@@ -18,10 +20,12 @@ class CreateSampleTaskUseCaseTest {
         FakeSampleTaskRepositoryPort sampleTaskRepositoryPort = new FakeSampleTaskRepositoryPort();
         Instant fixedNow = Instant.parse("2099-01-01T01:00:00Z");
         Clock clock = Clock.fixed(fixedNow, ZoneOffset.UTC);
-        CreateSampleTaskUseCase useCase = new CreateSampleTaskUseCase(sampleTaskRepositoryPort, clock);
+        CreateSampleTaskUseCase useCase =
+                new CreateSampleTaskUseCase(sampleTaskRepositoryPort, clock);
         UUID ownerUserId = UUID.randomUUID();
 
-        SampleTaskResult result = useCase.execute(new CreateSampleTaskCommand(ownerUserId, "샘플 작업"));
+        SampleTaskResult result =
+                useCase.execute(new CreateSampleTaskCommand(ownerUserId, "샘플 작업"));
 
         assertNotNull(result.sampleTaskId());
         assertEquals(ownerUserId, result.ownerUserId());
@@ -36,12 +40,12 @@ class CreateSampleTaskUseCaseTest {
 
         @Override
         public SampleTask save(SampleTask sampleTask) {
-            this.savedSampleTask = SampleTask.of(
-                    UUID.randomUUID(),
-                    sampleTask.ownerUserId(),
-                    sampleTask.title(),
-                    sampleTask.createdAt()
-            );
+            this.savedSampleTask =
+                    SampleTask.of(
+                            UUID.randomUUID(),
+                            sampleTask.ownerUserId(),
+                            sampleTask.title(),
+                            sampleTask.createdAt());
             return savedSampleTask;
         }
     }

@@ -1,14 +1,14 @@
 package com.meetbowl.api.config;
 
-import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import java.util.List;
+
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/**
- * app-api의 MVC 확장 지점을 모아둔다.
- */
+import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
+
+/** app-api의 MVC 확장 지점을 모아둔다. */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 

@@ -1,9 +1,10 @@
 package com.meetbowl.infrastructure.persistence.sampletask;
 
-import com.meetbowl.domain.sampletask.SampleTask;
-import com.meetbowl.infrastructure.config.InfrastructureConfig;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.time.Instant;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -13,22 +14,23 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import com.meetbowl.domain.sampletask.SampleTask;
+import com.meetbowl.infrastructure.config.InfrastructureConfig;
 
 @ActiveProfiles("sample-jpa")
 @SpringBootTest(classes = JpaSampleTaskRepositoryAdapterTest.TestApplication.class)
-@TestPropertySource(properties = {
-        "spring.datasource.url=jdbc:h2:mem:sample-jpa-test;MODE=MariaDB;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.properties.hibernate.jdbc.time_zone=UTC"
-})
+@TestPropertySource(
+        properties = {
+            "spring.datasource.url=jdbc:h2:mem:sample-jpa-test;MODE=MariaDB;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+            "spring.datasource.username=sa",
+            "spring.datasource.password=",
+            "spring.datasource.driver-class-name=org.h2.Driver",
+            "spring.jpa.hibernate.ddl-auto=create-drop",
+            "spring.jpa.properties.hibernate.jdbc.time_zone=UTC"
+        })
 class JpaSampleTaskRepositoryAdapterTest {
 
-    @Autowired
-    private JpaSampleTaskRepositoryAdapter adapter;
+    @Autowired private JpaSampleTaskRepositoryAdapter adapter;
 
     @Test
     void saveConvertsDomainToEntityAndBack() {
@@ -47,10 +49,9 @@ class JpaSampleTaskRepositoryAdapterTest {
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import({
-            InfrastructureConfig.class,
-            JpaSampleTaskRepositoryAdapter.class,
-            SampleTaskJpaConfig.class
+        InfrastructureConfig.class,
+        JpaSampleTaskRepositoryAdapter.class,
+        SampleTaskJpaConfig.class
     })
-    static class TestApplication {
-    }
+    static class TestApplication {}
 }

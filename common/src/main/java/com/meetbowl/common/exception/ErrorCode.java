@@ -1,9 +1,6 @@
 package com.meetbowl.common.exception;
 
-/**
- * API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다.
- * 새 도메인 에러가 필요하면 docs/api-spec.md의 에러 계약과 함께 추가한다.
- */
+/** API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다. 새 도메인 에러가 필요하면 docs/api-spec.md의 에러 계약과 함께 추가한다. */
 public enum ErrorCode {
     // Common
     VALIDATION_FAILED("VALIDATION_FAILED", "요청 값이 올바르지 않습니다.", 400),
@@ -17,7 +14,8 @@ public enum ErrorCode {
     // Auth
     AUTH_INVALID_CREDENTIALS("AUTH_INVALID_CREDENTIALS", "로그인 정보가 올바르지 않습니다.", 401),
     AUTH_TOKEN_EXPIRED("AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다.", 401),
-    AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED("AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED", "초기 비밀번호 변경이 필요합니다.", 403),
+    AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED(
+            "AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED", "초기 비밀번호 변경이 필요합니다.", 403),
 
     // User
     USER_NOT_FOUND("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.", 404),
@@ -25,7 +23,8 @@ public enum ErrorCode {
     // Meeting
     MEETING_NOT_FOUND("MEETING_NOT_FOUND", "회의를 찾을 수 없습니다.", 404),
     MEETING_ROOM_ALREADY_RESERVED("MEETING_ROOM_ALREADY_RESERVED", "회의실이 이미 예약되어 있습니다.", 409),
-    MEETING_FORBIDDEN_GUEST_ACCESS("MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
+    MEETING_FORBIDDEN_GUEST_ACCESS(
+            "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
 
     // Minutes
     MINUTES_REVIEW_REQUIRED("MINUTES_REVIEW_REQUIRED", "회의록 검토자 승인이 필요합니다.", 409),
@@ -44,7 +43,8 @@ public enum ErrorCode {
 
     STT_SESSION_NOT_FOUND("STT_SESSION_NOT_FOUND", "STT 세션을 찾을 수 없습니다.", 404),
     STT_PROVIDER_UNAVAILABLE("STT_PROVIDER_UNAVAILABLE", "STT Provider를 사용할 수 없습니다.", 503),
-    STT_TRANSCRIPT_PUBLISH_FAILED("STT_TRANSCRIPT_PUBLISH_FAILED", "STT Transcript 발행에 실패했습니다.", 502);
+    STT_TRANSCRIPT_PUBLISH_FAILED(
+            "STT_TRANSCRIPT_PUBLISH_FAILED", "STT Transcript 발행에 실패했습니다.", 502);
 
     private final String code;
     private final String message;

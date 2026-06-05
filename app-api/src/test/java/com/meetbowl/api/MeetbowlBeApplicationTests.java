@@ -7,6 +7,5 @@ import org.springframework.boot.test.context.SpringBootTest;
 class MeetbowlBeApplicationTests {
 
     @Test
-    void contextLoads() {
-    }
+    void contextLoads() {}
 }

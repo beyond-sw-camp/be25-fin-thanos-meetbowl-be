@@ -1,14 +1,12 @@
 package com.meetbowl.domain.sampletask;
 
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * 계층 구조 예시를 위한 샘플 도메인 모델이다.
- * 실제 업무 기능이 아니므로 운영 코드에서 참조하지 않는다.
- */
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
+
+/** 계층 구조 예시를 위한 샘플 도메인 모델이다. 실제 업무 기능이 아니므로 운영 코드에서 참조하지 않는다. */
 public class SampleTask {
 
     private final UUID id;

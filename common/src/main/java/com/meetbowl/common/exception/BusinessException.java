@@ -1,11 +1,11 @@
 package com.meetbowl.common.exception;
 
-import com.meetbowl.common.response.ErrorDetail;
 import java.util.List;
 
+import com.meetbowl.common.response.ErrorDetail;
+
 /**
- * 도메인/Application 계층에서 의도한 실패를 표현하는 예외다.
- * Controller는 이 예외를 직접 처리하지 않고 GlobalExceptionHandler에 맡긴다.
+ * 도메인/Application 계층에서 의도한 실패를 표현하는 예외다. Controller는 이 예외를 직접 처리하지 않고 GlobalExceptionHandler에 맡긴다.
  */
 public class BusinessException extends RuntimeException {
 

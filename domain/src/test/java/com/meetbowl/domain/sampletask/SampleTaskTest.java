@@ -1,13 +1,15 @@
 package com.meetbowl.domain.sampletask;
 
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
-import java.time.Instant;
-import java.util.UUID;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.time.Instant;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 
 class SampleTaskTest {
 
@@ -40,11 +42,14 @@ class SampleTaskTest {
 
     @Test
     void titleMustNotBeBlank() {
-        BusinessException exception = assertThrows(BusinessException.class, () -> SampleTask.create(
-                UUID.randomUUID(),
-                " ",
-                Instant.parse("2099-01-01T01:00:00Z")
-        ));
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                SampleTask.create(
+                                        UUID.randomUUID(),
+                                        " ",
+                                        Instant.parse("2099-01-01T01:00:00Z")));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }

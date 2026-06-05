@@ -1,7 +1,5 @@
 package com.meetbowl.api.common.auth;
 
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -10,9 +8,12 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
+
 /**
- * request attribute에 저장된 AuthenticatedUser를 @CurrentUser 파라미터로 전달한다.
- * 실제 JWT 검증 필터는 추후 이 resolver 앞단에서 attribute만 채우면 된다.
+ * request attribute에 저장된 AuthenticatedUser를 @CurrentUser 파라미터로 전달한다. 실제 JWT 검증 필터는 추후 이 resolver
+ * 앞단에서 attribute만 채우면 된다.
  */
 @Component
 public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
@@ -28,10 +29,11 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
             MethodParameter parameter,
             ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest,
-            WebDataBinderFactory binderFactory
-    ) {
+            WebDataBinderFactory binderFactory) {
         CurrentUser currentUser = parameter.getParameterAnnotation(CurrentUser.class);
-        Object value = webRequest.getAttribute(AuthenticatedUserAttributes.CURRENT_USER, RequestAttributes.SCOPE_REQUEST);
+        Object value =
+                webRequest.getAttribute(
+                        AuthenticatedUserAttributes.CURRENT_USER, RequestAttributes.SCOPE_REQUEST);
 
         if (value instanceof AuthenticatedUser authenticatedUser) {
             return authenticatedUser;

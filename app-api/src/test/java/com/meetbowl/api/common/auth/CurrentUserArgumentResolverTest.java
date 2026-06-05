@@ -1,9 +1,11 @@
 package com.meetbowl.api.common.auth;
 
-import com.meetbowl.api.common.GlobalExceptionHandler;
-import com.meetbowl.api.config.WebMvcConfig;
-import com.meetbowl.common.response.ApiResponse;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -12,34 +14,28 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.meetbowl.api.common.GlobalExceptionHandler;
+import com.meetbowl.api.config.WebMvcConfig;
+import com.meetbowl.common.response.ApiResponse;
 
 @WebMvcTest(controllers = CurrentUserSampleController.class)
-@Import({
-        CurrentUserArgumentResolver.class,
-        GlobalExceptionHandler.class,
-        WebMvcConfig.class
-})
+@Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})
 class CurrentUserArgumentResolverTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
     @Test
     void injectsAuthenticatedUserFromRequestAttribute() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID organizationId = UUID.randomUUID();
-        AuthenticatedUser authenticatedUser = new AuthenticatedUser(
-                userId,
-                organizationId,
-                AuthenticatedUserRole.USER,
-                "홍길동"
-        );
+        AuthenticatedUser authenticatedUser =
+                new AuthenticatedUser(userId, organizationId, AuthenticatedUserRole.USER, "홍길동");
 
-        mockMvc.perform(get("/sample/current-user")
-                        .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, authenticatedUser))
+        mockMvc.perform(
+                        get("/sample/current-user")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.userId").value(userId.toString()))
@@ -76,25 +72,18 @@ class CurrentUserSampleController {
 
     @GetMapping("/sample/optional-current-user")
     ApiResponse<OptionalCurrentUserResponse> optionalCurrentUser(
-            @CurrentUser(required = false) AuthenticatedUser user
-    ) {
+            @CurrentUser(required = false) AuthenticatedUser user) {
         return ApiResponse.ok(new OptionalCurrentUserResponse(user != null));
     }
 }
 
 record CurrentUserResponse(
-        UUID userId,
-        UUID organizationId,
-        AuthenticatedUserRole role,
-        String displayName
-) {
+        UUID userId, UUID organizationId, AuthenticatedUserRole role, String displayName) {
 
     static CurrentUserResponse from(AuthenticatedUser user) {
-        return new CurrentUserResponse(user.userId(), user.organizationId(), user.role(), user.displayName());
+        return new CurrentUserResponse(
+                user.userId(), user.organizationId(), user.role(), user.displayName());
     }
 }
 
-record OptionalCurrentUserResponse(
-        boolean authenticated
-) {
-}
+record OptionalCurrentUserResponse(boolean authenticated) {}
