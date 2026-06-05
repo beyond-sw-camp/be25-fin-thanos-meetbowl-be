@@ -49,3 +49,15 @@ sample-jpa: JPA Entity / Spring Data Repository / Adapter 예시
 ```
 
 기본 profile에서는 샘플 Controller와 샘플 JPA scan이 켜지지 않는다.
+
+## Architecture Checks
+
+`./gradlew check`는 ArchUnit으로 모듈 의존 방향을 검증한다.
+
+```text
+domain -> app-api/application/infrastructure 금지
+application -> app-api/infrastructure 금지
+app-api -> domain/infrastructure 금지
+infrastructure -> app-api/application 금지
+Controller -> Repository 직접 의존 금지
+```
