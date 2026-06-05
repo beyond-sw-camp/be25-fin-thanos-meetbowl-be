@@ -192,14 +192,6 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 
 ## 7. Meeting Room API
 
-관련 요구사항:
-
-```text
-FR-016~021
-FR-124
-NFR-014
-```
-
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
 | GET | `/meeting-rooms` | 회의실 목록 조회 | User/Admin |
