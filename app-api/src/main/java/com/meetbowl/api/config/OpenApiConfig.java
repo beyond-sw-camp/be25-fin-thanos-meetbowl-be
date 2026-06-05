@@ -1,9 +1,12 @@
 package com.meetbowl.api.config;
 
+import com.meetbowl.api.common.ApiHeaders;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +27,25 @@ public class OpenApiConfig {
                         .license(new License().name("Private")))
                 .servers(List.of(new Server()
                         .url("/")
-                        .description("Current server")));
+                        .description("Current server")))
+                .components(new Components()
+                        .addSecuritySchemes(ApiHeaders.AUTHORIZATION, bearerAuth())
+                        .addSecuritySchemes(ApiHeaders.INTERNAL_TOKEN, internalToken()));
+    }
+
+    private SecurityScheme bearerAuth() {
+        return new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT")
+                .description("JWT access token");
+    }
+
+    private SecurityScheme internalToken() {
+        return new SecurityScheme()
+                .type(SecurityScheme.Type.APIKEY)
+                .in(SecurityScheme.In.HEADER)
+                .name(ApiHeaders.INTERNAL_TOKEN)
+                .description("Internal server-to-server token");
     }
 }
