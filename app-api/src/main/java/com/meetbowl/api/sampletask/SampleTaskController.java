@@ -18,9 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 계층별 변환 흐름을 보여주는 샘플 Controller다.
- * sample 프로필에서만 노출되며 실제 API 명세 대상이 아니다.
+ * sample 또는 sample-jpa 프로필에서만 노출되며 실제 API 명세 대상이 아니다.
  */
-@Profile("sample")
+@Profile("sample | sample-jpa")
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/sample-tasks")
 public class SampleTaskController extends BaseController {

@@ -38,3 +38,14 @@ MEETBOWL_DB_URL=jdbc:mariadb://localhost:3306/meetbowl
 MEETBOWL_DB_USERNAME=meetbowl
 MEETBOWL_DB_PASSWORD=meetbowl
 ```
+
+## Samples
+
+`sampletask`는 실제 기능이 아니라 계층 구조 참고용 예시다.
+
+```text
+sample: InMemory adapter 예시
+sample-jpa: JPA Entity / Spring Data Repository / Adapter 예시
+```
+
+기본 profile에서는 샘플 Controller와 샘플 JPA scan이 켜지지 않는다.

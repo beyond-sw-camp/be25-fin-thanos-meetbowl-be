@@ -36,8 +36,13 @@ class CreateSampleTaskUseCaseTest {
 
         @Override
         public SampleTask save(SampleTask sampleTask) {
-            this.savedSampleTask = sampleTask;
-            return sampleTask;
+            this.savedSampleTask = SampleTask.of(
+                    UUID.randomUUID(),
+                    sampleTask.ownerUserId(),
+                    sampleTask.title(),
+                    sampleTask.createdAt()
+            );
+            return savedSampleTask;
         }
     }
 }

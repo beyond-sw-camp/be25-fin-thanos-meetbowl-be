@@ -24,10 +24,14 @@ public class SampleTask {
     }
 
     public static SampleTask create(UUID ownerUserId, String title, Instant createdAt) {
+        return of(null, ownerUserId, title, createdAt);
+    }
+
+    public static SampleTask of(UUID id, UUID ownerUserId, String title, Instant createdAt) {
         if (title == null || title.isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "샘플 작업 제목은 필수입니다.");
         }
-        return new SampleTask(UUID.randomUUID(), ownerUserId, title, createdAt);
+        return new SampleTask(id, ownerUserId, title, createdAt);
     }
 
     public UUID id() {
