@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintViolationException;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -88,6 +89,16 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_REQUEST;
+        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+    }
+
+    /**
+     * @PreAuthorize 같은 메서드 보안 실패를 공통 403 응답으로 변환한다.
+     */
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthorizationDeniedException(
+            AuthorizationDeniedException exception) {
+        ErrorCode errorCode = ErrorCode.COMMON_FORBIDDEN;
         return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
     }
 
