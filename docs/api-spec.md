@@ -404,6 +404,5 @@ DELETION_SCHEDULED
 - 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 - 프론트엔드는 `meetbowl-ai`, `meetbowl-stt`의 내부 API를 직접 호출하지 않는다.
 - 실시간 자막, 실시간 피드백, 실시간 채팅은 LiveKit DataChannel을 기본으로 한다.
-- 채팅 내역 저장/조회가 필요하면 `meetbowl-be` REST API에서 권한 검사 후 처리한다.
 - 서버 내부 실시간 AI 피드백 흐름은 Redis Stream을 사용한다.
 - 반드시 처리되어야 하는 비동기 작업은 RabbitMQ를 사용한다.
