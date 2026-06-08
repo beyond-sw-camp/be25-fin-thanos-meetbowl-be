@@ -1,14 +1,11 @@
-package com.meetbowl.domain.video;
+package com.meetbowl.domain.meeting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
-
-import com.meetbowl.common.exception.BusinessException;
 
 class ParticipantSessionTest {
 
@@ -48,23 +45,21 @@ class ParticipantSessionTest {
     }
 
     @Test
-    void guestParticipantCannotHaveUserId() {
-        assertThrows(
-                BusinessException.class,
-                () ->
-                        ParticipantSession.of(
-                                UUID.randomUUID(),
-                                UUID.randomUUID(),
-                                UUID.randomUUID(),
-                                ParticipantType.GUEST,
-                                UUID.randomUUID(),
-                                UUID.randomUUID(),
-                                "게스트",
-                                "guest",
-                                ParticipantSessionStatus.JOIN_REQUESTED,
-                                null,
-                                null,
-                                null,
-                                null));
+    void leftParticipantCanBeRestoredWithoutLeaveInfo() {
+        ParticipantSession session =
+                ParticipantSession.of(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        ParticipantType.PARTICIPANT,
+                        UUID.randomUUID(),
+                        null,
+                        "회원",
+                        "user",
+                        ParticipantSessionStatus.LEFT,
+                        null,
+                        null);
+
+        assertEquals(ParticipantSessionStatus.LEFT, session.status());
     }
 }
