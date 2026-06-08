@@ -170,12 +170,6 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 | POST | `/organizations/positions` | 직급 등록 | Admin |
 | PATCH | `/organizations/positions/{positionId}` | 직급 수정 | Admin |
 | DELETE | `/organizations/positions/{positionId}` | 직급 삭제 | Admin |
-| POST | `/organizations/duties` | 직책 등록 | Admin |
-| PATCH | `/organizations/duties/{dutyId}` | 직책 수정 | Admin |
-| DELETE | `/organizations/duties/{dutyId}` | 직책 삭제 | Admin |
-| POST | `/organizations/jobs` | 직무 등록 | Admin |
-| PATCH | `/organizations/jobs/{jobId}` | 직무 수정 | Admin |
-| DELETE | `/organizations/jobs/{jobId}` | 직무 삭제 | Admin |
 
 ---
 
@@ -223,18 +217,8 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 | PATCH | `/meetings/{meetingId}` | 회의 일정, 회의실, 참석자, 검토자 수정 | Host/Admin |
 | DELETE | `/meetings/{meetingId}` | 회의 취소 | Host/Admin |
 | POST | `/meetings/{meetingId}/join` | 회의 참여 정보 조회 | Participant/Guest |
-| POST | `/meetings/{meetingId}/leave` | 회의 퇴장 | Participant/Guest |
-| POST | `/meetings/{meetingId}/end` | 회의 종료 | Host/Admin/System |
 | POST | `/meetings/{meetingId}/invite-link` | 회의 초대 코드/URL 생성 | Host |
 | POST | `/meetings/guest-join` | 게스트 초대 코드로 회의 참여 | Public |
-| POST | `/meetings/{meetingId}/recording/start` | 회의 녹음 시작 | Host/System |
-| POST | `/meetings/{meetingId}/recording/stop` | 회의 녹음 종료 | Host/System |
-| POST | `/meetings/{meetingId}/attachments` | 회의 참고자료 첨부파일 등록 | Host/Admin |
-| GET | `/meetings/{meetingId}/attachments` | 회의 참고자료 첨부파일 목록 조회 | Participant/Admin |
-| GET | `/meetings/{meetingId}/attachments/{attachmentId}` | 회의 참고자료 첨부파일 다운로드 | Participant/Admin |
-| DELETE | `/meetings/{meetingId}/attachments/{attachmentId}` | 회의 참고자료 첨부파일 삭제 | Host/Admin |
-| GET | `/meetings/{meetingId}/caption-language` | 현재 자막 표시 언어 조회 | Participant/Guest |
-| PATCH | `/meetings/{meetingId}/caption-language` | KOR/ENG 자막 표시 언어 변경 | Participant/Guest |
 
 회의 생성/수정 시 회의록 검토자를 지정할 수 있다.
 
@@ -270,11 +254,9 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 | GET | `/meetings/{meetingId}/minutes` | 회의록 조회 | Participant/Admin |
 | PATCH | `/meetings/{meetingId}/minutes` | 회의록 검토 및 수정 | Reviewer |
 | POST | `/meetings/{meetingId}/minutes/approve` | 회의록 공유 수락 | Reviewer |
-| POST | `/meetings/{meetingId}/minutes/review-remind` | 검토 지연 재알림 발송 | System/Admin |
 | POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
 | POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
 | GET | `/minutes` | 회의록 목록/검색 | User/Admin |
-| POST | `/internal/meetings/{meetingId}/minutes/draft` | ai-server가 생성한 회의록 초안 저장 | Internal |
 
 AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generated` 이벤트 소비다.
 
