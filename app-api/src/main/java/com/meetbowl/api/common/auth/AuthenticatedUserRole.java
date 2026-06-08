@@ -4,6 +4,5 @@ package com.meetbowl.api.common.auth;
 public enum AuthenticatedUserRole {
     USER,
     ADMIN,
-    GUEST,
     SYSTEM
 }

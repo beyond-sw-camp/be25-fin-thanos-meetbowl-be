@@ -10,10 +10,6 @@ public record AuthenticatedUser(
         return role == AuthenticatedUserRole.ADMIN;
     }
 
-    public boolean isGuest() {
-        return role == AuthenticatedUserRole.GUEST;
-    }
-
     public boolean isSystem() {
         return role == AuthenticatedUserRole.SYSTEM;
     }
