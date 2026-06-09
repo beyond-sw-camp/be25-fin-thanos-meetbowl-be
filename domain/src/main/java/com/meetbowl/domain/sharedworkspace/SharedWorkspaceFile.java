@@ -19,7 +19,7 @@ public class SharedWorkspaceFile {
     private final String contentType;
     private final long sizeBytes;
     private final String storageKey;
-    private final int currentVersionNumber;
+    private final DocumentVersion currentVersion;
     private final Instant uploadedAt;
     private final Instant deletedAt;
 
@@ -31,7 +31,7 @@ public class SharedWorkspaceFile {
             String contentType,
             long sizeBytes,
             String storageKey,
-            int currentVersionNumber,
+            DocumentVersion currentVersion,
             Instant uploadedAt,
             Instant deletedAt) {
         this.id = id;
@@ -41,7 +41,7 @@ public class SharedWorkspaceFile {
         this.contentType = contentType;
         this.sizeBytes = sizeBytes;
         this.storageKey = storageKey;
-        this.currentVersionNumber = currentVersionNumber;
+        this.currentVersion = currentVersion;
         this.uploadedAt = uploadedAt;
         this.deletedAt = deletedAt;
     }
@@ -62,7 +62,7 @@ public class SharedWorkspaceFile {
                 contentType,
                 sizeBytes,
                 storageKey,
-                1,
+                DocumentVersion.INITIAL,
                 uploadedAt,
                 null);
     }
@@ -75,7 +75,7 @@ public class SharedWorkspaceFile {
             String contentType,
             long sizeBytes,
             String storageKey,
-            int currentVersionNumber,
+            DocumentVersion currentVersion,
             Instant uploadedAt,
             Instant deletedAt) {
         SharedWorkspaceValidators.requireId(workspaceId, "공유 워크스페이스 ID는 필수입니다.");
@@ -92,9 +92,8 @@ public class SharedWorkspaceFile {
         if (sizeBytes <= 0) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 크기는 0보다 커야 합니다.");
         }
-        if (currentVersionNumber < 1) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 현재 버전은 1 이상이어야 합니다.");
+        if (currentVersion == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 현재 버전은 필수입니다.");
         }
         if (uploadedAt == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 업로드 시각은 필수입니다.");
@@ -108,7 +107,7 @@ public class SharedWorkspaceFile {
                 SharedWorkspaceValidators.normalize(contentType),
                 sizeBytes,
                 storageKey.trim(),
-                currentVersionNumber,
+                currentVersion,
                 uploadedAt,
                 deletedAt);
     }
@@ -119,10 +118,16 @@ public class SharedWorkspaceFile {
             String contentType,
             long sizeBytes,
             String storageKey,
-            int versionNumber,
+            DocumentVersion expectedCurrentVersion,
+            DocumentVersion newVersion,
             Instant uploadedAt) {
-        if (versionNumber <= currentVersionNumber) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "새 버전 번호는 현재 버전보다 커야 합니다.");
+        ensureActive();
+        if (!currentVersion.equals(expectedCurrentVersion)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_CONFLICT, "다른 사용자가 먼저 저장했습니다. 최신 버전을 확인한 후 다시 저장해 주세요.");
+        }
+        if (newVersion == null || newVersion.compareTo(currentVersion) <= 0) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "새 문서 버전은 현재 버전보다 커야 합니다.");
         }
         return of(
                 id,
@@ -132,12 +137,13 @@ public class SharedWorkspaceFile {
                 contentType,
                 sizeBytes,
                 storageKey,
-                versionNumber,
+                newVersion,
                 uploadedAt,
                 deletedAt);
     }
 
     public SharedWorkspaceFile delete(Instant deletedAt) {
+        ensureActive();
         if (deletedAt == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 삭제 시각은 필수입니다.");
         }
@@ -149,7 +155,7 @@ public class SharedWorkspaceFile {
                 contentType,
                 sizeBytes,
                 storageKey,
-                currentVersionNumber,
+                currentVersion,
                 uploadedAt,
                 deletedAt);
     }
@@ -186,8 +192,8 @@ public class SharedWorkspaceFile {
         return storageKey;
     }
 
-    public int currentVersionNumber() {
-        return currentVersionNumber;
+    public DocumentVersion currentVersion() {
+        return currentVersion;
     }
 
     public Instant uploadedAt() {
@@ -196,5 +202,11 @@ public class SharedWorkspaceFile {
 
     public Instant deletedAt() {
         return deletedAt;
+    }
+
+    private void ensureActive() {
+        if (isDeleted()) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "삭제된 공유 파일은 변경할 수 없습니다.");
+        }
     }
 }

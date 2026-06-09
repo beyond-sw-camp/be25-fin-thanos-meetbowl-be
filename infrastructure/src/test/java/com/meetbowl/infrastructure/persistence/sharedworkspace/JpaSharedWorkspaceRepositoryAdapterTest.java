@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
+import com.meetbowl.domain.sharedworkspace.DocumentVersion;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspace;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileVersion;
@@ -68,7 +69,7 @@ class JpaSharedWorkspaceRepositoryAdapterTest {
                 versionAdapter.save(
                         SharedWorkspaceFileVersion.create(
                                 file.id(),
-                                1,
+                                DocumentVersion.INITIAL,
                                 memberUserId,
                                 "기획서-v1.pdf",
                                 "application/pdf",
@@ -84,13 +85,14 @@ class JpaSharedWorkspaceRepositoryAdapterTest {
                                 "application/pdf",
                                 2048L,
                                 "shared/workspace/file-v2.pdf",
-                                2,
+                                DocumentVersion.INITIAL,
+                                DocumentVersion.parse("1.1.0"),
                                 now.plusSeconds(180)));
         SharedWorkspaceFileVersion secondVersion =
                 versionAdapter.save(
                         SharedWorkspaceFileVersion.create(
                                 file.id(),
-                                2,
+                                DocumentVersion.parse("1.1.0"),
                                 memberUserId,
                                 "기획서-v2.pdf",
                                 "application/pdf",
@@ -110,12 +112,12 @@ class JpaSharedWorkspaceRepositoryAdapterTest {
         assertThat(member.isActive()).isTrue();
         assertThat(visibleWorkspaces).hasSize(1);
         assertThat(files).hasSize(1);
-        assertThat(updatedFile.currentVersionNumber()).isEqualTo(2);
+        assertThat(updatedFile.currentVersion()).isEqualTo(DocumentVersion.parse("1.1.0"));
         assertThat(firstVersion.id()).isNotNull();
         assertThat(secondVersion.id()).isNotNull();
         assertThat(versions)
-                .extracting(SharedWorkspaceFileVersion::versionNumber)
-                .containsExactly(2, 1);
+                .extracting(SharedWorkspaceFileVersion::version)
+                .containsExactly(DocumentVersion.parse("1.1.0"), DocumentVersion.INITIAL);
         assertThat(members)
                 .extracting(SharedWorkspaceMember::userId)
                 .contains(ownerUserId, memberUserId);

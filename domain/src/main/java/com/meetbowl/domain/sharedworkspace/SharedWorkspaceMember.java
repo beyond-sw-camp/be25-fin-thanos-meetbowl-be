@@ -90,6 +90,15 @@ public class SharedWorkspaceMember {
             throw new BusinessException(
                     ErrorCode.COMMON_INVALID_REQUEST, "공유 워크스페이스 멤버 제거 시각은 필수입니다.");
         }
+        if (status == SharedWorkspaceMemberStatus.ACTIVE && removedAt != null) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "활성 멤버는 제거 시각을 가질 수 없습니다.");
+        }
+        if (role == SharedWorkspaceMemberRole.OWNER
+                && status != SharedWorkspaceMemberStatus.ACTIVE) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "공유 워크스페이스 소유자는 활성 상태여야 합니다.");
+        }
 
         return new SharedWorkspaceMember(
                 id, workspaceId, userId, role, status, invitedByUserId, joinedAt, removedAt);
@@ -109,6 +118,21 @@ public class SharedWorkspaceMember {
                 invitedByUserId,
                 joinedAt,
                 removedAt);
+    }
+
+    public SharedWorkspaceMember reactivate(UUID invitedByUserId, Instant rejoinedAt) {
+        if (isActive()) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "이미 참여 중인 멤버입니다.");
+        }
+        return of(
+                id,
+                workspaceId,
+                userId,
+                SharedWorkspaceMemberRole.MEMBER,
+                SharedWorkspaceMemberStatus.ACTIVE,
+                invitedByUserId,
+                rejoinedAt,
+                null);
     }
 
     public boolean isActive() {

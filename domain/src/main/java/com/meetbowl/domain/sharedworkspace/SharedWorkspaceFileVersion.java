@@ -15,7 +15,7 @@ public class SharedWorkspaceFileVersion {
 
     private final UUID id;
     private final UUID fileId;
-    private final int versionNumber;
+    private final DocumentVersion version;
     private final UUID uploaderUserId;
     private final String originalFileName;
     private final String contentType;
@@ -27,7 +27,7 @@ public class SharedWorkspaceFileVersion {
     private SharedWorkspaceFileVersion(
             UUID id,
             UUID fileId,
-            int versionNumber,
+            DocumentVersion version,
             UUID uploaderUserId,
             String originalFileName,
             String contentType,
@@ -37,7 +37,7 @@ public class SharedWorkspaceFileVersion {
             Instant uploadedAt) {
         this.id = id;
         this.fileId = fileId;
-        this.versionNumber = versionNumber;
+        this.version = version;
         this.uploaderUserId = uploaderUserId;
         this.originalFileName = originalFileName;
         this.contentType = contentType;
@@ -49,7 +49,7 @@ public class SharedWorkspaceFileVersion {
 
     public static SharedWorkspaceFileVersion create(
             UUID fileId,
-            int versionNumber,
+            DocumentVersion version,
             UUID uploaderUserId,
             String originalFileName,
             String contentType,
@@ -60,7 +60,7 @@ public class SharedWorkspaceFileVersion {
         return of(
                 null,
                 fileId,
-                versionNumber,
+                version,
                 uploaderUserId,
                 originalFileName,
                 contentType,
@@ -73,7 +73,7 @@ public class SharedWorkspaceFileVersion {
     public static SharedWorkspaceFileVersion of(
             UUID id,
             UUID fileId,
-            int versionNumber,
+            DocumentVersion version,
             UUID uploaderUserId,
             String originalFileName,
             String contentType,
@@ -97,9 +97,8 @@ public class SharedWorkspaceFileVersion {
                 contentType, MAX_CONTENT_TYPE_LENGTH, "공유 파일 버전 Content-Type은 100자 이하여야 합니다.");
         SharedWorkspaceValidators.validateOptionalLength(
                 changeMemo, MAX_CHANGE_MEMO_LENGTH, "공유 파일 버전 변경 메모는 1000자 이하여야 합니다.");
-        if (versionNumber < 1) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 버전 번호는 1 이상이어야 합니다.");
+        if (version == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "공유 파일 버전은 필수입니다.");
         }
         if (sizeBytes <= 0) {
             throw new BusinessException(
@@ -113,7 +112,7 @@ public class SharedWorkspaceFileVersion {
         return new SharedWorkspaceFileVersion(
                 id,
                 fileId,
-                versionNumber,
+                version,
                 uploaderUserId,
                 originalFileName.trim(),
                 SharedWorkspaceValidators.normalize(contentType),
@@ -127,7 +126,7 @@ public class SharedWorkspaceFileVersion {
         return of(
                 id,
                 fileId,
-                versionNumber,
+                version,
                 uploaderUserId,
                 originalFileName,
                 contentType,
@@ -145,8 +144,8 @@ public class SharedWorkspaceFileVersion {
         return fileId;
     }
 
-    public int versionNumber() {
-        return versionNumber;
+    public DocumentVersion version() {
+        return version;
     }
 
     public UUID uploaderUserId() {

@@ -8,5 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface SpringDataSharedWorkspaceFileVersionRepository
         extends JpaRepository<SharedWorkspaceFileVersionEntity, UUID> {
 
-    List<SharedWorkspaceFileVersionEntity> findByFileIdOrderByVersionNumberDesc(UUID fileId);
+    List<SharedWorkspaceFileVersionEntity>
+            findByFileIdOrderByVersionMajorDescVersionMinorDescVersionPatchDesc(UUID fileId);
 }

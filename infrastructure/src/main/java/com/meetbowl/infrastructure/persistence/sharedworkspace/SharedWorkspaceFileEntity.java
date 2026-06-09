@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
+import com.meetbowl.domain.sharedworkspace.DocumentVersion;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
@@ -36,7 +37,13 @@ public class SharedWorkspaceFileEntity extends BaseEntity {
     private String storageKey;
 
     @Column(nullable = false)
-    private int currentVersionNumber;
+    private int currentVersionMajor;
+
+    @Column(nullable = false)
+    private int currentVersionMinor;
+
+    @Column(nullable = false)
+    private int currentVersionPatch;
 
     @Column(nullable = false)
     private Instant uploadedAt;
@@ -52,7 +59,9 @@ public class SharedWorkspaceFileEntity extends BaseEntity {
             String contentType,
             long sizeBytes,
             String storageKey,
-            int currentVersionNumber,
+            int currentVersionMajor,
+            int currentVersionMinor,
+            int currentVersionPatch,
             Instant uploadedAt,
             Instant deletedAt) {
         this.workspaceId = workspaceId;
@@ -61,7 +70,9 @@ public class SharedWorkspaceFileEntity extends BaseEntity {
         this.contentType = contentType;
         this.sizeBytes = sizeBytes;
         this.storageKey = storageKey;
-        this.currentVersionNumber = currentVersionNumber;
+        this.currentVersionMajor = currentVersionMajor;
+        this.currentVersionMinor = currentVersionMinor;
+        this.currentVersionPatch = currentVersionPatch;
         this.uploadedAt = uploadedAt;
         this.deletedAt = deletedAt;
     }
@@ -75,7 +86,9 @@ public class SharedWorkspaceFileEntity extends BaseEntity {
                         file.contentType(),
                         file.sizeBytes(),
                         file.storageKey(),
-                        file.currentVersionNumber(),
+                        file.currentVersion().major(),
+                        file.currentVersion().minor(),
+                        file.currentVersion().patch(),
                         file.uploadedAt(),
                         file.deletedAt());
         entity.setId(file.id());
@@ -91,7 +104,7 @@ public class SharedWorkspaceFileEntity extends BaseEntity {
                 contentType,
                 sizeBytes,
                 storageKey,
-                currentVersionNumber,
+                new DocumentVersion(currentVersionMajor, currentVersionMinor, currentVersionPatch),
                 uploadedAt,
                 deletedAt);
     }

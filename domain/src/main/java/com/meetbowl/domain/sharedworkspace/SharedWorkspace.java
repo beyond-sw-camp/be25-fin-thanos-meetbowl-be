@@ -92,6 +92,7 @@ public class SharedWorkspace {
     }
 
     public SharedWorkspace update(String name, String description) {
+        ensureActive();
         return of(
                 id,
                 organizationId,
@@ -104,6 +105,7 @@ public class SharedWorkspace {
     }
 
     public SharedWorkspace openToOrganization() {
+        ensureActive();
         return of(
                 id,
                 organizationId,
@@ -116,6 +118,7 @@ public class SharedWorkspace {
     }
 
     public SharedWorkspace restrictToMembers() {
+        ensureActive();
         return of(
                 id,
                 organizationId,
@@ -128,6 +131,7 @@ public class SharedWorkspace {
     }
 
     public SharedWorkspace delete(Instant deletedAt) {
+        ensureActive();
         if (deletedAt == null) {
             throw new BusinessException(
                     ErrorCode.COMMON_INVALID_REQUEST, "공유 워크스페이스 삭제 시각은 필수입니다.");
@@ -185,5 +189,11 @@ public class SharedWorkspace {
 
     public Instant deletedAt() {
         return deletedAt;
+    }
+
+    private void ensureActive() {
+        if (isDeleted()) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "삭제된 공유 워크스페이스는 변경할 수 없습니다.");
+        }
     }
 }

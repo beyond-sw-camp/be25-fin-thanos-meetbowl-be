@@ -10,5 +10,7 @@ public interface SharedWorkspaceFileRepositoryPort {
 
     Optional<SharedWorkspaceFile> findById(UUID fileId);
 
+    Optional<SharedWorkspaceFile> findByIdForUpdate(UUID fileId);
+
     List<SharedWorkspaceFile> findActiveByWorkspaceId(UUID workspaceId);
 }

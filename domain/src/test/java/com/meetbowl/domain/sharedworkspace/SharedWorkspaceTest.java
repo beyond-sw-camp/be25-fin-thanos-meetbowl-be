@@ -70,10 +70,11 @@ class SharedWorkspaceTest {
                         "application/pdf",
                         2048L,
                         "shared/workspace/file-v2.pdf",
-                        2,
+                        DocumentVersion.INITIAL,
+                        DocumentVersion.parse("v.1.1.0"),
                         Instant.parse("2099-01-02T01:00:00Z"));
 
-        assertEquals(2, updated.currentVersionNumber());
+        assertEquals(DocumentVersion.parse("1.1.0"), updated.currentVersion());
         assertEquals("기획서-v2.pdf", updated.originalFileName());
         assertEquals("shared/workspace/file-v2.pdf", updated.storageKey());
     }
@@ -83,7 +84,7 @@ class SharedWorkspaceTest {
         SharedWorkspaceFileVersion version =
                 SharedWorkspaceFileVersion.create(
                         UUID.randomUUID(),
-                        1,
+                        DocumentVersion.INITIAL,
                         UUID.randomUUID(),
                         "기획서.pdf",
                         "application/pdf",
@@ -95,5 +96,77 @@ class SharedWorkspaceTest {
         SharedWorkspaceFileVersion updated = version.updateChangeMemo("초안 업로드");
 
         assertEquals("초안 업로드", updated.changeMemo());
+    }
+
+    @Test
+    void createFileStartsAtVersionOne() {
+        SharedWorkspaceFile file =
+                SharedWorkspaceFile.create(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "기획서.pdf",
+                        "application/pdf",
+                        1024L,
+                        "shared/workspace/file.pdf",
+                        Instant.parse("2099-01-01T01:00:00Z"));
+
+        assertEquals("v.1.0.0", file.currentVersion().displayValue());
+    }
+
+    @Test
+    void rejectSameOlderAndStaleFileVersions() {
+        UUID uploaderUserId = UUID.randomUUID();
+        SharedWorkspaceFile file =
+                SharedWorkspaceFile.create(
+                        UUID.randomUUID(),
+                        uploaderUserId,
+                        "기획서.pdf",
+                        "application/pdf",
+                        1024L,
+                        "shared/workspace/file.pdf",
+                        Instant.parse("2099-01-01T01:00:00Z"));
+
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        file.addVersion(
+                                uploaderUserId,
+                                "기획서.pdf",
+                                "application/pdf",
+                                1024L,
+                                "shared/workspace/file.pdf",
+                                DocumentVersion.INITIAL,
+                                DocumentVersion.INITIAL,
+                                Instant.parse("2099-01-02T01:00:00Z")));
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        file.addVersion(
+                                uploaderUserId,
+                                "기획서.pdf",
+                                "application/pdf",
+                                1024L,
+                                "shared/workspace/file.pdf",
+                                DocumentVersion.parse("1.0.1"),
+                                DocumentVersion.parse("1.1.0"),
+                                Instant.parse("2099-01-02T01:00:00Z")));
+    }
+
+    @Test
+    void removedMemberCanBeInvitedAgain() {
+        UUID inviterUserId = UUID.randomUUID();
+        SharedWorkspaceMember removed =
+                SharedWorkspaceMember.invite(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                inviterUserId,
+                                Instant.parse("2099-01-01T01:00:00Z"))
+                        .remove(Instant.parse("2099-01-02T01:00:00Z"));
+
+        SharedWorkspaceMember reactivated =
+                removed.reactivate(inviterUserId, Instant.parse("2099-01-03T01:00:00Z"));
+
+        assertTrue(reactivated.isActive());
+        assertEquals(null, reactivated.removedAt());
     }
 }

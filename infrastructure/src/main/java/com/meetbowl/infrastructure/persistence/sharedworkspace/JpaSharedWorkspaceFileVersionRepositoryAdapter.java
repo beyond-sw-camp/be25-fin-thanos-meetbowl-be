@@ -32,7 +32,9 @@ public class JpaSharedWorkspaceFileVersionRepositoryAdapter
 
     @Override
     public List<SharedWorkspaceFileVersion> findByFileId(UUID fileId) {
-        return repository.findByFileIdOrderByVersionNumberDesc(fileId).stream()
+        return repository
+                .findByFileIdOrderByVersionMajorDescVersionMinorDescVersionPatchDesc(fileId)
+                .stream()
                 .map(SharedWorkspaceFileVersionEntity::toDomain)
                 .toList();
     }

@@ -30,6 +30,11 @@ public class JpaSharedWorkspaceFileRepositoryAdapter implements SharedWorkspaceF
     }
 
     @Override
+    public Optional<SharedWorkspaceFile> findByIdForUpdate(UUID fileId) {
+        return repository.findForUpdateById(fileId).map(SharedWorkspaceFileEntity::toDomain);
+    }
+
+    @Override
     public List<SharedWorkspaceFile> findActiveByWorkspaceId(UUID workspaceId) {
         return repository
                 .findByWorkspaceIdAndDeletedAtIsNullOrderByUploadedAtDesc(workspaceId)

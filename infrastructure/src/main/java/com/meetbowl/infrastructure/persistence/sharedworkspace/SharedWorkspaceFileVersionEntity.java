@@ -9,6 +9,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+import com.meetbowl.domain.sharedworkspace.DocumentVersion;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileVersion;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
@@ -18,7 +19,12 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
         uniqueConstraints =
                 @UniqueConstraint(
                         name = "uk_shared_workspace_file_version",
-                        columnNames = {"file_id", "version_number"}),
+                        columnNames = {
+                            "file_id",
+                            "version_major",
+                            "version_minor",
+                            "version_patch"
+                        }),
         indexes = @Index(name = "idx_shared_workspace_file_version_file", columnList = "file_id"))
 public class SharedWorkspaceFileVersionEntity extends BaseEntity {
 
@@ -26,7 +32,13 @@ public class SharedWorkspaceFileVersionEntity extends BaseEntity {
     private UUID fileId;
 
     @Column(nullable = false)
-    private int versionNumber;
+    private int versionMajor;
+
+    @Column(nullable = false)
+    private int versionMinor;
+
+    @Column(nullable = false)
+    private int versionPatch;
 
     @Column(nullable = false, columnDefinition = "BINARY(16)")
     private UUID uploaderUserId;
@@ -53,7 +65,9 @@ public class SharedWorkspaceFileVersionEntity extends BaseEntity {
 
     private SharedWorkspaceFileVersionEntity(
             UUID fileId,
-            int versionNumber,
+            int versionMajor,
+            int versionMinor,
+            int versionPatch,
             UUID uploaderUserId,
             String originalFileName,
             String contentType,
@@ -62,7 +76,9 @@ public class SharedWorkspaceFileVersionEntity extends BaseEntity {
             String changeMemo,
             Instant uploadedAt) {
         this.fileId = fileId;
-        this.versionNumber = versionNumber;
+        this.versionMajor = versionMajor;
+        this.versionMinor = versionMinor;
+        this.versionPatch = versionPatch;
         this.uploaderUserId = uploaderUserId;
         this.originalFileName = originalFileName;
         this.contentType = contentType;
@@ -76,7 +92,9 @@ public class SharedWorkspaceFileVersionEntity extends BaseEntity {
         SharedWorkspaceFileVersionEntity entity =
                 new SharedWorkspaceFileVersionEntity(
                         version.fileId(),
-                        version.versionNumber(),
+                        version.version().major(),
+                        version.version().minor(),
+                        version.version().patch(),
                         version.uploaderUserId(),
                         version.originalFileName(),
                         version.contentType(),
@@ -92,7 +110,7 @@ public class SharedWorkspaceFileVersionEntity extends BaseEntity {
         return SharedWorkspaceFileVersion.of(
                 getId(),
                 fileId,
-                versionNumber,
+                new DocumentVersion(versionMajor, versionMinor, versionPatch),
                 uploaderUserId,
                 originalFileName,
                 contentType,
