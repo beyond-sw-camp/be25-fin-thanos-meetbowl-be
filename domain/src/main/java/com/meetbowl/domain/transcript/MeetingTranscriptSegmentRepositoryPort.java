@@ -11,7 +11,7 @@ import java.util.UUID;
  */
 public interface MeetingTranscriptSegmentRepositoryPort {
 
-    /** 검증된 FINAL segment를 저장하고 DB 식별자가 반영된 도메인 모델을 반환한다. */
+    /** 검증된 최종 segment를 저장하고 DB 식별자가 반영된 도메인 모델을 반환한다. */
     MeetingTranscriptSegment save(MeetingTranscriptSegment segment);
 
     /** 동일 RabbitMQ 이벤트가 이미 처리됐는지 확인해 적어도 한 번 전달로 인한 중복 저장을 방지한다. */

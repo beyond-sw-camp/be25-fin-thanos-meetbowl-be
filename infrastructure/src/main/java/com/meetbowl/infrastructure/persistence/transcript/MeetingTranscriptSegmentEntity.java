@@ -11,13 +11,12 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import com.meetbowl.domain.transcript.MeetingTranscriptSegment;
-import com.meetbowl.domain.transcript.MeetingTranscriptSegmentStatus;
 import com.meetbowl.domain.transcript.TranscriptLanguage;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
  * RabbitMQ로 수신한 최종 회의 원문 segment를 저장하는 JPA Entity다. OpenAI Realtime Translation의 delta 조각은 저장하지 않고,
- * STT 서버가 확정한 FINAL segment만 저장한다. 회의 전체 원문과 양방향 번역문을 함께 조회할 수 있도록 source/ko/en 텍스트를 한 행에 보관한다.
+ * STT 서버가 확정한 최종 segment만 저장한다. 회의 전체 원문과 양방향 번역문을 함께 조회할 수 있도록 source/ko/en 텍스트를 한 행에 보관한다.
  */
 @Entity
 @Table(
@@ -81,11 +80,6 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
     @Column(name = "ended_at_ms")
     private Long endedAtMs;
 
-    /** 현재 영속화 정책상 항상 FINAL이지만, 상태 필드를 남겨 런타임 모델과 저장 모델의 의미를 맞춘다. */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private MeetingTranscriptSegmentStatus status;
-
     /** RabbitMQ 이벤트 ID로, 같은 최종 segment가 재전달될 때 중복 저장을 차단하는 멱등성 키다. */
     @Column(
             name = "source_event_id",
@@ -107,7 +101,6 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
             String enText,
             Long startedAtMs,
             Long endedAtMs,
-            MeetingTranscriptSegmentStatus status,
             UUID sourceEventId) {
         this.meetingId = meetingId;
         this.segmentId = segmentId;
@@ -118,7 +111,6 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
         this.enText = enText;
         this.startedAtMs = startedAtMs;
         this.endedAtMs = endedAtMs;
-        this.status = status;
         this.sourceEventId = sourceEventId;
     }
 
@@ -139,7 +131,6 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
                         meetingTranscriptSegment.enText(),
                         meetingTranscriptSegment.startedAtMs(),
                         meetingTranscriptSegment.endedAtMs(),
-                        meetingTranscriptSegment.status(),
                         meetingTranscriptSegment.sourceEventId());
         entity.setId(meetingTranscriptSegment.id());
         return entity;
@@ -162,7 +153,6 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
                 enText,
                 startedAtMs,
                 endedAtMs,
-                status,
                 sourceEventId);
     }
 }

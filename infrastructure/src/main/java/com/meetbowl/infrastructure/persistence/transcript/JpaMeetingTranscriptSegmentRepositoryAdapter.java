@@ -25,7 +25,7 @@ public class JpaMeetingTranscriptSegmentRepositoryAdapter
         this.repository = repository;
     }
 
-    /** 검증된 FINAL segment를 Entity로 변환해 저장하고, 저장 결과를 다시 Domain으로 반환한다. */
+    /** 검증된 최종 segment를 Entity로 변환해 저장하고, 저장 결과를 다시 Domain으로 반환한다. */
     @Override
     public MeetingTranscriptSegment save(MeetingTranscriptSegment segment) {
         return repository.save(MeetingTranscriptSegmentEntity.from(segment)).toDomain();

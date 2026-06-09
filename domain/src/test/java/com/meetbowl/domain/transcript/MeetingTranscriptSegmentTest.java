@@ -12,12 +12,12 @@ import com.meetbowl.common.exception.BusinessException;
 class MeetingTranscriptSegmentTest {
 
     @Test
-    void createFinalTranscriptSegment() {
+    void createTranscriptSegment() {
         UUID meetingId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
 
         MeetingTranscriptSegment segment =
-                MeetingTranscriptSegment.createFinal(
+                MeetingTranscriptSegment.create(
                         meetingId,
                         "segment-001",
                         0,
@@ -36,7 +36,6 @@ class MeetingTranscriptSegmentTest {
         assertEquals("회의를 시작하겠습니다.", segment.koText());
         assertEquals("Let's begin the meeting.", segment.enText());
         assertEquals(0, segment.sequence());
-        assertEquals(MeetingTranscriptSegmentStatus.FINAL, segment.status());
     }
 
     @Test
@@ -44,7 +43,7 @@ class MeetingTranscriptSegmentTest {
         assertThrows(
                 BusinessException.class,
                 () ->
-                        MeetingTranscriptSegment.createFinal(
+                        MeetingTranscriptSegment.create(
                                 UUID.randomUUID(),
                                 "segment-001",
                                 -1,
@@ -54,26 +53,6 @@ class MeetingTranscriptSegmentTest {
                                 "sentence",
                                 null,
                                 null,
-                                UUID.randomUUID()));
-    }
-
-    @Test
-    void streamingStatusMustNotBePersisted() {
-        assertThrows(
-                BusinessException.class,
-                () ->
-                        MeetingTranscriptSegment.of(
-                                null,
-                                UUID.randomUUID(),
-                                "segment-001",
-                                0,
-                                TranscriptLanguage.EN,
-                                "hello",
-                                "안녕하세요",
-                                "hello",
-                                10L,
-                                20L,
-                                MeetingTranscriptSegmentStatus.STREAMING,
                                 UUID.randomUUID()));
     }
 }

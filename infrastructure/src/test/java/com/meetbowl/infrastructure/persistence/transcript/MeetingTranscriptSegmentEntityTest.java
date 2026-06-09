@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.meetbowl.domain.transcript.MeetingTranscriptSegment;
-import com.meetbowl.domain.transcript.MeetingTranscriptSegmentStatus;
 import com.meetbowl.domain.transcript.TranscriptLanguage;
 
 class MeetingTranscriptSegmentEntityTest {
@@ -28,7 +27,6 @@ class MeetingTranscriptSegmentEntityTest {
                         "Let's start the meeting.",
                         1000L,
                         3000L,
-                        MeetingTranscriptSegmentStatus.FINAL,
                         eventId);
 
         MeetingTranscriptSegment restored = MeetingTranscriptSegmentEntity.from(source).toDomain();

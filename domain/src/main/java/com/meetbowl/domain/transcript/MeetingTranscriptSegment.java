@@ -9,7 +9,7 @@ import com.meetbowl.common.exception.ErrorCode;
  * 회의 중 확정된 최종 발화 segment 하나를 표현하는 도메인 모델이다.
  *
  * <p>OpenAI Realtime Translation은 번역 결과를 delta로 계속 흘려보내므로, DB에는 중간 조각을 저장하지 않고 STT 서버가 발화 종료를 확정한
- * FINAL segment만 저장한다. 회의 전체 원문은 같은 meetingId의 segment를 sequence 기준으로 정렬해 sourceText를 이어 붙여 재구성한다.
+ * 최종 segment만 저장한다. 회의 전체 원문은 같은 meetingId의 segment를 sequence 기준으로 정렬해 sourceText를 이어 붙여 재구성한다.
  */
 public class MeetingTranscriptSegment {
 
@@ -43,9 +43,6 @@ public class MeetingTranscriptSegment {
     /** 회의 시작 기준 발화 종료 오프셋(ms)이다. */
     private final Long endedAtMs;
 
-    /** segment 저장 상태다. 현재 MariaDB에는 FINAL 상태만 저장한다. */
-    private final MeetingTranscriptSegmentStatus status;
-
     /** RabbitMQ 이벤트의 고유 ID로, 재전달된 이벤트를 중복 저장하지 않기 위한 멱등성 키다. */
     private final UUID sourceEventId;
 
@@ -60,7 +57,6 @@ public class MeetingTranscriptSegment {
             String enText,
             Long startedAtMs,
             Long endedAtMs,
-            MeetingTranscriptSegmentStatus status,
             UUID sourceEventId) {
         this.id = id;
         this.meetingId = meetingId;
@@ -72,17 +68,15 @@ public class MeetingTranscriptSegment {
         this.enText = enText;
         this.startedAtMs = startedAtMs;
         this.endedAtMs = endedAtMs;
-        this.status = status;
         this.sourceEventId = sourceEventId;
     }
 
     /**
      * STT 서버가 발화 종료를 확정한 최종 segment를 신규 도메인 모델로 생성한다.
      *
-     * <p>API 서버는 RabbitMQ에서 받은 최종 segment만 저장하므로 status는 항상 FINAL로 고정한다. 중간 delta와 버퍼 상태는 STT 서버나
-     * 임시 캐시에만 남긴다.
+     * <p>API 서버는 RabbitMQ에서 받은 최종 segment만 저장한다. 중간 delta와 버퍼 상태는 STT 서버나 임시 캐시에만 남긴다.
      */
-    public static MeetingTranscriptSegment createFinal(
+    public static MeetingTranscriptSegment create(
             UUID meetingId,
             String segmentId,
             long sequence,
@@ -104,16 +98,10 @@ public class MeetingTranscriptSegment {
                 enText,
                 startedAtMs,
                 endedAtMs,
-                MeetingTranscriptSegmentStatus.FINAL,
                 sourceEventId);
     }
 
-    /**
-     * 저장된 segment 또는 신규 이벤트 값을 복원하면서 최종 저장 규칙을 검증한다.
-     *
-     * <p>현재 영속화 모델은 FINAL segment 전용이므로 STREAMING 상태는 허용하지 않는다. 이렇게 해야 회의록과 전체 원문 조회 결과에 미완성 delta가
-     * 섞이지 않는다.
-     */
+    /** 저장된 segment 또는 신규 이벤트 값을 복원하면서 최종 저장 규칙을 검증한다. */
     public static MeetingTranscriptSegment of(
             UUID id,
             UUID meetingId,
@@ -125,12 +113,10 @@ public class MeetingTranscriptSegment {
             String enText,
             Long startedAtMs,
             Long endedAtMs,
-            MeetingTranscriptSegmentStatus status,
             UUID sourceEventId) {
         require(meetingId, "회의 ID는 필수입니다.");
         require(sourceEventId, "원문 이벤트 ID는 필수입니다.");
         require(sourceLanguage, "원문 언어는 필수입니다.");
-        require(status, "원문 segment 상태는 필수입니다.");
         if (segmentId == null || segmentId.isBlank()) {
             throw invalid("원문 segment ID는 필수입니다.");
         }
@@ -155,9 +141,6 @@ public class MeetingTranscriptSegment {
         if (startedAtMs != null && endedAtMs != null && endedAtMs < startedAtMs) {
             throw invalid("발화 종료 시각은 시작 시각보다 빠를 수 없습니다.");
         }
-        if (status != MeetingTranscriptSegmentStatus.FINAL) {
-            throw invalid("DB 저장 대상 원문 segment 상태는 FINAL만 허용합니다.");
-        }
         return new MeetingTranscriptSegment(
                 id,
                 meetingId,
@@ -169,7 +152,6 @@ public class MeetingTranscriptSegment {
                 enText,
                 startedAtMs,
                 endedAtMs,
-                status,
                 sourceEventId);
     }
 
@@ -221,10 +203,6 @@ public class MeetingTranscriptSegment {
 
     public Long endedAtMs() {
         return endedAtMs;
-    }
-
-    public MeetingTranscriptSegmentStatus status() {
-        return status;
     }
 
     public UUID sourceEventId() {

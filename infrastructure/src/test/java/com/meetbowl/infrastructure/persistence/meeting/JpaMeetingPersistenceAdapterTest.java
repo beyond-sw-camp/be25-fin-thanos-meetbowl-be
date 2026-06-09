@@ -61,7 +61,7 @@ class JpaMeetingPersistenceAdapterTest {
             String segmentId,
             long sequenceNo,
             String sourceText) {
-        return MeetingTranscriptSegment.createFinal(
+        return MeetingTranscriptSegment.create(
                 meetingId,
                 segmentId,
                 sequenceNo,
