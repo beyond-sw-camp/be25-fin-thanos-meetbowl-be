@@ -17,6 +17,6 @@ public interface ParticipantSessionRepositoryPort {
     /** STT 발화자 연결이나 참가자 상태 변경에 사용할 접속 세션을 내부 ID로 조회한다. */
     Optional<ParticipantSession> findById(UUID participantSessionId);
 
-    /** 지정한 회의 진행 세션에서 현재 JOINED 상태인 참가자만 반환한다. */
-    List<ParticipantSession> findJoinedByMeetingSessionId(UUID meetingSessionId);
+    /** 지정한 회의에서 현재 JOINED 상태인 참가자만 반환한다. */
+    List<ParticipantSession> findJoinedByMeetingId(UUID meetingId);
 }

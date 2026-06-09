@@ -20,14 +20,7 @@ class MeetingTranscriptSentenceTest {
         MeetingTranscriptSentence sentence =
                 MeetingTranscriptSentence.create(
                         meetingId,
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        null,
-                        "speaker-0",
-                        TranscriptLanguage.KO,
                         "회의를 시작하겠습니다.",
-                        null,
                         Instant.parse("2099-01-01T00:00:01Z"),
                         Instant.parse("2099-01-01T00:00:03Z"),
                         eventId,
@@ -45,18 +38,6 @@ class MeetingTranscriptSentenceTest {
                 BusinessException.class,
                 () ->
                         MeetingTranscriptSentence.create(
-                                UUID.randomUUID(),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                TranscriptLanguage.KO,
-                                "문장",
-                                null,
-                                null,
-                                null,
-                                UUID.randomUUID(),
-                                -1));
+                                UUID.randomUUID(), "문장", null, null, UUID.randomUUID(), -1));
     }
 }
