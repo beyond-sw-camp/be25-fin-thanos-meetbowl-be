@@ -15,7 +15,10 @@ public class ChatMessageCitation {
     private final UUID id;
     private final UUID messageId;
     private final ChatSourceType sourceType;
+
+    /** 답변 생성에 실제 사용된 원본 ID다. 공유 워크스페이스 자료는 파일 버전 ID를 저장한다. */
     private final UUID sourceId;
+
     private final String title;
     private final String snippet;
     private final String sourceUri;

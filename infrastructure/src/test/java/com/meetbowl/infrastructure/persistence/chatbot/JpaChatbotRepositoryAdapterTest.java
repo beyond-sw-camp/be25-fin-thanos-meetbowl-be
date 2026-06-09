@@ -70,8 +70,22 @@ class JpaChatbotRepositoryAdapterTest {
                         0.9D,
                         1,
                         now);
+        UUID sharedFileVersionId = UUID.randomUUID();
+        ChatMessageCitation sharedFileVersionCitation =
+                ChatMessageCitation.create(
+                        savedAssistantMessage.id(),
+                        ChatSourceType.SHARED_WORKSPACE_FILE_VERSION,
+                        sharedFileVersionId,
+                        "공유 프로젝트 계획서 v3",
+                        "배포 일정은 6월 10일입니다.",
+                        null,
+                        0.85D,
+                        2,
+                        now);
 
         ChatMessageCitation savedCitation = citationAdapter.save(citation);
+        ChatMessageCitation savedSharedFileVersionCitation =
+                citationAdapter.save(sharedFileVersionCitation);
 
         List<ChatSession> sessions = sessionAdapter.findActiveByOwnerUserId(ownerUserId);
         List<ChatMessage> messages = messageAdapter.findBySessionId(savedSession.id());
@@ -81,10 +95,14 @@ class JpaChatbotRepositoryAdapterTest {
         assertThat(savedSession.id()).isNotNull();
         assertThat(savedUserMessage.id()).isNotNull();
         assertThat(savedCitation.id()).isNotNull();
+        assertThat(savedSharedFileVersionCitation.id()).isNotNull();
         assertThat(sessions).hasSize(1);
         assertThat(messages).extracting(ChatMessage::sequenceNumber).containsExactly(1, 2);
-        assertThat(citations).hasSize(1);
+        assertThat(citations).hasSize(2);
         assertThat(citations.getFirst().title()).isEqualTo("주간 회의록");
+        assertThat(citations.get(1).sourceType())
+                .isEqualTo(ChatSourceType.SHARED_WORKSPACE_FILE_VERSION);
+        assertThat(citations.get(1).sourceId()).isEqualTo(sharedFileVersionId);
     }
 
     @SpringBootConfiguration

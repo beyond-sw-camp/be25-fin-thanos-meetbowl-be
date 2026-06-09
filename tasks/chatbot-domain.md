@@ -31,6 +31,30 @@
 - ASSISTANT 메시지가 참조한 RAG 출처다.
 - source type과 source id를 저장하되 원문 전체는 저장하지 않는다.
 - `snippet`은 짧은 근거 발췌만 저장한다.
+- 검색 가능한 source type은 다음 다섯 가지다.
+  - `BACKUP_MAIL`: 사용자가 수동 또는 자동으로 백업한 메일
+  - `MINUTES`: 사용자가 Host 또는 Participant이고 상태가 `APPROVED` 또는 `SHARED`인 회의록
+  - `PERSONAL_MEMO`: 현재 사용자가 소유한 개인 메모
+  - `PERSONAL_DRIVE_FILE`: 현재 사용자가 소유한 개인 드라이브 파일
+  - `SHARED_WORKSPACE_FILE_VERSION`: 현재 사용자가 Owner 또는 Member인 공유 워크스페이스 파일 버전
+- 개인 드라이브는 버전을 관리하지 않으므로 `sourceId`에 파일 ID를 저장한다.
+- 공유 워크스페이스 자료는 버전 단위로 검색하므로 `sourceId`에 실제 답변 생성에 사용한 파일 버전 ID를 저장한다.
+- 사용자가 공유 워크스페이스 권한을 잃으면 기존 citation의 제목, 근거, 링크는 API 응답 변환 단계에서 마스킹한다. 저장된 citation 자체는 감사 이력으로 유지한다.
+
+### ChatSessionContext
+
+- 세션은 사용자가 명시적으로 삭제하기 전까지 유지한다.
+- LLM에 전달할 과거 대화 Window Size와 대화 요약 정책은 미확정이다.
+- 정책 확정 전에는 별도 `ChatSessionContext` 도메인과 테이블을 추가하지 않는다.
+- PydanticAI의 `message_history`에는 `meetbowl-be`가 선택한 대화 이력만 전달한다.
+
+## AI 챗봇 실행 책임
+
+- `meetbowl-be`는 현재 인증 사용자 기준으로 자료 접근 범위를 매 질문마다 계산한다.
+- `meetbowl-ai`는 PydanticAI Tool을 통해 허용 범위 안에서만 Qdrant를 검색한다.
+- LLM Tool 인자에는 사용자 ID나 허용 리소스 ID를 노출하지 않는다.
+- 대화 세션, 메시지, citation의 기준 저장소는 `meetbowl-be`의 MariaDB다.
+- `meetbowl-ai`는 챗봇 대화 이력을 자체 DB에 저장하지 않는다.
 
 ## 테이블
 

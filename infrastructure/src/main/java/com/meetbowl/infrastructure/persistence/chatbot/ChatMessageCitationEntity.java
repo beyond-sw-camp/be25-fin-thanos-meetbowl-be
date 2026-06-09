@@ -33,6 +33,7 @@ public class ChatMessageCitationEntity extends BaseEntity {
     private ChatSourceType sourceType;
 
     @Column(nullable = false, columnDefinition = "BINARY(16)")
+    // 공유 워크스페이스 자료는 답변 생성에 사용된 파일 버전 ID를 저장한다.
     private UUID sourceId;
 
     @Column(nullable = false, length = 255)
