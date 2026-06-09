@@ -9,7 +9,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /** 사이트(거점) JPA Entity다. {@code site} 테이블과 1:1로 매핑된다. */
 @Entity
-@Table(name = "sites")
+@Table(name = "site")
 public class SiteEntity extends BaseEntity {
 
     /** 사이트명. */

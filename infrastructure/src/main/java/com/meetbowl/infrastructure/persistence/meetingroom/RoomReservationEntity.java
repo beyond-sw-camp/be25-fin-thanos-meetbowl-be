@@ -1,8 +1,8 @@
 package com.meetbowl.infrastructure.persistence.meetingroom;
 
-import java.time.Instant;
-import java.util.UUID;
-
+import com.meetbowl.domain.meetingroom.ReservationStatus;
+import com.meetbowl.domain.meetingroom.RoomReservation;
+import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -10,9 +10,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
-import com.meetbowl.domain.meetingroom.ReservationStatus;
-import com.meetbowl.domain.meetingroom.RoomReservation;
-import com.meetbowl.infrastructure.persistence.common.BaseEntity;
+import java.time.Instant;
+import java.util.UUID;
 
 // 회의실 예약. db table과 1대1 매칭
 /**
@@ -41,7 +40,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
  */
 @Entity
 @Table(
-        name = "room_reservations",
+        name = "room_reservation",
         indexes = {
             @Index(
                     name = "idx_room_reservation_room_period",

@@ -13,7 +13,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 /** 건물 JPA Entity다. {@code building} 테이블과 1:1로 매핑된다. 사이트는 raw UUID로 참조한다. */
 @Entity
 @Table(
-        name = "buildings",
+        name = "building",
         indexes = {@Index(name = "idx_building_site", columnList = "site_id")})
 public class BuildingEntity extends BaseEntity {
 

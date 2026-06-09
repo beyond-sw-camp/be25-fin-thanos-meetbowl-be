@@ -21,7 +21,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
  */
 @Entity
 @Table(
-        name = "meeting_attendees",
+        name = "meeting_attendee",
         uniqueConstraints =
                 @UniqueConstraint(
                         name = "uk_meeting_attendee_meeting_user",

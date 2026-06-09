@@ -20,7 +20,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
  */
 @Entity
 @Table(
-        name = "meetings",
+        name = "meeting",
         indexes = {@Index(name = "idx_meeting_host", columnList = "host_user_id")})
 public class MeetingEntity extends BaseEntity {
 

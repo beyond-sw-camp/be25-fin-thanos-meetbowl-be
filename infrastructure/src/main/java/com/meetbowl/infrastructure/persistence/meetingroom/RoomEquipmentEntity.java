@@ -13,7 +13,7 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 /** 회의실 장비 JPA Entity다. {@code room_equipment} 테이블과 1:1로 매핑된다. 회의실은 raw UUID로 참조한다. */
 @Entity
 @Table(
-        name = "room_equipments",
+        name = "room_equipment",
         indexes = {@Index(name = "idx_room_equipment_room", columnList = "meeting_room_id")})
 public class RoomEquipmentEntity extends BaseEntity {
 
