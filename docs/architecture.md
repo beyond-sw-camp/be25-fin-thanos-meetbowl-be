@@ -54,6 +54,7 @@ Spring Boot 실행 모듈이다.
 - Web Config
 - GlobalExceptionHandler
 - OpenAPI/Swagger 설정
+- UTC `Clock` 등 공통 런타임 Bean 설정
 - Application bootstrap
 
 ### application

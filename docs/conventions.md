@@ -532,7 +532,36 @@ public void execute() {
 
 ---
 
-# 15. 로깅 규칙
+# 15. 시간 의존성 규칙
+
+운영 애플리케이션의 기준 시각은 `app-api`에 등록된 전역 UTC `Clock` Bean을 사용한다.
+
+필수:
+
+- 시간에 의존하는 UseCase와 Service는 생성자로 `Clock`을 주입받는다.
+- 현재 시각은 `Instant.now(clock)`으로 생성한다.
+- 운영과 테스트는 동일한 생성자 계약을 사용한다.
+- 테스트에서는 `Clock.fixed(...)`를 주입해 시간 기반 동작을 결정적으로 검증한다.
+
+금지:
+
+```java
+Instant.now();
+Clock.systemUTC();
+Clock.systemDefaultZone();
+```
+
+`Clock` Bean 등록 위치:
+
+```text
+app-api/config/TimeConfig
+```
+
+`common/time/UtcClock`은 UTC `Clock` 생성 유틸이며, UseCase가 직접 호출하지 않는다.
+
+---
+
+# 16. 로깅 규칙
 
 금지:
 
@@ -563,7 +592,7 @@ API Key
 
 ---
 
-# 16. 테스트 규칙
+# 17. 테스트 규칙
 
 테스트 클래스명:
 
@@ -599,7 +628,7 @@ approveMinutes_fail_when_not_reviewer()
 
 ---
 
-# 17. Git 규칙
+# 18. Git 규칙
 
 브랜치:
 
@@ -622,7 +651,7 @@ docs: API 문서 수정
 
 ---
 
-# 18. 금지사항
+# 19. 금지사항
 
 - Entity를 API DTO로 사용
 - DTO에 비즈니스 로직 작성
@@ -637,5 +666,6 @@ docs: API 문서 수정
 - `System.out.println` 사용
 - Enum ORDINAL 저장
 - API DTO와 Message DTO 혼용
+- 애플리케이션 코드에서 `Instant.now()`, `Clock.systemUTC()`, `Clock.systemDefaultZone()` 직접 호출
 - 검토자 승인 전 회의록 자동 공유
 - Guest에게 내부 메일/워크스페이스/관리자 기능 노출

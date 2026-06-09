@@ -18,11 +18,8 @@ public class CreateSampleTaskUseCase {
     private final SampleTaskRepositoryPort sampleTaskRepositoryPort;
     private final Clock clock;
 
-    public CreateSampleTaskUseCase(SampleTaskRepositoryPort sampleTaskRepositoryPort) {
-        this(sampleTaskRepositoryPort, Clock.systemUTC());
-    }
-
-    CreateSampleTaskUseCase(SampleTaskRepositoryPort sampleTaskRepositoryPort, Clock clock) {
+    /** 운영과 테스트 모두 공통 Clock 주입 계약을 사용해 생성 시각을 결정적으로 관리한다. */
+    public CreateSampleTaskUseCase(SampleTaskRepositoryPort sampleTaskRepositoryPort, Clock clock) {
         this.sampleTaskRepositoryPort = sampleTaskRepositoryPort;
         this.clock = clock;
     }
