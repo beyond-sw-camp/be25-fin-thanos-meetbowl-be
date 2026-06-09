@@ -10,10 +10,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.user.UserSetting;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 사용자 개인 설정을 저장하는 엔티티다.
- * 회의 알림, 자동 백업 설정 등 사용자별 환경을 관리한다.
- */
+/** 사용자 개인 설정을 저장하는 엔티티다. 회의 알림, 자동 백업 설정 등 사용자별 환경을 관리한다. */
 @Entity
 @Table(name = "user_settings")
 public class UserSettingEntity extends BaseEntity {

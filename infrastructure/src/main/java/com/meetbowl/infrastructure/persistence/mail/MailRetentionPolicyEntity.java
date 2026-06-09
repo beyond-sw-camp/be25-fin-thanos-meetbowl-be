@@ -10,10 +10,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.mail.MailRetentionPolicy;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 메일 보존 정책을 저장하는 엔티티다.
- * 편지함 유형별 보존 일수와 자동 삭제 여부/갱신 정보를 관리한다.
- */
+/** 메일 보존 정책을 저장하는 엔티티다. 편지함 유형별 보존 일수와 자동 삭제 여부/갱신 정보를 관리한다. */
 @Entity
 @Table(name = "mail_retention_policies")
 public class MailRetentionPolicyEntity extends BaseEntity {

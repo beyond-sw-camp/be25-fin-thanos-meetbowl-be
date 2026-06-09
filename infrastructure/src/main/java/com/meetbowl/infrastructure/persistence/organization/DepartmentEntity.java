@@ -12,10 +12,7 @@ import com.meetbowl.domain.organization.Department;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 부서(Department) 정보를 저장하는 엔티티다.
- * 소속(Affiliate) 하위에 위치하며, 상위 부서를 가질 수 있다.
- */
+/** 부서(Department) 정보를 저장하는 엔티티다. 소속(Affiliate) 하위에 위치하며, 상위 부서를 가질 수 있다. */
 @Entity
 @Table(name = "departments")
 public class DepartmentEntity extends BaseEntity {

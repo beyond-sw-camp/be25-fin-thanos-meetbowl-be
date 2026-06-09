@@ -1,10 +1,10 @@
 package com.meetbowl.domain.user;
 
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
-
 import java.time.Instant;
 import java.util.UUID;
+
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 
 public class User {
 

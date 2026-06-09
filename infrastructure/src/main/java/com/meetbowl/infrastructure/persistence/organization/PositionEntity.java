@@ -10,10 +10,7 @@ import com.meetbowl.domain.organization.Position;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 직급/직위(Position) 정보를 저장하는 엔티티다.
- * 사용자(User)의 직급을 표현할 때 참조된다.
- */
+/** 직급/직위(Position) 정보를 저장하는 엔티티다. 사용자(User)의 직급을 표현할 때 참조된다. */
 @Entity
 @Table(name = "positions")
 public class PositionEntity extends BaseEntity {

@@ -13,10 +13,7 @@ import com.meetbowl.domain.admin.AdminAuditLog;
 import com.meetbowl.domain.admin.AuditResult;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 관리자 활동에 대한 감사 로그를 저장하는 엔티티다.
- * 누가(actor)가 어떤 대상(target)에 어떤 작업을 수행했고 결과가 무엇이었는지를 기록한다.
- */
+/** 관리자 활동에 대한 감사 로그를 저장하는 엔티티다. 누가(actor)가 어떤 대상(target)에 어떤 작업을 수행했고 결과가 무엇이었는지를 기록한다. */
 @Entity
 @Table(name = "admin_audit_logs")
 public class AdminAuditLogEntity extends BaseEntity {

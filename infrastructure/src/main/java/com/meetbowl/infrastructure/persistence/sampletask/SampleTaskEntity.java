@@ -10,9 +10,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.sampletask.SampleTask;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 샘플 JPA Entity다. Entity는 infrastructure 내부 모델이며 API/Application/Domain 계층으로 노출하지 않는다.
- */
+/** 샘플 JPA Entity다. Entity는 infrastructure 내부 모델이며 API/Application/Domain 계층으로 노출하지 않는다. */
 @Entity
 @Table(name = "sample_tasks")
 public class SampleTaskEntity extends BaseEntity {

@@ -14,10 +14,7 @@ import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 사용자 계정 정보를 저장하는 엔티티다.
- * 인증/권한(Role), 상태, 조직 소속(소속/부서/팀) 및 직급(Position)을 ID로 참조한다.
- */
+/** 사용자 계정 정보를 저장하는 엔티티다. 인증/권한(Role), 상태, 조직 소속(소속/부서/팀) 및 직급(Position)을 ID로 참조한다. */
 @Entity
 @Table(name = "users")
 public class UserEntity extends BaseEntity {

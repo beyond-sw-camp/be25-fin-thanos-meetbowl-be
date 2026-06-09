@@ -10,12 +10,9 @@ import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 소속(회사/기관 등 최상위 조직) 정보를 저장하는 엔티티다.
- * 하위에 부서(Department)와 팀(Team)이 속한다.
- */
+/** 소속(회사/기관 등 최상위 조직) 정보를 저장하는 엔티티다. 하위에 부서(Department)와 팀(Team)이 속한다. */
 @Entity
-@Table(name = "organizations")
+@Table(name = "affiliates")
 public class AffiliateEntity extends BaseEntity {
 
     /** 소속명(회사/기관명). */

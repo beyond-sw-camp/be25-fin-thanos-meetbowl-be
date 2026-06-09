@@ -12,10 +12,7 @@ import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 팀(Team) 정보를 저장하는 엔티티다.
- * 특정 부서(Department) 하위에 속하는 조직 단위를 나타낸다.
- */
+/** 팀(Team) 정보를 저장하는 엔티티다. 특정 부서(Department) 하위에 속하는 조직 단위를 나타낸다. */
 @Entity
 @Table(name = "teams")
 public class TeamEntity extends BaseEntity {

@@ -10,10 +10,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.auth.LoginSession;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/**
- * 사용자 로그인 세션을 저장하는 엔티티다.
- * 세션 토큰, 만료 시각, 최근 로그인 정보 등을 보관한다.
- */
+/** 사용자 로그인 세션을 저장하는 엔티티다. 세션 토큰, 만료 시각, 최근 로그인 정보 등을 보관한다. */
 @Entity
 @Table(name = "login_sessions")
 public class LoginSessionEntity extends BaseEntity {

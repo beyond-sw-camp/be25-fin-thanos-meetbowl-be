@@ -20,9 +20,7 @@ public class JpaAffiliateRepositoryAdapter implements AffiliateRepositoryPort {
 
     @Override
     public Affiliate save(Affiliate organization) {
-        return springDataOrganizationRepository
-                .save(AffiliateEntity.from(organization))
-                .toDomain();
+        return springDataOrganizationRepository.save(AffiliateEntity.from(organization)).toDomain();
     }
 
     @Override
