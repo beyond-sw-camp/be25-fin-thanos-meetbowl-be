@@ -14,10 +14,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
-import com.meetbowl.domain.transcript.MeetingTranscriptSentence;
-import com.meetbowl.domain.transcript.MeetingTranscriptSentenceRepositoryPort;
+import com.meetbowl.domain.transcript.MeetingTranscriptSegment;
+import com.meetbowl.domain.transcript.MeetingTranscriptSegmentRepositoryPort;
+import com.meetbowl.domain.transcript.TranscriptLanguage;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
-import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSentenceRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSegmentRepositoryAdapter;
 
 @SpringBootTest(classes = JpaMeetingPersistenceAdapterTest.TestApplication.class)
 @TestPropertySource(
@@ -32,39 +33,45 @@ import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSe
 class JpaMeetingPersistenceAdapterTest {
 
     @Autowired
-    private MeetingTranscriptSentenceRepositoryPort meetingTranscriptSentenceRepositoryPort;
+    private MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort;
 
     @Test
-    void findTranscriptSentencesInSequenceAndCheckEventDuplication() {
+    void findTranscriptSegmentsInSequenceAndCheckEventDuplication() {
         UUID meetingId = UUID.randomUUID();
         UUID firstEventId = UUID.randomUUID();
-        MeetingTranscriptSentence second =
-                createSentence(meetingId, UUID.randomUUID(), 2, "두 번째 문장입니다.");
-        MeetingTranscriptSentence first = createSentence(meetingId, firstEventId, 1, "첫 번째 문장입니다.");
+        MeetingTranscriptSegment second =
+                createSegment(meetingId, UUID.randomUUID(), "segment-002", 2, "두 번째 문장입니다.");
+        MeetingTranscriptSegment first =
+                createSegment(meetingId, firstEventId, "segment-001", 1, "첫 번째 문장입니다.");
 
-        meetingTranscriptSentenceRepositoryPort.save(second);
-        meetingTranscriptSentenceRepositoryPort.save(first);
+        meetingTranscriptSegmentRepositoryPort.save(second);
+        meetingTranscriptSegmentRepositoryPort.save(first);
 
-        List<MeetingTranscriptSentence> sentences =
-                meetingTranscriptSentenceRepositoryPort.findAllByMeetingIdOrderBySequenceNo(
-                        meetingId);
+        List<MeetingTranscriptSegment> segments =
+                meetingTranscriptSegmentRepositoryPort.findAllByMeetingIdOrderBySequence(meetingId);
 
-        assertThat(sentences)
-                .extracting(MeetingTranscriptSentence::sequenceNo)
-                .containsExactly(1L, 2L);
-        assertThat(meetingTranscriptSentenceRepositoryPort.existsBySourceEventId(firstEventId))
+        assertThat(segments).extracting(MeetingTranscriptSegment::sequence).containsExactly(1L, 2L);
+        assertThat(meetingTranscriptSegmentRepositoryPort.existsBySourceEventId(firstEventId))
                 .isTrue();
     }
 
-    private MeetingTranscriptSentence createSentence(
-            UUID meetingId, UUID sourceEventId, long sequenceNo, String sentenceText) {
-        return MeetingTranscriptSentence.create(
+    private MeetingTranscriptSegment createSegment(
+            UUID meetingId,
+            UUID sourceEventId,
+            String segmentId,
+            long sequenceNo,
+            String sourceText) {
+        return MeetingTranscriptSegment.createFinal(
                 meetingId,
-                sentenceText,
-                Instant.parse("2099-01-01T00:00:01Z").plusSeconds(sequenceNo),
-                Instant.parse("2099-01-01T00:00:02Z").plusSeconds(sequenceNo),
-                sourceEventId,
-                sequenceNo);
+                segmentId,
+                sequenceNo,
+                TranscriptLanguage.KO,
+                sourceText,
+                sourceText,
+                "translated-" + sequenceNo,
+                Instant.parse("2099-01-01T00:00:01Z").plusSeconds(sequenceNo).toEpochMilli(),
+                Instant.parse("2099-01-01T00:00:02Z").plusSeconds(sequenceNo).toEpochMilli(),
+                sourceEventId);
     }
 
     @SpringBootConfiguration
@@ -72,7 +79,7 @@ class JpaMeetingPersistenceAdapterTest {
     @Import({
         InfrastructureConfig.class,
         MeetingPersistenceJpaConfig.class,
-        JpaMeetingTranscriptSentenceRepositoryAdapter.class
+        JpaMeetingTranscriptSegmentRepositoryAdapter.class
     })
     static class TestApplication {}
 }
