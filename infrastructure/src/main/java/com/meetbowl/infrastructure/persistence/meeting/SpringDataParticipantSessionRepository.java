@@ -15,7 +15,7 @@ import com.meetbowl.domain.meeting.ParticipantSessionStatus;
 public interface SpringDataParticipantSessionRepository
         extends JpaRepository<ParticipantSessionEntity, UUID> {
 
-    /** 한 실시간 회의 세션에서 지정 상태에 해당하는 참가자 접속 이력을 모두 조회한다. */
-    List<ParticipantSessionEntity> findAllByMeetingSessionIdAndStatus(
-            UUID meetingSessionId, ParticipantSessionStatus status);
+    /** 한 회의에서 지정 상태에 해당하는 참가자 접속 이력을 모두 조회한다. */
+    List<ParticipantSessionEntity> findAllByMeetingIdAndStatus(
+            UUID meetingId, ParticipantSessionStatus status);
 }

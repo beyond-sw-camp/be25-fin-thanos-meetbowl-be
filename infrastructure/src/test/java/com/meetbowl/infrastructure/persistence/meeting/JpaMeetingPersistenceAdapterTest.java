@@ -14,16 +14,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
-import com.meetbowl.domain.meeting.MeetingProvider;
-import com.meetbowl.domain.meeting.MeetingSession;
-import com.meetbowl.domain.meeting.MeetingSessionRepositoryPort;
 import com.meetbowl.domain.meeting.ParticipantSession;
 import com.meetbowl.domain.meeting.ParticipantSessionRepositoryPort;
 import com.meetbowl.domain.meeting.ParticipantSessionStatus;
 import com.meetbowl.domain.meeting.ParticipantType;
 import com.meetbowl.domain.transcript.MeetingTranscriptSentence;
 import com.meetbowl.domain.transcript.MeetingTranscriptSentenceRepositoryPort;
-import com.meetbowl.domain.transcript.TranscriptLanguage;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSentenceRepositoryAdapter;
 
@@ -39,44 +35,20 @@ import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSe
         })
 class JpaMeetingPersistenceAdapterTest {
 
-    @Autowired private MeetingSessionRepositoryPort meetingSessionRepositoryPort;
     @Autowired private ParticipantSessionRepositoryPort participantSessionRepositoryPort;
 
     @Autowired
     private MeetingTranscriptSentenceRepositoryPort meetingTranscriptSentenceRepositoryPort;
 
     @Test
-    void saveAndFindMeetingSessionByMeetingId() {
-        UUID meetingId = UUID.randomUUID();
-        MeetingSession meetingSession =
-                MeetingSession.create(
-                        meetingId,
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        MeetingProvider.LIVEKIT,
-                        "meeting-" + meetingId);
-
-        MeetingSession saved = meetingSessionRepositoryPort.save(meetingSession);
-
-        assertThat(saved.id()).isNotNull();
-        assertThat(meetingSessionRepositoryPort.findByMeetingId(meetingId))
-                .get()
-                .extracting(MeetingSession::id)
-                .isEqualTo(saved.id());
-    }
-
-    @Test
     void findOnlyJoinedParticipantSessions() {
-        UUID meetingSessionId = UUID.randomUUID();
         UUID meetingId = UUID.randomUUID();
         ParticipantSession joined =
                 ParticipantSession.of(
                         null,
-                        meetingSessionId,
                         meetingId,
                         ParticipantType.PARTICIPANT,
                         UUID.randomUUID(),
-                        null,
                         "참가자",
                         "joined-user",
                         ParticipantSessionStatus.JOINED,
@@ -84,7 +56,6 @@ class JpaMeetingPersistenceAdapterTest {
                         Instant.parse("2099-01-01T00:01:00Z"));
         ParticipantSession requested =
                 ParticipantSession.createMember(
-                        meetingSessionId,
                         meetingId,
                         ParticipantType.PARTICIPANT,
                         UUID.randomUUID(),
@@ -94,7 +65,7 @@ class JpaMeetingPersistenceAdapterTest {
         ParticipantSession savedJoined = participantSessionRepositoryPort.save(joined);
         participantSessionRepositoryPort.save(requested);
 
-        assertThat(participantSessionRepositoryPort.findJoinedByMeetingSessionId(meetingSessionId))
+        assertThat(participantSessionRepositoryPort.findJoinedByMeetingId(meetingId))
                 .extracting(ParticipantSession::id)
                 .containsExactly(savedJoined.id());
     }
@@ -125,14 +96,7 @@ class JpaMeetingPersistenceAdapterTest {
             UUID meetingId, UUID sourceEventId, long sequenceNo, String sentenceText) {
         return MeetingTranscriptSentence.create(
                 meetingId,
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                null,
-                "speaker-0",
-                TranscriptLanguage.KO,
                 sentenceText,
-                null,
                 Instant.parse("2099-01-01T00:00:01Z").plusSeconds(sequenceNo),
                 Instant.parse("2099-01-01T00:00:02Z").plusSeconds(sequenceNo),
                 sourceEventId,
@@ -144,7 +108,6 @@ class JpaMeetingPersistenceAdapterTest {
     @Import({
         InfrastructureConfig.class,
         MeetingPersistenceJpaConfig.class,
-        JpaMeetingSessionRepositoryAdapter.class,
         JpaParticipantSessionRepositoryAdapter.class,
         JpaMeetingTranscriptSentenceRepositoryAdapter.class
     })

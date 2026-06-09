@@ -32,22 +32,21 @@ public class JpaParticipantSessionRepositoryAdapter implements ParticipantSessio
         return repository.save(ParticipantSessionEntity.from(participantSession)).toDomain();
     }
 
-    /** 이벤트 처리나 발화자 연결에 사용할 참가자 세션을 내부 PK로 조회한다. */
+    /** 참가자 연결 상태 이벤트를 반영할 접속 세션을 내부 PK로 조회한다. */
     @Override
     public Optional<ParticipantSession> findById(UUID participantSessionId) {
         return repository.findById(participantSessionId).map(ParticipantSessionEntity::toDomain);
     }
 
     /**
-     * 지정한 회의 진행 세션에서 현재 JOINED 상태인 참가자만 조회한다.
+     * 지정한 회의에서 현재 JOINED 상태인 참가자만 조회한다.
      *
      * <p>퇴장 시각을 별도로 저장하지 않으므로 현재 참가자 여부는 상태값으로 판단한다.
      */
     @Override
-    public List<ParticipantSession> findJoinedByMeetingSessionId(UUID meetingSessionId) {
+    public List<ParticipantSession> findJoinedByMeetingId(UUID meetingId) {
         return repository
-                .findAllByMeetingSessionIdAndStatus(
-                        meetingSessionId, ParticipantSessionStatus.JOINED)
+                .findAllByMeetingIdAndStatus(meetingId, ParticipantSessionStatus.JOINED)
                 .stream()
                 .map(ParticipantSessionEntity::toDomain)
                 .toList();
