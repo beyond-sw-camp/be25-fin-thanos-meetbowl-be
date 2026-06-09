@@ -1,15 +1,16 @@
 package com.meetbowl.infrastructure.persistence.transcript;
 
-import com.meetbowl.domain.transcript.MeetingTranscriptSentence;
-import com.meetbowl.infrastructure.persistence.common.BaseEntity;
+import java.time.Instant;
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import java.time.Instant;
-import java.util.UUID;
+import com.meetbowl.domain.transcript.MeetingTranscriptSentence;
+import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
  * RabbitMQ로 수신한 최종 STT 원문을 문장 단위로 저장하는 JPA Entity다.

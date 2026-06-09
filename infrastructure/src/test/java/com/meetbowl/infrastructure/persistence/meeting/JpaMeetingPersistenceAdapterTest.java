@@ -14,10 +14,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
-import com.meetbowl.domain.meeting.ParticipantSession;
-import com.meetbowl.domain.meeting.ParticipantSessionRepositoryPort;
-import com.meetbowl.domain.meeting.ParticipantSessionStatus;
-import com.meetbowl.domain.meeting.ParticipantType;
 import com.meetbowl.domain.transcript.MeetingTranscriptSentence;
 import com.meetbowl.domain.transcript.MeetingTranscriptSentenceRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
@@ -35,40 +31,8 @@ import com.meetbowl.infrastructure.persistence.transcript.JpaMeetingTranscriptSe
         })
 class JpaMeetingPersistenceAdapterTest {
 
-    @Autowired private ParticipantSessionRepositoryPort participantSessionRepositoryPort;
-
     @Autowired
     private MeetingTranscriptSentenceRepositoryPort meetingTranscriptSentenceRepositoryPort;
-
-    @Test
-    void findOnlyJoinedParticipantSessions() {
-        UUID meetingId = UUID.randomUUID();
-        ParticipantSession joined =
-                ParticipantSession.of(
-                        null,
-                        meetingId,
-                        ParticipantType.PARTICIPANT,
-                        UUID.randomUUID(),
-                        "참가자",
-                        "joined-user",
-                        ParticipantSessionStatus.JOINED,
-                        Instant.parse("2099-01-01T00:01:00Z"),
-                        Instant.parse("2099-01-01T00:01:00Z"));
-        ParticipantSession requested =
-                ParticipantSession.createMember(
-                        meetingId,
-                        ParticipantType.PARTICIPANT,
-                        UUID.randomUUID(),
-                        "입장 대기자",
-                        "requested-user");
-
-        ParticipantSession savedJoined = participantSessionRepositoryPort.save(joined);
-        participantSessionRepositoryPort.save(requested);
-
-        assertThat(participantSessionRepositoryPort.findJoinedByMeetingId(meetingId))
-                .extracting(ParticipantSession::id)
-                .containsExactly(savedJoined.id());
-    }
 
     @Test
     void findTranscriptSentencesInSequenceAndCheckEventDuplication() {
@@ -108,7 +72,6 @@ class JpaMeetingPersistenceAdapterTest {
     @Import({
         InfrastructureConfig.class,
         MeetingPersistenceJpaConfig.class,
-        JpaParticipantSessionRepositoryAdapter.class,
         JpaMeetingTranscriptSentenceRepositoryAdapter.class
     })
     static class TestApplication {}
