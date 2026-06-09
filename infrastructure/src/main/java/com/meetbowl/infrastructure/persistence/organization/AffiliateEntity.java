@@ -6,13 +6,13 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
-import com.meetbowl.domain.organization.Organization;
+import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 @Entity
 @Table(name = "organizations")
-public class OrganizationEntity extends BaseEntity {
+public class AffiliateEntity extends BaseEntity {
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -26,23 +26,23 @@ public class OrganizationEntity extends BaseEntity {
 
     private Integer sortOrder;
 
-    protected OrganizationEntity() {}
+    protected AffiliateEntity() {}
 
-    private OrganizationEntity(Organization organization) {
+    private AffiliateEntity(Affiliate organization) {
         this.name = organization.name();
         this.code = organization.code();
         this.status = organization.status();
         this.sortOrder = organization.sortOrder();
     }
 
-    static OrganizationEntity from(Organization organization) {
-        OrganizationEntity entity = new OrganizationEntity(organization);
+    static AffiliateEntity from(Affiliate organization) {
+        AffiliateEntity entity = new AffiliateEntity(organization);
         entity.setId(organization.id());
         return entity;
     }
 
-    Organization toDomain() {
-        return new Organization(
+    Affiliate toDomain() {
+        return new Affiliate(
                 getId(), name, code, status, sortOrder, getCreatedAt(), getUpdatedAt());
     }
 }

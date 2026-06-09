@@ -6,7 +6,7 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
-public record Organization(
+public record Affiliate(
         UUID id,
         String name,
         String code,
@@ -15,7 +15,7 @@ public record Organization(
         Instant createdAt,
         Instant updatedAt) {
 
-    public Organization {
+    public Affiliate {
         validate(name, status);
     }
 

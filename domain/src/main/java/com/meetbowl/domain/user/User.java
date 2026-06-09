@@ -1,10 +1,10 @@
 package com.meetbowl.domain.user;
 
-import java.time.Instant;
-import java.util.UUID;
-
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+
+import java.time.Instant;
+import java.util.UUID;
 
 public class User {
 
@@ -15,10 +15,10 @@ public class User {
     private final String email;
     private final UserRole role;
     private final UserStatus status;
-    private final UUID organizationId;
+    private final UUID affiliateId;
     private final UUID departmentId;
     private final UUID positionId;
-    private final UUID jobId;
+    private final UUID teamId;
     private final boolean initialPasswordChangeRequired;
     private final Instant activeFrom;
     private final Instant activeUntil;
@@ -33,10 +33,10 @@ public class User {
             String email,
             UserRole role,
             UserStatus status,
-            UUID organizationId,
+            UUID affiliateId,
             UUID departmentId,
             UUID positionId,
-            UUID jobId,
+            UUID teamId,
             boolean initialPasswordChangeRequired,
             Instant activeFrom,
             Instant activeUntil,
@@ -49,10 +49,10 @@ public class User {
         this.email = email;
         this.role = role;
         this.status = status;
-        this.organizationId = organizationId;
+        this.affiliateId = affiliateId;
         this.departmentId = departmentId;
         this.positionId = positionId;
-        this.jobId = jobId;
+        this.teamId = teamId;
         this.initialPasswordChangeRequired = initialPasswordChangeRequired;
         this.activeFrom = activeFrom;
         this.activeUntil = activeUntil;
@@ -68,10 +68,10 @@ public class User {
             String email,
             UserRole role,
             UserStatus status,
-            UUID organizationId,
+            UUID affiliateId,
             UUID departmentId,
             UUID positionId,
-            UUID jobId,
+            UUID teamId,
             boolean initialPasswordChangeRequired,
             Instant activeFrom,
             Instant activeUntil,
@@ -96,10 +96,10 @@ public class User {
                 email,
                 role,
                 status,
-                organizationId,
+                affiliateId,
                 departmentId,
                 positionId,
-                jobId,
+                teamId,
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
@@ -166,8 +166,8 @@ public class User {
         return status;
     }
 
-    public UUID organizationId() {
-        return organizationId;
+    public UUID affiliateId() {
+        return affiliateId;
     }
 
     public UUID departmentId() {
@@ -178,8 +178,8 @@ public class User {
         return positionId;
     }
 
-    public UUID jobId() {
-        return jobId;
+    public UUID teamId() {
+        return teamId;
     }
 
     public boolean initialPasswordChangeRequired() {

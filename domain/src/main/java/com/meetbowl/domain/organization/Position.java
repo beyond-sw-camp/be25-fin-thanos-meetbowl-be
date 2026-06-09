@@ -13,7 +13,7 @@ public record Position(
         Instant updatedAt) {
 
     public Position {
-        Organization.validate(name, status);
+        Affiliate.validate(name, status);
     }
 
     public boolean isActive() {

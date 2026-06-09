@@ -8,18 +8,16 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
-import com.meetbowl.domain.organization.Department;
 import com.meetbowl.domain.organization.ReferenceStatus;
+import com.meetbowl.domain.organization.Team;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 @Entity
-@Table(name = "departments")
-public class DepartmentEntity extends BaseEntity {
-    @Column(columnDefinition = "BINARY(16)")
-    private UUID affiliateId;
+@Table(name = "teams")
+public class TeamEntity extends BaseEntity {
 
     @Column(columnDefinition = "BINARY(16)")
-    private UUID parentDepartmentId;
+    private UUID departmentId;
 
     @Column(nullable = false, length = 100)
     private String name;
@@ -33,28 +31,26 @@ public class DepartmentEntity extends BaseEntity {
 
     private Integer sortOrder;
 
-    protected DepartmentEntity() {}
+    protected TeamEntity() {}
 
-    private DepartmentEntity(Department department) {
-        affiliateId = department.affiliateId();
-        parentDepartmentId = department.parentDepartmentId();
-        name = department.name();
-        code = department.code();
-        status = department.status();
-        sortOrder = department.sortOrder();
+    private TeamEntity(Team team) {
+        this.departmentId = team.departmentId();
+        this.name = team.name();
+        this.code = team.code();
+        this.status = team.status();
+        this.sortOrder = team.sortOrder();
     }
 
-    static DepartmentEntity from(Department department) {
-        DepartmentEntity entity = new DepartmentEntity(department);
-        entity.setId(department.id());
+    static TeamEntity from(Team team) {
+        TeamEntity entity = new TeamEntity(team);
+        entity.setId(team.id());
         return entity;
     }
 
-    Department toDomain() {
-        return new Department(
+    Team toDomain() {
+        return new Team(
                 getId(),
-                affiliateId,
-                parentDepartmentId,
+                departmentId,
                 name,
                 code,
                 status,

@@ -3,8 +3,9 @@ package com.meetbowl.domain.organization;
 import java.time.Instant;
 import java.util.UUID;
 
-public record Job(
+public record Team(
         UUID id,
+        UUID departmentId,
         String name,
         String code,
         ReferenceStatus status,
@@ -12,8 +13,8 @@ public record Job(
         Instant createdAt,
         Instant updatedAt) {
 
-    public Job {
-        Organization.validate(name, status);
+    public Team {
+        Affiliate.validate(name, status);
     }
 
     public boolean isActive() {

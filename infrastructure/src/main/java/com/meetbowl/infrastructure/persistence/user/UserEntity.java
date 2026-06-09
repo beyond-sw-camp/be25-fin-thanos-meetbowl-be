@@ -39,7 +39,7 @@ public class UserEntity extends BaseEntity {
     private UserStatus status;
 
     @Column(columnDefinition = "BINARY(16)")
-    private UUID organizationId;
+    private UUID affiliateId;
 
     @Column(columnDefinition = "BINARY(16)")
     private UUID departmentId;
@@ -48,7 +48,7 @@ public class UserEntity extends BaseEntity {
     private UUID positionId;
 
     @Column(columnDefinition = "BINARY(16)")
-    private UUID jobId;
+    private UUID teamId;
 
     @Column(nullable = false)
     private boolean initialPasswordChangeRequired;
@@ -66,10 +66,10 @@ public class UserEntity extends BaseEntity {
         this.email = user.email();
         this.role = user.role();
         this.status = user.status();
-        this.organizationId = user.organizationId();
+        this.affiliateId = user.affiliateId();
         this.departmentId = user.departmentId();
         this.positionId = user.positionId();
-        this.jobId = user.jobId();
+        this.teamId = user.teamId();
         this.initialPasswordChangeRequired = user.initialPasswordChangeRequired();
         this.activeFrom = user.activeFrom();
         this.activeUntil = user.activeUntil();
@@ -90,10 +90,10 @@ public class UserEntity extends BaseEntity {
                 email,
                 role,
                 status,
-                organizationId,
+                affiliateId,
                 departmentId,
                 positionId,
-                jobId,
+                teamId,
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,

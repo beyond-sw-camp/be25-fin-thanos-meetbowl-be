@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public record Department(
         UUID id,
-        UUID organizationId,
+        UUID affiliateId,
         UUID parentDepartmentId,
         String name,
         String code,
@@ -15,7 +15,7 @@ public record Department(
         Instant updatedAt) {
 
     public Department {
-        Organization.validate(name, status);
+        Affiliate.validate(name, status);
     }
 
     public boolean isActive() {

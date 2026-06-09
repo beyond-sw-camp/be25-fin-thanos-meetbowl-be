@@ -10,14 +10,14 @@ import com.meetbowl.infrastructure.persistence.auth.LoginSessionEntity;
 import com.meetbowl.infrastructure.persistence.auth.SpringDataLoginSessionRepository;
 import com.meetbowl.infrastructure.persistence.mail.MailRetentionPolicyEntity;
 import com.meetbowl.infrastructure.persistence.mail.SpringDataMailRetentionPolicyRepository;
+import com.meetbowl.infrastructure.persistence.organization.AffiliateEntity;
 import com.meetbowl.infrastructure.persistence.organization.DepartmentEntity;
-import com.meetbowl.infrastructure.persistence.organization.JobEntity;
-import com.meetbowl.infrastructure.persistence.organization.OrganizationEntity;
 import com.meetbowl.infrastructure.persistence.organization.PositionEntity;
+import com.meetbowl.infrastructure.persistence.organization.SpringDataAffiliateRepository;
 import com.meetbowl.infrastructure.persistence.organization.SpringDataDepartmentRepository;
-import com.meetbowl.infrastructure.persistence.organization.SpringDataJobRepository;
-import com.meetbowl.infrastructure.persistence.organization.SpringDataOrganizationRepository;
 import com.meetbowl.infrastructure.persistence.organization.SpringDataPositionRepository;
+import com.meetbowl.infrastructure.persistence.organization.SpringDataTeamRepository;
+import com.meetbowl.infrastructure.persistence.organization.TeamEntity;
 import com.meetbowl.infrastructure.persistence.user.SpringDataUserRepository;
 import com.meetbowl.infrastructure.persistence.user.SpringDataUserSettingRepository;
 import com.meetbowl.infrastructure.persistence.user.UserEntity;
@@ -28,10 +28,10 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
             UserEntity.class,
             UserSettingEntity.class,
             LoginSessionEntity.class,
-            OrganizationEntity.class,
+            AffiliateEntity.class,
             DepartmentEntity.class,
             PositionEntity.class,
-            JobEntity.class,
+            TeamEntity.class,
             AdminAuditLogEntity.class,
             MailRetentionPolicyEntity.class
         })
@@ -40,10 +40,10 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
             SpringDataUserRepository.class,
             SpringDataUserSettingRepository.class,
             SpringDataLoginSessionRepository.class,
-            SpringDataOrganizationRepository.class,
+            SpringDataAffiliateRepository.class,
             SpringDataDepartmentRepository.class,
             SpringDataPositionRepository.class,
-            SpringDataJobRepository.class,
+            SpringDataTeamRepository.class,
             SpringDataAdminAuditLogRepository.class,
             SpringDataMailRetentionPolicyRepository.class
         })
