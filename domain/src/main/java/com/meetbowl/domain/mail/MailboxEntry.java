@@ -10,6 +10,7 @@ import com.meetbowl.common.exception.ErrorCode;
 public class MailboxEntry {
 
     private final UUID id;
+    private final UUID mailId;
     private final UUID ownerUserId;
     private final MailboxType mailboxType;
     private Instant readAt;
@@ -18,12 +19,14 @@ public class MailboxEntry {
 
     private MailboxEntry(
             UUID id,
+            UUID mailId,
             UUID ownerUserId,
             MailboxType mailboxType,
             Instant readAt,
             Instant trashedAt,
             Instant permanentlyDeletedAt) {
         this.id = id;
+        this.mailId = requireNonNull(mailId, "메일 ID는 필수입니다.");
         this.ownerUserId = requireNonNull(ownerUserId, "메일함 소유자 ID는 필수입니다.");
         this.mailboxType = requireNonNull(mailboxType, "메일함 유형은 필수입니다.");
         if (mailboxType == MailboxType.SENT && readAt != null) {
@@ -35,23 +38,24 @@ public class MailboxEntry {
         this.permanentlyDeletedAt = permanentlyDeletedAt;
     }
 
-    public static MailboxEntry inbox(UUID ownerUserId) {
-        return new MailboxEntry(null, ownerUserId, MailboxType.INBOX, null, null, null);
+    public static MailboxEntry inbox(UUID mailId, UUID ownerUserId) {
+        return new MailboxEntry(null, mailId, ownerUserId, MailboxType.INBOX, null, null, null);
     }
 
-    public static MailboxEntry sent(UUID ownerUserId) {
-        return new MailboxEntry(null, ownerUserId, MailboxType.SENT, null, null, null);
+    public static MailboxEntry sent(UUID mailId, UUID ownerUserId) {
+        return new MailboxEntry(null, mailId, ownerUserId, MailboxType.SENT, null, null, null);
     }
 
     public static MailboxEntry of(
             UUID id,
+            UUID mailId,
             UUID ownerUserId,
             MailboxType mailboxType,
             Instant readAt,
             Instant trashedAt,
             Instant permanentlyDeletedAt) {
         return new MailboxEntry(
-                id, ownerUserId, mailboxType, readAt, trashedAt, permanentlyDeletedAt);
+                id, mailId, ownerUserId, mailboxType, readAt, trashedAt, permanentlyDeletedAt);
     }
 
     public void markRead(Instant readAt) {
@@ -94,6 +98,10 @@ public class MailboxEntry {
 
     public UUID ownerUserId() {
         return ownerUserId;
+    }
+
+    public UUID mailId() {
+        return mailId;
     }
 
     public MailboxType mailboxType() {

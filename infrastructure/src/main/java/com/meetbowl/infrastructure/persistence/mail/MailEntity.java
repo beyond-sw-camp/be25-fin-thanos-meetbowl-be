@@ -6,12 +6,16 @@ import java.util.List;
 import java.util.UUID;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -49,8 +53,21 @@ public class MailEntity extends BaseEntity {
     @Column(nullable = false, length = Mail.MAX_SUBJECT_LENGTH)
     private String subject;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "MEDIUMTEXT")
     private String body;
+
+    @ElementCollection
+    @CollectionTable(
+            name = "mail_recipient",
+            joinColumns = @JoinColumn(name = "mail_id"),
+            uniqueConstraints =
+                    @UniqueConstraint(
+                            name = "uk_mail_recipient_mail_user",
+                            columnNames = {"mail_id", "recipient_user_id"}),
+            indexes = @Index(name = "idx_mail_recipient_user", columnList = "recipient_user_id"))
+    @OrderColumn(name = "recipient_order", nullable = false)
+    @Column(name = "recipient_user_id", nullable = false, columnDefinition = "BINARY(16)")
+    private List<UUID> recipientUserIds = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "mail_type", nullable = false, length = 30)
@@ -74,7 +91,7 @@ public class MailEntity extends BaseEntity {
     @Column(name = "delivery_status", nullable = false, length = 20)
     private MailDeliveryStatus deliveryStatus;
 
-    @Column(name = "requested_at", nullable = false)
+    @Column(name = "requested_at")
     private Instant requestedAt;
 
     @Column(name = "sent_at")
@@ -86,8 +103,8 @@ public class MailEntity extends BaseEntity {
     @Column(name = "failure_code", length = 100)
     private String failureCode;
 
-    @OneToMany(mappedBy = "mail", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MailboxEntryEntity> mailboxEntries = new ArrayList<>();
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
 
     @OneToMany(mappedBy = "mail", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MailAttachmentEntity> attachments = new ArrayList<>();
@@ -99,6 +116,7 @@ public class MailEntity extends BaseEntity {
         entity.setId(mail.id());
         entity.organizationId = mail.organizationId();
         entity.senderUserId = mail.senderUserId();
+        entity.recipientUserIds.addAll(mail.recipientUserIds());
         entity.subject = mail.subject();
         entity.body = mail.body();
         entity.mailType = mail.mailType();
@@ -111,9 +129,7 @@ public class MailEntity extends BaseEntity {
         entity.sentAt = mail.sentAt();
         entity.failedAt = mail.failedAt();
         entity.failureCode = mail.failureCode();
-        mail.mailboxEntries()
-                .forEach(
-                        entry -> entity.mailboxEntries.add(MailboxEntryEntity.from(entity, entry)));
+        entity.retryCount = mail.retryCount();
         mail.attachments()
                 .forEach(
                         attachment ->
@@ -127,6 +143,7 @@ public class MailEntity extends BaseEntity {
                 getId(),
                 organizationId,
                 senderUserId,
+                recipientUserIds,
                 subject,
                 body,
                 mailType,
@@ -139,7 +156,7 @@ public class MailEntity extends BaseEntity {
                 sentAt,
                 failedAt,
                 failureCode,
-                mailboxEntries.stream().map(MailboxEntryEntity::toDomain).toList(),
+                retryCount,
                 attachments.stream().map(MailAttachmentEntity::toDomain).toList());
     }
 }

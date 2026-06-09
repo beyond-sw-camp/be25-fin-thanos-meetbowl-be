@@ -14,10 +14,12 @@ import com.meetbowl.common.exception.ErrorCode;
 public class Mail {
 
     public static final int MAX_SUBJECT_LENGTH = 200;
+    public static final int MAX_BODY_LENGTH = 1_000_000;
 
     private final UUID id;
     private final UUID organizationId;
     private final UUID senderUserId;
+    private final List<UUID> recipientUserIds;
     private final String subject;
     private final String body;
     private final MailType mailType;
@@ -25,57 +27,16 @@ public class Mail {
     private final RelatedResourceType relatedResourceType;
     private final UUID relatedResourceId;
     private final UUID idempotencyKey;
-    private final Instant requestedAt;
-    private final List<MailboxEntry> mailboxEntries;
     private final List<MailAttachment> attachments;
     private MailDeliveryStatus deliveryStatus;
+    private Instant requestedAt;
     private Instant sentAt;
     private Instant failedAt;
     private String failureCode;
+    private int retryCount;
 
     private Mail(
             UUID id,
-            UUID organizationId,
-            UUID senderUserId,
-            String subject,
-            String body,
-            MailType mailType,
-            MailBodyType bodyType,
-            RelatedResourceType relatedResourceType,
-            UUID relatedResourceId,
-            UUID idempotencyKey,
-            MailDeliveryStatus deliveryStatus,
-            Instant requestedAt,
-            Instant sentAt,
-            Instant failedAt,
-            String failureCode,
-            List<MailboxEntry> mailboxEntries,
-            List<MailAttachment> attachments) {
-        this.id = id;
-        this.organizationId = requireNonNull(organizationId, "조직 ID는 필수입니다.");
-        this.senderUserId = requireNonNull(senderUserId, "발신자 ID는 필수입니다.");
-        this.subject = validateSubject(subject);
-        this.body = requireText(body, "메일 본문은 필수입니다.");
-        this.mailType = requireNonNull(mailType, "메일 유형은 필수입니다.");
-        this.bodyType = requireNonNull(bodyType, "메일 본문 유형은 필수입니다.");
-        validateRelatedResource(relatedResourceType, relatedResourceId);
-        this.relatedResourceType = relatedResourceType;
-        this.relatedResourceId = relatedResourceId;
-        this.idempotencyKey = requireNonNull(idempotencyKey, "메일 멱등성 키는 필수입니다.");
-        this.deliveryStatus = requireNonNull(deliveryStatus, "메일 발송 상태는 필수입니다.");
-        this.requestedAt = requireNonNull(requestedAt, "메일 발송 요청 시각은 필수입니다.");
-        validateDeliveryState(deliveryStatus, sentAt, failedAt, failureCode);
-        validateDeliveryTime(this.requestedAt, sentAt, failedAt);
-        this.sentAt = sentAt;
-        this.failedAt = failedAt;
-        this.failureCode = failureCode;
-        this.mailboxEntries = new ArrayList<>(requireNonNull(mailboxEntries, "메일함 항목은 필수입니다."));
-        this.attachments = new ArrayList<>(requireNonNull(attachments, "첨부파일 목록은 필수입니다."));
-        validateMailboxEntries(this.mailboxEntries);
-        validateAttachments(this.attachments);
-    }
-
-    public static Mail request(
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
@@ -86,16 +47,53 @@ public class Mail {
             RelatedResourceType relatedResourceType,
             UUID relatedResourceId,
             UUID idempotencyKey,
-            Instant requestedAt) {
-        List<UUID> recipients = validateRecipients(recipientUserIds);
-        List<MailboxEntry> mailboxEntries = new ArrayList<>();
-        mailboxEntries.add(MailboxEntry.sent(senderUserId));
-        recipients.forEach(recipientId -> mailboxEntries.add(MailboxEntry.inbox(recipientId)));
+            MailDeliveryStatus deliveryStatus,
+            Instant requestedAt,
+            Instant sentAt,
+            Instant failedAt,
+            String failureCode,
+            int retryCount,
+            List<MailAttachment> attachments) {
+        this.id = id;
+        this.organizationId = requireNonNull(organizationId, "조직 ID는 필수입니다.");
+        this.senderUserId = requireNonNull(senderUserId, "발신자 ID는 필수입니다.");
+        this.recipientUserIds = new ArrayList<>(validateRecipients(recipientUserIds));
+        this.subject = validateSubject(subject);
+        this.body = validateBody(body);
+        this.mailType = requireNonNull(mailType, "메일 유형은 필수입니다.");
+        this.bodyType = requireNonNull(bodyType, "메일 본문 유형은 필수입니다.");
+        validateRelatedResource(relatedResourceType, relatedResourceId);
+        this.relatedResourceType = relatedResourceType;
+        this.relatedResourceId = relatedResourceId;
+        this.idempotencyKey = requireNonNull(idempotencyKey, "메일 멱등성 키는 필수입니다.");
+        this.deliveryStatus = requireNonNull(deliveryStatus, "메일 발송 상태는 필수입니다.");
+        validateDeliveryState(
+                deliveryStatus, requestedAt, sentAt, failedAt, failureCode, retryCount);
+        this.requestedAt = requestedAt;
+        this.sentAt = sentAt;
+        this.failedAt = failedAt;
+        this.failureCode = failureCode;
+        this.retryCount = retryCount;
+        this.attachments = new ArrayList<>(requireNonNull(attachments, "첨부파일 목록은 필수입니다."));
+        validateAttachments(this.attachments, this.senderUserId);
+    }
 
+    public static Mail createDraft(
+            UUID organizationId,
+            UUID senderUserId,
+            List<UUID> recipientUserIds,
+            String subject,
+            String body,
+            MailType mailType,
+            MailBodyType bodyType,
+            RelatedResourceType relatedResourceType,
+            UUID relatedResourceId,
+            UUID idempotencyKey) {
         return new Mail(
                 null,
                 organizationId,
                 senderUserId,
+                recipientUserIds,
                 subject,
                 body,
                 mailType,
@@ -103,12 +101,12 @@ public class Mail {
                 relatedResourceType,
                 relatedResourceId,
                 idempotencyKey,
-                MailDeliveryStatus.REQUESTED,
-                requestedAt,
+                MailDeliveryStatus.DRAFT,
                 null,
                 null,
                 null,
-                mailboxEntries,
+                null,
+                0,
                 List.of());
     }
 
@@ -116,6 +114,7 @@ public class Mail {
             UUID id,
             UUID organizationId,
             UUID senderUserId,
+            List<UUID> recipientUserIds,
             String subject,
             String body,
             MailType mailType,
@@ -128,12 +127,13 @@ public class Mail {
             Instant sentAt,
             Instant failedAt,
             String failureCode,
-            List<MailboxEntry> mailboxEntries,
+            int retryCount,
             List<MailAttachment> attachments) {
         return new Mail(
                 id,
                 organizationId,
                 senderUserId,
+                recipientUserIds,
                 subject,
                 body,
                 mailType,
@@ -146,12 +146,35 @@ public class Mail {
                 sentAt,
                 failedAt,
                 failureCode,
-                mailboxEntries,
+                retryCount,
                 attachments);
     }
 
+    public void requestDelivery(Instant requestedAt) {
+        if (deliveryStatus != MailDeliveryStatus.DRAFT) {
+            throw invalid("작성 중 상태의 메일만 발송 요청할 수 있습니다.");
+        }
+        this.requestedAt = requireNonNull(requestedAt, "메일 발송 요청 시각은 필수입니다.");
+        this.deliveryStatus = MailDeliveryStatus.REQUESTED;
+    }
+
+    public void retryDelivery(Instant retriedAt) {
+        if (deliveryStatus != MailDeliveryStatus.FAILED) {
+            throw invalid("발송 실패 상태의 메일만 재요청할 수 있습니다.");
+        }
+        Instant validatedRetriedAt = requireNonNull(retriedAt, "메일 재요청 시각은 필수입니다.");
+        if (validatedRetriedAt.isBefore(failedAt)) {
+            throw invalid("메일 재요청 시각은 발송 실패 시각보다 빠를 수 없습니다.");
+        }
+        this.deliveryStatus = MailDeliveryStatus.RETRYING;
+        this.requestedAt = validatedRetriedAt;
+        this.failedAt = null;
+        this.failureCode = null;
+        this.retryCount++;
+    }
+
     public void markSent(Instant sentAt) {
-        ensureRequested();
+        ensureDeliveryInProgress();
         Instant validatedSentAt = requireNonNull(sentAt, "메일 발송 완료 시각은 필수입니다.");
         ensureNotBeforeRequested(validatedSentAt, "메일 발송 완료 시각");
         this.deliveryStatus = MailDeliveryStatus.SENT;
@@ -159,7 +182,7 @@ public class Mail {
     }
 
     public void markFailed(Instant failedAt, String failureCode) {
-        ensureRequested();
+        ensureDeliveryInProgress();
         Instant validatedFailedAt = requireNonNull(failedAt, "메일 발송 실패 시각은 필수입니다.");
         String validatedFailureCode = requireText(failureCode, "메일 발송 실패 코드는 필수입니다.");
         ensureNotBeforeRequested(validatedFailedAt, "메일 발송 실패 시각");
@@ -169,17 +192,21 @@ public class Mail {
     }
 
     public void addAttachment(MailAttachment attachment) {
-        requireNonNull(attachment, "첨부파일은 필수입니다.");
+        if (deliveryStatus != MailDeliveryStatus.DRAFT) {
+            throw invalid("발송 요청 전인 메일에만 첨부파일을 등록할 수 있습니다.");
+        }
+        MailAttachment validatedAttachment = requireNonNull(attachment, "첨부파일은 필수입니다.");
         boolean duplicated =
                 attachments.stream()
-                        .anyMatch(existing -> existing.objectKey().equals(attachment.objectKey()));
+                        .anyMatch(
+                                existing ->
+                                        existing.objectKey()
+                                                .equals(validatedAttachment.objectKey()));
         if (duplicated) {
             throw invalid("동일한 object key의 첨부파일을 중복 등록할 수 없습니다.");
         }
-        if (!senderUserId.equals(attachment.uploaderUserId())) {
-            throw invalid("메일 발신자만 첨부파일을 등록할 수 있습니다.");
-        }
-        attachments.add(attachment);
+        validateAttachmentUploader(validatedAttachment, senderUserId);
+        attachments.add(validatedAttachment);
     }
 
     public UUID id() {
@@ -192,6 +219,10 @@ public class Mail {
 
     public UUID senderUserId() {
         return senderUserId;
+    }
+
+    public List<UUID> recipientUserIds() {
+        return List.copyOf(recipientUserIds);
     }
 
     public String subject() {
@@ -242,30 +273,24 @@ public class Mail {
         return failureCode;
     }
 
-    public List<MailboxEntry> mailboxEntries() {
-        return List.copyOf(mailboxEntries);
+    public int retryCount() {
+        return retryCount;
     }
 
     public List<MailAttachment> attachments() {
         return List.copyOf(attachments);
     }
 
-    public List<UUID> recipientUserIds() {
-        return mailboxEntries.stream()
-                .filter(entry -> entry.mailboxType() == MailboxType.INBOX)
-                .map(MailboxEntry::ownerUserId)
-                .toList();
-    }
-
-    private void ensureRequested() {
-        if (deliveryStatus != MailDeliveryStatus.REQUESTED) {
-            throw invalid("발송 요청 상태의 메일만 발송 결과를 변경할 수 있습니다.");
+    private void ensureDeliveryInProgress() {
+        if (deliveryStatus != MailDeliveryStatus.REQUESTED
+                && deliveryStatus != MailDeliveryStatus.RETRYING) {
+            throw invalid("발송 요청 또는 재요청 상태의 메일만 발송 결과를 변경할 수 있습니다.");
         }
     }
 
     private void ensureNotBeforeRequested(Instant resultAt, String fieldName) {
         if (resultAt.isBefore(requestedAt)) {
-            throw invalid(fieldName + "은 발송 요청 시각보다 빠를 수 없습니다.");
+            throw invalid(fieldName + "은 최근 발송 요청 시각보다 빠를 수 없습니다.");
         }
     }
 
@@ -290,6 +315,14 @@ public class Mail {
         return validated;
     }
 
+    private static String validateBody(String body) {
+        String validated = requireText(body, "메일 본문은 필수입니다.");
+        if (validated.length() > MAX_BODY_LENGTH) {
+            throw invalid("메일 본문은 " + MAX_BODY_LENGTH + "자를 초과할 수 없습니다.");
+        }
+        return validated;
+    }
+
     private static void validateRelatedResource(
             RelatedResourceType relatedResourceType, UUID relatedResourceId) {
         if ((relatedResourceType == null) != (relatedResourceId == null)) {
@@ -298,55 +331,70 @@ public class Mail {
     }
 
     private static void validateDeliveryState(
-            MailDeliveryStatus status, Instant sentAt, Instant failedAt, String failureCode) {
-        if (status == MailDeliveryStatus.REQUESTED
-                && (sentAt != null || failedAt != null || failureCode != null)) {
-            throw invalid("발송 요청 상태에는 완료 또는 실패 정보를 지정할 수 없습니다.");
+            MailDeliveryStatus status,
+            Instant requestedAt,
+            Instant sentAt,
+            Instant failedAt,
+            String failureCode,
+            int retryCount) {
+        if (retryCount < 0) {
+            throw invalid("메일 재시도 횟수는 0보다 작을 수 없습니다.");
         }
-        if (status == MailDeliveryStatus.SENT
-                && (sentAt == null || failedAt != null || failureCode != null)) {
-            throw invalid("발송 완료 상태의 시각 정보가 올바르지 않습니다.");
+        if (status == MailDeliveryStatus.DRAFT) {
+            requireState(
+                    requestedAt == null
+                            && sentAt == null
+                            && failedAt == null
+                            && failureCode == null
+                            && retryCount == 0,
+                    "작성 중 상태에는 발송 결과 정보를 지정할 수 없습니다.");
+            return;
         }
-        if (status == MailDeliveryStatus.FAILED
-                && (failedAt == null
-                        || failureCode == null
-                        || failureCode.isBlank()
-                        || sentAt != null)) {
-            throw invalid("발송 실패 상태의 정보가 올바르지 않습니다.");
+        requireState(requestedAt != null, "발송 상태의 메일에는 요청 시각이 필요합니다.");
+        if (status == MailDeliveryStatus.REQUESTED) {
+            requireState(
+                    sentAt == null && failedAt == null && failureCode == null && retryCount == 0,
+                    "발송 요청 상태의 정보가 올바르지 않습니다.");
+        } else if (status == MailDeliveryStatus.RETRYING) {
+            requireState(
+                    sentAt == null && failedAt == null && failureCode == null && retryCount > 0,
+                    "발송 재요청 상태의 정보가 올바르지 않습니다.");
+        } else if (status == MailDeliveryStatus.SENT) {
+            requireState(
+                    sentAt != null && failedAt == null && failureCode == null,
+                    "발송 완료 상태의 정보가 올바르지 않습니다.");
+            requireState(!sentAt.isBefore(requestedAt), "메일 발송 완료 시각이 요청 시각보다 빠릅니다.");
+        } else if (status == MailDeliveryStatus.FAILED) {
+            requireState(
+                    failedAt != null
+                            && failureCode != null
+                            && !failureCode.isBlank()
+                            && sentAt == null,
+                    "발송 실패 상태의 정보가 올바르지 않습니다.");
+            requireState(!failedAt.isBefore(requestedAt), "메일 발송 실패 시각이 요청 시각보다 빠릅니다.");
         }
     }
 
-    private static void validateDeliveryTime(
-            Instant requestedAt, Instant sentAt, Instant failedAt) {
-        if (sentAt != null && sentAt.isBefore(requestedAt)) {
-            throw invalid("메일 발송 완료 시각은 발송 요청 시각보다 빠를 수 없습니다.");
-        }
-        if (failedAt != null && failedAt.isBefore(requestedAt)) {
-            throw invalid("메일 발송 실패 시각은 발송 요청 시각보다 빠를 수 없습니다.");
-        }
-    }
-
-    private static void validateMailboxEntries(List<MailboxEntry> entries) {
-        if (entries.isEmpty()) {
-            throw invalid("메일에는 메일함 항목이 한 개 이상 필요합니다.");
-        }
-        Set<String> keys = new HashSet<>();
-        for (MailboxEntry entry : entries) {
-            requireNonNull(entry, "메일함 항목은 null일 수 없습니다.");
-            String key = entry.ownerUserId() + ":" + entry.mailboxType();
-            if (!keys.add(key)) {
-                throw invalid("동일 사용자의 같은 유형 메일함 항목을 중복 등록할 수 없습니다.");
-            }
-        }
-    }
-
-    private static void validateAttachments(List<MailAttachment> attachments) {
+    private static void validateAttachments(List<MailAttachment> attachments, UUID senderUserId) {
         Set<String> objectKeys = new HashSet<>();
         for (MailAttachment attachment : attachments) {
-            requireNonNull(attachment, "첨부파일은 null일 수 없습니다.");
-            if (!objectKeys.add(attachment.objectKey())) {
+            MailAttachment validated = requireNonNull(attachment, "첨부파일은 null일 수 없습니다.");
+            if (!objectKeys.add(validated.objectKey())) {
                 throw invalid("동일한 object key의 첨부파일을 중복 등록할 수 없습니다.");
             }
+            validateAttachmentUploader(validated, senderUserId);
+        }
+    }
+
+    private static void validateAttachmentUploader(MailAttachment attachment, UUID senderUserId) {
+        if (!senderUserId.equals(attachment.uploaderUserId())) {
+            throw invalid("메일 발신자만 첨부파일을 등록할 수 있습니다.");
+        }
+    }
+
+    private static void requireState(boolean condition, String message) {
+        if (!condition) {
+            throw invalid(message);
         }
     }
 

@@ -15,9 +15,11 @@ import com.meetbowl.common.exception.ErrorCode;
 
 class MailboxEntryTest {
 
+    private static final UUID MAIL_ID = UUID.randomUUID();
+
     @Test
     void inboxEntryManagesReadAndTrashState() {
-        MailboxEntry entry = MailboxEntry.inbox(UUID.randomUUID());
+        MailboxEntry entry = MailboxEntry.inbox(MAIL_ID, UUID.randomUUID());
         Instant readAt = Instant.parse("2026-06-08T02:00:00Z");
         Instant trashedAt = Instant.parse("2026-06-08T03:00:00Z");
 
@@ -37,7 +39,7 @@ class MailboxEntryTest {
 
     @Test
     void permanentDeleteRequiresTrashState() {
-        MailboxEntry entry = MailboxEntry.inbox(UUID.randomUUID());
+        MailboxEntry entry = MailboxEntry.inbox(MAIL_ID, UUID.randomUUID());
 
         BusinessException exception =
                 assertThrows(
@@ -49,7 +51,7 @@ class MailboxEntryTest {
 
     @Test
     void permanentlyDeletedEntryCannotBeChanged() {
-        MailboxEntry entry = MailboxEntry.inbox(UUID.randomUUID());
+        MailboxEntry entry = MailboxEntry.inbox(MAIL_ID, UUID.randomUUID());
         entry.moveToTrash(Instant.parse("2026-06-08T03:00:00Z"));
         entry.permanentlyDelete(Instant.parse("2026-06-08T04:00:00Z"));
 
@@ -62,7 +64,7 @@ class MailboxEntryTest {
 
     @Test
     void permanentDeleteRejectsTimeBeforeTrashTime() {
-        MailboxEntry entry = MailboxEntry.inbox(UUID.randomUUID());
+        MailboxEntry entry = MailboxEntry.inbox(MAIL_ID, UUID.randomUUID());
         entry.moveToTrash(Instant.parse("2026-06-08T03:00:00Z"));
 
         assertThrows(
@@ -72,7 +74,7 @@ class MailboxEntryTest {
 
     @Test
     void sentEntryCannotChangeReadState() {
-        MailboxEntry entry = MailboxEntry.sent(UUID.randomUUID());
+        MailboxEntry entry = MailboxEntry.sent(MAIL_ID, UUID.randomUUID());
 
         assertThrows(
                 BusinessException.class,

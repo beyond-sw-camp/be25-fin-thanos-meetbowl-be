@@ -22,6 +22,7 @@ import com.meetbowl.domain.mail.MailAttachment;
 import com.meetbowl.domain.mail.MailBodyType;
 import com.meetbowl.domain.mail.MailDeliveryStatus;
 import com.meetbowl.domain.mail.MailType;
+import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 
 @Transactional
@@ -33,6 +34,7 @@ import com.meetbowl.infrastructure.config.InfrastructureConfig;
             "spring.datasource.password=",
             "spring.datasource.driver-class-name=org.h2.Driver",
             "spring.jpa.hibernate.ddl-auto=create-drop",
+            "spring.flyway.enabled=false",
             "spring.jpa.properties.hibernate.jdbc.time_zone=UTC"
         })
 class MailEntityTest {
@@ -44,7 +46,7 @@ class MailEntityTest {
         UUID recipientUserId = UUID.randomUUID();
         UUID idempotencyKey = UUID.randomUUID();
         Mail mail =
-                Mail.request(
+                Mail.createDraft(
                         UUID.randomUUID(),
                         UUID.randomUUID(),
                         List.of(recipientUserId),
@@ -54,8 +56,7 @@ class MailEntityTest {
                         MailBodyType.TEXT,
                         null,
                         null,
-                        idempotencyKey,
-                        Instant.parse("2026-06-08T01:00:00Z"));
+                        idempotencyKey);
         mail.addAttachment(
                 MailAttachment.create(
                         mail.senderUserId(),
@@ -64,6 +65,7 @@ class MailEntityTest {
                         "file.pdf",
                         "application/pdf",
                         1024));
+        mail.requestDelivery(Instant.parse("2026-06-08T01:00:00Z"));
         mail.markSent(Instant.parse("2026-06-08T01:01:00Z"));
 
         MailEntity entity = MailEntity.from(mail);
@@ -77,10 +79,53 @@ class MailEntityTest {
         assertThat(restored.idempotencyKey()).isEqualTo(idempotencyKey);
         assertThat(restored.deliveryStatus()).isEqualTo(MailDeliveryStatus.SENT);
         assertThat(restored.recipientUserIds()).containsExactly(recipientUserId);
-        assertThat(restored.mailboxEntries()).hasSize(2);
         assertThat(restored.attachments()).hasSize(1);
         assertThat(restored.attachments().getFirst().objectKey())
                 .isEqualTo("attachments/mail/file.pdf");
+    }
+
+    @Test
+    void persistDraftBeforeDeliveryRequest() {
+        Mail draft =
+                Mail.createDraft(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        List.of(UUID.randomUUID()),
+                        "임시 메일",
+                        "첨부파일 확정 전 본문",
+                        MailType.NORMAL,
+                        MailBodyType.TEXT,
+                        null,
+                        null,
+                        UUID.randomUUID());
+
+        MailEntity entity = MailEntity.from(draft);
+        entityManager.persist(entity);
+        entityManager.flush();
+        entityManager.clear();
+
+        Mail restored = entityManager.find(MailEntity.class, entity.getId()).toDomain();
+
+        assertThat(restored.deliveryStatus()).isEqualTo(MailDeliveryStatus.DRAFT);
+        assertThat(restored.requestedAt()).isNull();
+    }
+
+    @Test
+    void persistAndRestoreIndependentMailboxEntry() {
+        UUID mailId = UUID.randomUUID();
+        UUID ownerUserId = UUID.randomUUID();
+        MailboxEntryEntity entity =
+                MailboxEntryEntity.from(MailboxEntry.inbox(mailId, ownerUserId));
+
+        entityManager.persist(entity);
+        entityManager.flush();
+        entityManager.clear();
+
+        MailboxEntry restored =
+                entityManager.find(MailboxEntryEntity.class, entity.getId()).toDomain();
+
+        assertThat(restored.mailId()).isEqualTo(mailId);
+        assertThat(restored.ownerUserId()).isEqualTo(ownerUserId);
     }
 
     @SpringBootConfiguration

@@ -1,10 +1,8 @@
 package com.meetbowl.domain.mail;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,87 +18,74 @@ class MailTest {
     private static final Instant REQUESTED_AT = Instant.parse("2026-06-08T01:00:00Z");
 
     @Test
-    void requestMailCreatesSenderAndRecipientMailboxEntries() {
-        UUID senderUserId = UUID.randomUUID();
+    void createDraftKeepsRecipientsAndWaitsForDeliveryRequest() {
         UUID recipientOne = UUID.randomUUID();
         UUID recipientTwo = UUID.randomUUID();
         UUID idempotencyKey = UUID.randomUUID();
 
         Mail mail =
-                Mail.request(
-                        UUID.randomUUID(),
-                        senderUserId,
-                        List.of(recipientOne, recipientTwo),
-                        "회의록 공유",
-                        "승인된 회의록을 공유합니다.",
-                        MailType.NORMAL,
-                        MailBodyType.MINUTES_SHARE,
-                        RelatedResourceType.MEETING_MINUTES,
-                        UUID.randomUUID(),
-                        idempotencyKey,
-                        REQUESTED_AT);
+                createDraft(UUID.randomUUID(), List.of(recipientOne, recipientTwo), idempotencyKey);
 
-        assertEquals(MailDeliveryStatus.REQUESTED, mail.deliveryStatus());
+        assertEquals(MailDeliveryStatus.DRAFT, mail.deliveryStatus());
         assertEquals(idempotencyKey, mail.idempotencyKey());
         assertEquals(List.of(recipientOne, recipientTwo), mail.recipientUserIds());
-        assertEquals(3, mail.mailboxEntries().size());
-        assertTrue(
-                mail.mailboxEntries().stream()
-                        .anyMatch(
-                                entry ->
-                                        entry.ownerUserId().equals(senderUserId)
-                                                && entry.mailboxType() == MailboxType.SENT));
+        assertNull(mail.requestedAt());
     }
 
     @Test
-    void requestMailFailsWhenRecipientIsDuplicated() {
+    void createDraftFailsWhenRecipientIsDuplicated() {
         UUID recipientUserId = UUID.randomUUID();
 
         BusinessException exception =
                 assertThrows(
                         BusinessException.class,
                         () ->
-                                Mail.request(
-                                        UUID.randomUUID(),
+                                createDraft(
                                         UUID.randomUUID(),
                                         List.of(recipientUserId, recipientUserId),
-                                        "제목",
-                                        "본문",
-                                        MailType.NORMAL,
-                                        MailBodyType.TEXT,
-                                        null,
-                                        null,
-                                        UUID.randomUUID(),
-                                        REQUESTED_AT));
+                                        UUID.randomUUID()));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 
     @Test
-    void requestMailFailsWhenIdempotencyKeyIsNull() {
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () ->
-                                Mail.request(
-                                        UUID.randomUUID(),
-                                        UUID.randomUUID(),
-                                        List.of(UUID.randomUUID()),
-                                        "제목",
-                                        "본문",
-                                        MailType.NORMAL,
-                                        MailBodyType.TEXT,
-                                        null,
-                                        null,
-                                        null,
-                                        REQUESTED_AT));
+    void bodyCannotExceedDomainLimit() {
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        Mail.createDraft(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                List.of(UUID.randomUUID()),
+                                "제목",
+                                "a".repeat(Mail.MAX_BODY_LENGTH + 1),
+                                MailType.NORMAL,
+                                MailBodyType.TEXT,
+                                null,
+                                null,
+                                UUID.randomUUID()));
+    }
 
-        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+    @Test
+    void attachmentIsFinalizedBeforeDeliveryRequest() {
+        UUID senderUserId = UUID.randomUUID();
+        Mail mail = createDraft(senderUserId, List.of(UUID.randomUUID()), UUID.randomUUID());
+        mail.addAttachment(createAttachment(senderUserId, "attachments/mail/first.pdf"));
+
+        mail.requestDelivery(REQUESTED_AT);
+
+        assertEquals(MailDeliveryStatus.REQUESTED, mail.deliveryStatus());
+        assertEquals(1, mail.attachments().size());
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        mail.addAttachment(
+                                createAttachment(senderUserId, "attachments/mail/second.pdf")));
     }
 
     @Test
     void markSentChangesRequestedMailToSent() {
-        Mail mail = createTextMail();
+        Mail mail = createRequestedMail();
         Instant sentAt = Instant.parse("2026-06-08T01:01:00Z");
 
         mail.markSent(sentAt);
@@ -111,92 +96,125 @@ class MailTest {
     }
 
     @Test
-    void deliveryResultCannotBeChangedTwice() {
-        Mail mail = createTextMail();
-        mail.markSent(Instant.parse("2026-06-08T01:01:00Z"));
+    void failedMailCanBeRetriedAndCompleted() {
+        Mail mail = createRequestedMail();
+        Instant failedAt = Instant.parse("2026-06-08T01:01:00Z");
+        Instant retriedAt = Instant.parse("2026-06-08T01:02:00Z");
 
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () -> mail.markFailed(Instant.parse("2026-06-08T01:02:00Z"), "FAILED"));
+        mail.markFailed(failedAt, "TEMPORARY_FAILURE");
+        mail.retryDelivery(retriedAt);
 
-        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+        assertEquals(MailDeliveryStatus.RETRYING, mail.deliveryStatus());
+        assertEquals(1, mail.retryCount());
+        assertEquals(retriedAt, mail.requestedAt());
+        assertNull(mail.failedAt());
+        assertNull(mail.failureCode());
+
+        mail.markSent(Instant.parse("2026-06-08T01:03:00Z"));
+        assertEquals(MailDeliveryStatus.SENT, mail.deliveryStatus());
     }
 
     @Test
-    void invalidDeliveryTimeDoesNotPartiallyChangeStatus() {
-        Mail mail = createTextMail();
+    void retryCannotPrecedeFailureTime() {
+        Mail mail = createRequestedMail();
+        mail.markFailed(Instant.parse("2026-06-08T01:02:00Z"), "FAILED");
 
         assertThrows(
                 BusinessException.class,
-                () -> mail.markSent(Instant.parse("2026-06-08T00:59:00Z")));
+                () -> mail.retryDelivery(Instant.parse("2026-06-08T01:01:59Z")));
+        assertEquals(MailDeliveryStatus.FAILED, mail.deliveryStatus());
+    }
 
-        assertEquals(MailDeliveryStatus.REQUESTED, mail.deliveryStatus());
-        assertNull(mail.sentAt());
+    @Test
+    void restoreRejectsInvalidDeliveryState() {
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        Mail.of(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                List.of(UUID.randomUUID()),
+                                "제목",
+                                "본문",
+                                MailType.NORMAL,
+                                MailBodyType.TEXT,
+                                null,
+                                null,
+                                UUID.randomUUID(),
+                                MailDeliveryStatus.SENT,
+                                REQUESTED_AT,
+                                null,
+                                null,
+                                null,
+                                0,
+                                List.of()));
+    }
+
+    @Test
+    void restoreRejectsAttachmentUploadedByNonSender() {
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        Mail.of(
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                UUID.randomUUID(),
+                                List.of(UUID.randomUUID()),
+                                "제목",
+                                "본문",
+                                MailType.NORMAL,
+                                MailBodyType.TEXT,
+                                null,
+                                null,
+                                UUID.randomUUID(),
+                                MailDeliveryStatus.DRAFT,
+                                null,
+                                null,
+                                null,
+                                null,
+                                0,
+                                List.of(
+                                        createAttachment(
+                                                UUID.randomUUID(), "attachments/mail/file.pdf"))));
     }
 
     @Test
     void addAttachmentRejectsDuplicatedObjectKey() {
-        Mail mail = createTextMail();
-        UUID uploaderUserId = mail.senderUserId();
-        MailAttachment first =
-                MailAttachment.create(
-                        uploaderUserId,
-                        "attachments/mail/file.pdf",
-                        "회의록.pdf",
-                        "file.pdf",
-                        "application/pdf",
-                        1024);
-        MailAttachment duplicated =
-                MailAttachment.create(
-                        uploaderUserId,
-                        "attachments/mail/file.pdf",
-                        "다른이름.pdf",
-                        "file.pdf",
-                        "application/pdf",
-                        2048);
-        mail.addAttachment(first);
-
-        assertThrows(BusinessException.class, () -> mail.addAttachment(duplicated));
-    }
-
-    @Test
-    void addAttachmentRejectsNonSenderUploader() {
-        Mail mail = createTextMail();
-        MailAttachment attachment =
-                MailAttachment.create(
-                        UUID.randomUUID(),
-                        "attachments/mail/file.pdf",
-                        "회의록.pdf",
-                        "file.pdf",
-                        "application/pdf",
-                        1024);
-
-        assertThrows(BusinessException.class, () -> mail.addAttachment(attachment));
-    }
-
-    @Test
-    void returnedCollectionsCannotModifyAggregate() {
-        Mail mail = createTextMail();
+        UUID senderUserId = UUID.randomUUID();
+        Mail mail = createDraft(senderUserId, List.of(UUID.randomUUID()), UUID.randomUUID());
+        mail.addAttachment(createAttachment(senderUserId, "attachments/mail/file.pdf"));
 
         assertThrows(
-                UnsupportedOperationException.class,
-                () -> mail.mailboxEntries().add(MailboxEntry.inbox(UUID.randomUUID())));
-        assertFalse(mail.mailboxEntries().isEmpty());
+                BusinessException.class,
+                () ->
+                        mail.addAttachment(
+                                createAttachment(senderUserId, "attachments/mail/file.pdf")));
     }
 
-    private static Mail createTextMail() {
-        return Mail.request(
+    private static Mail createRequestedMail() {
+        Mail mail = createDraft(UUID.randomUUID(), List.of(UUID.randomUUID()), UUID.randomUUID());
+        mail.requestDelivery(REQUESTED_AT);
+        return mail;
+    }
+
+    private static Mail createDraft(
+            UUID senderUserId, List<UUID> recipientUserIds, UUID idempotencyKey) {
+        return Mail.createDraft(
                 UUID.randomUUID(),
-                UUID.randomUUID(),
-                List.of(UUID.randomUUID()),
+                senderUserId,
+                recipientUserIds,
                 "제목",
                 "본문",
                 MailType.NORMAL,
                 MailBodyType.TEXT,
                 null,
                 null,
-                UUID.randomUUID(),
-                REQUESTED_AT);
+                idempotencyKey);
+    }
+
+    private static MailAttachment createAttachment(UUID uploaderUserId, String objectKey) {
+        return MailAttachment.create(
+                uploaderUserId, objectKey, "회의록.pdf", "file.pdf", "application/pdf", 1024);
     }
 }

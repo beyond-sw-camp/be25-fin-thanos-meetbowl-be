@@ -7,11 +7,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -36,12 +32,8 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
         })
 public class MailboxEntryEntity extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "mail_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_mailbox_entry_mail"))
-    private MailEntity mail;
+    @Column(name = "mail_id", nullable = false, columnDefinition = "BINARY(16)")
+    private UUID mailId;
 
     @Column(name = "owner_user_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID ownerUserId;
@@ -61,10 +53,10 @@ public class MailboxEntryEntity extends BaseEntity {
 
     protected MailboxEntryEntity() {}
 
-    static MailboxEntryEntity from(MailEntity mail, MailboxEntry entry) {
+    static MailboxEntryEntity from(MailboxEntry entry) {
         MailboxEntryEntity entity = new MailboxEntryEntity();
         entity.setId(entry.id());
-        entity.mail = mail;
+        entity.mailId = entry.mailId();
         entity.ownerUserId = entry.ownerUserId();
         entity.mailboxType = entry.mailboxType();
         entity.readAt = entry.readAt();
@@ -75,6 +67,6 @@ public class MailboxEntryEntity extends BaseEntity {
 
     MailboxEntry toDomain() {
         return MailboxEntry.of(
-                getId(), ownerUserId, mailboxType, readAt, trashedAt, permanentlyDeletedAt);
+                getId(), mailId, ownerUserId, mailboxType, readAt, trashedAt, permanentlyDeletedAt);
     }
 }
