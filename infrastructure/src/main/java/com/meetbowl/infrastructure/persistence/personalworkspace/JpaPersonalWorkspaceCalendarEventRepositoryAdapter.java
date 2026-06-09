@@ -27,8 +27,11 @@ public class JpaPersonalWorkspaceCalendarEventRepositoryAdapter
     }
 
     @Override
-    public Optional<PersonalWorkspaceCalendarEvent> findById(UUID eventId) {
-        return repository.findById(eventId).map(PersonalWorkspaceCalendarEventEntity::toDomain);
+    public Optional<PersonalWorkspaceCalendarEvent> findByIdAndOwnerUserId(
+            UUID eventId, UUID ownerUserId) {
+        return repository
+                .findByIdAndOwnerUserId(eventId, ownerUserId)
+                .map(PersonalWorkspaceCalendarEventEntity::toDomain);
     }
 
     @Override
@@ -43,7 +46,15 @@ public class JpaPersonalWorkspaceCalendarEventRepositoryAdapter
     }
 
     @Override
-    public void deleteById(UUID eventId) {
-        repository.deleteById(eventId);
+    public List<PersonalWorkspaceCalendarEvent> findVisibleByUserIdAndPeriod(
+            UUID userId, Instant startedAt, Instant endedAt) {
+        return repository.findVisibleByUserIdAndPeriod(userId, startedAt, endedAt).stream()
+                .map(PersonalWorkspaceCalendarEventEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public boolean deleteByIdAndOwnerUserId(UUID eventId, UUID ownerUserId) {
+        return repository.deleteByIdAndOwnerUserId(eventId, ownerUserId) > 0;
     }
 }

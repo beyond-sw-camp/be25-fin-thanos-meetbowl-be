@@ -8,11 +8,12 @@ public interface PersonalWorkspaceCalendarSubscriptionRepositoryPort {
 
     PersonalWorkspaceCalendarSubscription save(PersonalWorkspaceCalendarSubscription subscription);
 
-    Optional<PersonalWorkspaceCalendarSubscription> findById(UUID subscriptionId);
+    Optional<PersonalWorkspaceCalendarSubscription> findByIdAndSubscriberUserId(
+            UUID subscriptionId, UUID subscriberUserId);
 
     boolean existsBySubscriberUserIdAndTargetUserId(UUID subscriberUserId, UUID targetUserId);
 
     List<PersonalWorkspaceCalendarSubscription> findBySubscriberUserId(UUID subscriberUserId);
 
-    void deleteById(UUID subscriptionId);
+    boolean deleteByIdAndSubscriberUserId(UUID subscriptionId, UUID subscriberUserId);
 }

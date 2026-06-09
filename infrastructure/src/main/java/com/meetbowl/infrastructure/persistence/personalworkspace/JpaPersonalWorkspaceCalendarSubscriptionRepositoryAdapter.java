@@ -29,9 +29,10 @@ public class JpaPersonalWorkspaceCalendarSubscriptionRepositoryAdapter
     }
 
     @Override
-    public Optional<PersonalWorkspaceCalendarSubscription> findById(UUID subscriptionId) {
+    public Optional<PersonalWorkspaceCalendarSubscription> findByIdAndSubscriberUserId(
+            UUID subscriptionId, UUID subscriberUserId) {
         return repository
-                .findById(subscriptionId)
+                .findByIdAndSubscriberUserId(subscriptionId, subscriberUserId)
                 .map(PersonalWorkspaceCalendarSubscriptionEntity::toDomain);
     }
 
@@ -50,7 +51,7 @@ public class JpaPersonalWorkspaceCalendarSubscriptionRepositoryAdapter
     }
 
     @Override
-    public void deleteById(UUID subscriptionId) {
-        repository.deleteById(subscriptionId);
+    public boolean deleteByIdAndSubscriberUserId(UUID subscriptionId, UUID subscriberUserId) {
+        return repository.deleteByIdAndSubscriberUserId(subscriptionId, subscriberUserId) > 0;
     }
 }

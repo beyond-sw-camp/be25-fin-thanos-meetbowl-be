@@ -8,13 +8,24 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import com.meetbowl.domain.personalworkspace.CalendarEventSource;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEvent;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 @Entity
-@Table(name = "personal_workspace_calendar_events")
+@Table(
+        name = "personal_workspace_calendar_events",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_personal_workspace_google_calendar_event",
+                        columnNames = {
+                            "owner_user_id",
+                            "source",
+                            "source_id",
+                            "external_event_id"
+                        }))
 public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "BINARY(16)")

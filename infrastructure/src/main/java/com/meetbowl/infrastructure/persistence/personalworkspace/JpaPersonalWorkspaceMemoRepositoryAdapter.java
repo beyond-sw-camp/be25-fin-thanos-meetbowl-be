@@ -26,8 +26,10 @@ public class JpaPersonalWorkspaceMemoRepositoryAdapter
     }
 
     @Override
-    public Optional<PersonalWorkspaceMemo> findById(UUID memoId) {
-        return repository.findById(memoId).map(PersonalWorkspaceMemoEntity::toDomain);
+    public Optional<PersonalWorkspaceMemo> findByIdAndOwnerUserId(UUID memoId, UUID ownerUserId) {
+        return repository
+                .findByIdAndOwnerUserId(memoId, ownerUserId)
+                .map(PersonalWorkspaceMemoEntity::toDomain);
     }
 
     @Override
@@ -38,7 +40,7 @@ public class JpaPersonalWorkspaceMemoRepositoryAdapter
     }
 
     @Override
-    public void deleteById(UUID memoId) {
-        repository.deleteById(memoId);
+    public boolean deleteByIdAndOwnerUserId(UUID memoId, UUID ownerUserId) {
+        return repository.deleteByIdAndOwnerUserId(memoId, ownerUserId) > 0;
     }
 }

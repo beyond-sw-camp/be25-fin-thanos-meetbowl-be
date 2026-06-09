@@ -8,9 +8,9 @@ public interface PersonalWorkspaceMemoRepositoryPort {
 
     PersonalWorkspaceMemo save(PersonalWorkspaceMemo memo);
 
-    Optional<PersonalWorkspaceMemo> findById(UUID memoId);
+    Optional<PersonalWorkspaceMemo> findByIdAndOwnerUserId(UUID memoId, UUID ownerUserId);
 
     List<PersonalWorkspaceMemo> findByOwnerUserId(UUID ownerUserId);
 
-    void deleteById(UUID memoId);
+    boolean deleteByIdAndOwnerUserId(UUID memoId, UUID ownerUserId);
 }

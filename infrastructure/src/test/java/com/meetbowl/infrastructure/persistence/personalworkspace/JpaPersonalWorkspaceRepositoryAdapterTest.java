@@ -1,6 +1,7 @@
 package com.meetbowl.infrastructure.persistence.personalworkspace;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 import java.util.List;
@@ -12,10 +13,12 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.domain.personalworkspace.GoogleCalendarConnection;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEvent;
+import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarSubscription;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceDriveFile;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemo;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
@@ -33,6 +36,10 @@ import com.meetbowl.infrastructure.config.InfrastructureConfig;
 class JpaPersonalWorkspaceRepositoryAdapterTest {
 
     @Autowired private JpaPersonalWorkspaceCalendarEventRepositoryAdapter calendarEventAdapter;
+
+    @Autowired
+    private JpaPersonalWorkspaceCalendarSubscriptionRepositoryAdapter calendarSubscriptionAdapter;
+
     @Autowired private JpaPersonalWorkspaceDriveFileRepositoryAdapter driveFileAdapter;
     @Autowired private JpaPersonalWorkspaceMemoRepositoryAdapter memoAdapter;
     @Autowired private JpaGoogleCalendarConnectionRepositoryAdapter googleCalendarConnectionAdapter;
@@ -60,6 +67,62 @@ class JpaPersonalWorkspaceRepositoryAdapterTest {
         assertThat(saved.id()).isNotNull();
         assertThat(events).hasSize(1);
         assertThat(events.getFirst().title()).isEqualTo("개인 일정");
+    }
+
+    @Test
+    void calendarEventLookupAndDeleteRequireOwnerUserId() {
+        UUID ownerUserId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        PersonalWorkspaceCalendarEvent saved =
+                calendarEventAdapter.save(
+                        PersonalWorkspaceCalendarEvent.createPersonal(
+                                ownerUserId,
+                                "소유자 일정",
+                                null,
+                                Instant.parse("2099-01-01T01:00:00Z"),
+                                Instant.parse("2099-01-01T02:00:00Z"),
+                                false));
+
+        assertThat(calendarEventAdapter.findByIdAndOwnerUserId(saved.id(), otherUserId)).isEmpty();
+        assertThat(calendarEventAdapter.deleteByIdAndOwnerUserId(saved.id(), otherUserId))
+                .isFalse();
+        assertThat(calendarEventAdapter.findByIdAndOwnerUserId(saved.id(), ownerUserId))
+                .isPresent();
+        assertThat(calendarEventAdapter.deleteByIdAndOwnerUserId(saved.id(), ownerUserId)).isTrue();
+    }
+
+    @Test
+    void subscribedCalendarReadsCurrentTargetEvents() {
+        UUID ownerUserId = UUID.randomUUID();
+        UUID subscriberUserId = UUID.randomUUID();
+        Instant startedAt = Instant.parse("2099-01-01T01:00:00Z");
+        Instant endedAt = Instant.parse("2099-01-01T02:00:00Z");
+        PersonalWorkspaceCalendarEvent saved =
+                calendarEventAdapter.save(
+                        PersonalWorkspaceCalendarEvent.createPersonal(
+                                ownerUserId, "변경 전", null, startedAt, endedAt, false));
+        calendarSubscriptionAdapter.save(
+                PersonalWorkspaceCalendarSubscription.create(
+                        subscriberUserId, ownerUserId, Instant.parse("2099-01-01T00:00:00Z")));
+
+        calendarEventAdapter.save(saved.update("변경 후", null, startedAt, endedAt, false));
+
+        List<PersonalWorkspaceCalendarEvent> visibleEvents =
+                calendarEventAdapter.findVisibleByUserIdAndPeriod(
+                        subscriberUserId,
+                        Instant.parse("2099-01-01T00:30:00Z"),
+                        Instant.parse("2099-01-01T02:30:00Z"));
+        assertThat(visibleEvents)
+                .extracting(PersonalWorkspaceCalendarEvent::title)
+                .containsExactly("변경 후");
+
+        calendarEventAdapter.deleteByIdAndOwnerUserId(saved.id(), ownerUserId);
+        assertThat(
+                        calendarEventAdapter.findVisibleByUserIdAndPeriod(
+                                subscriberUserId,
+                                Instant.parse("2099-01-01T00:30:00Z"),
+                                Instant.parse("2099-01-01T02:30:00Z")))
+                .isEmpty();
     }
 
     @Test
@@ -116,12 +179,50 @@ class JpaPersonalWorkspaceRepositoryAdapterTest {
                 .isPresent();
     }
 
+    @Test
+    void memoLookupAndDeleteRequireOwnerUserId() {
+        UUID ownerUserId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        PersonalWorkspaceMemo saved =
+                memoAdapter.save(
+                        PersonalWorkspaceMemo.create(
+                                ownerUserId, "메모", "내용", Instant.parse("2099-01-01T01:00:00Z")));
+
+        assertThat(memoAdapter.findByIdAndOwnerUserId(saved.id(), otherUserId)).isEmpty();
+        assertThat(memoAdapter.deleteByIdAndOwnerUserId(saved.id(), otherUserId)).isFalse();
+        assertThat(memoAdapter.findByIdAndOwnerUserId(saved.id(), ownerUserId)).isPresent();
+    }
+
+    @Test
+    void onlyOneActiveGoogleCalendarConnectionIsAllowedPerOwner() {
+        UUID ownerUserId = UUID.randomUUID();
+        googleCalendarConnectionAdapter.save(
+                GoogleCalendarConnection.connect(
+                        ownerUserId,
+                        "first@example.com",
+                        "primary",
+                        "secret/google-calendar/first",
+                        Instant.parse("2099-01-01T01:00:00Z")));
+
+        assertThatThrownBy(
+                        () ->
+                                googleCalendarConnectionAdapter.save(
+                                        GoogleCalendarConnection.connect(
+                                                ownerUserId,
+                                                "second@example.com",
+                                                "primary",
+                                                "secret/google-calendar/second",
+                                                Instant.parse("2099-01-01T02:00:00Z"))))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     @SpringBootConfiguration
     @EnableAutoConfiguration
     @Import({
         InfrastructureConfig.class,
         PersonalWorkspaceJpaConfig.class,
         JpaPersonalWorkspaceCalendarEventRepositoryAdapter.class,
+        JpaPersonalWorkspaceCalendarSubscriptionRepositoryAdapter.class,
         JpaPersonalWorkspaceDriveFileRepositoryAdapter.class,
         JpaPersonalWorkspaceMemoRepositoryAdapter.class,
         JpaGoogleCalendarConnectionRepositoryAdapter.class

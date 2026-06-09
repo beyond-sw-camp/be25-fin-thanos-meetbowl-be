@@ -83,9 +83,7 @@ public class PersonalWorkspaceCalendarEvent {
         if (source == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "일정 출처는 필수입니다.");
         }
-        if (source == CalendarEventSource.MEETING && sourceId == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의 일정은 출처 ID가 필수입니다.");
-        }
+        validateSourceReference(source, sourceId, externalEventId);
         validateOptionalLength(description, MAX_DESCRIPTION_LENGTH, "일정 설명은 1000자 이하여야 합니다.");
         validateOptionalLength(
                 externalEventId, MAX_EXTERNAL_EVENT_ID_LENGTH, "외부 일정 ID는 255자 이하여야 합니다.");
@@ -101,6 +99,37 @@ public class PersonalWorkspaceCalendarEvent {
                 source,
                 sourceId,
                 normalize(externalEventId));
+    }
+
+    private static void validateSourceReference(
+            CalendarEventSource source, UUID sourceId, String externalEventId) {
+        boolean hasExternalEventId = externalEventId != null && !externalEventId.isBlank();
+
+        switch (source) {
+            case PERSONAL -> {
+                if (sourceId != null || hasExternalEventId) {
+                    throw new BusinessException(
+                            ErrorCode.COMMON_INVALID_REQUEST,
+                            "개인 일정에는 출처 ID와 외부 일정 ID를 지정할 수 없습니다.");
+                }
+            }
+            case MEETING -> {
+                if (sourceId == null) {
+                    throw new BusinessException(
+                            ErrorCode.COMMON_INVALID_REQUEST, "회의 일정은 출처 ID가 필수입니다.");
+                }
+                if (hasExternalEventId) {
+                    throw new BusinessException(
+                            ErrorCode.COMMON_INVALID_REQUEST, "회의 일정에는 외부 일정 ID를 지정할 수 없습니다.");
+                }
+            }
+            case GOOGLE -> {
+                if (sourceId == null || !hasExternalEventId) {
+                    throw new BusinessException(
+                            ErrorCode.COMMON_INVALID_REQUEST, "Google 일정은 연결 ID와 외부 일정 ID가 필수입니다.");
+                }
+            }
+        }
     }
 
     public PersonalWorkspaceCalendarEvent update(

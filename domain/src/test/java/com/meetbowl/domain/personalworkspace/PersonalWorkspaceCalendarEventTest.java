@@ -72,4 +72,46 @@ class PersonalWorkspaceCalendarEventTest {
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
+
+    @Test
+    void personalCalendarEventRejectsSourceReference() {
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                PersonalWorkspaceCalendarEvent.of(
+                                        null,
+                                        UUID.randomUUID(),
+                                        "개인 일정",
+                                        null,
+                                        Instant.parse("2099-01-01T01:00:00Z"),
+                                        Instant.parse("2099-01-01T02:00:00Z"),
+                                        false,
+                                        CalendarEventSource.PERSONAL,
+                                        UUID.randomUUID(),
+                                        null));
+
+        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+    }
+
+    @Test
+    void googleCalendarEventRequiresConnectionAndExternalEventId() {
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                PersonalWorkspaceCalendarEvent.of(
+                                        null,
+                                        UUID.randomUUID(),
+                                        "Google 일정",
+                                        null,
+                                        Instant.parse("2099-01-01T01:00:00Z"),
+                                        Instant.parse("2099-01-01T02:00:00Z"),
+                                        false,
+                                        CalendarEventSource.GOOGLE,
+                                        UUID.randomUUID(),
+                                        null));
+
+        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+    }
 }

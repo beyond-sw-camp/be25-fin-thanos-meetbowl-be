@@ -9,10 +9,13 @@ public interface PersonalWorkspaceCalendarEventRepositoryPort {
 
     PersonalWorkspaceCalendarEvent save(PersonalWorkspaceCalendarEvent event);
 
-    Optional<PersonalWorkspaceCalendarEvent> findById(UUID eventId);
+    Optional<PersonalWorkspaceCalendarEvent> findByIdAndOwnerUserId(UUID eventId, UUID ownerUserId);
 
     List<PersonalWorkspaceCalendarEvent> findByOwnerUserIdAndPeriod(
             UUID ownerUserId, Instant startedAt, Instant endedAt);
 
-    void deleteById(UUID eventId);
+    List<PersonalWorkspaceCalendarEvent> findVisibleByUserIdAndPeriod(
+            UUID userId, Instant startedAt, Instant endedAt);
+
+    boolean deleteByIdAndOwnerUserId(UUID eventId, UUID ownerUserId);
 }

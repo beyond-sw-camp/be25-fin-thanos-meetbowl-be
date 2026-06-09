@@ -6,12 +6,18 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import com.meetbowl.domain.personalworkspace.GoogleCalendarConnection;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 @Entity
-@Table(name = "google_calendar_connections")
+@Table(
+        name = "google_calendar_connections",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uk_google_calendar_active_connection",
+                        columnNames = {"owner_user_id", "active_slot"}))
 public class GoogleCalendarConnectionEntity extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "BINARY(16)")
@@ -31,6 +37,9 @@ public class GoogleCalendarConnectionEntity extends BaseEntity {
 
     @Column private Instant disconnectedAt;
 
+    @Column(name = "active_slot")
+    private Integer activeSlot;
+
     protected GoogleCalendarConnectionEntity() {}
 
     private GoogleCalendarConnectionEntity(
@@ -46,6 +55,7 @@ public class GoogleCalendarConnectionEntity extends BaseEntity {
         this.credentialRef = credentialRef;
         this.connectedAt = connectedAt;
         this.disconnectedAt = disconnectedAt;
+        this.activeSlot = disconnectedAt == null ? 1 : null;
     }
 
     static GoogleCalendarConnectionEntity from(GoogleCalendarConnection connection) {
