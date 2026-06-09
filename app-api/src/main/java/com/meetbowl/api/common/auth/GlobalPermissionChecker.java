@@ -24,13 +24,6 @@ public class GlobalPermissionChecker {
         requireAnyRole(user, EnumSet.of(AuthenticatedUserRole.SYSTEM));
     }
 
-    public void rejectGuest(AuthenticatedUser user) {
-        requireAuthenticated(user);
-        if (user.isGuest()) {
-            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN);
-        }
-    }
-
     public void requireAnyRole(AuthenticatedUser user, Set<AuthenticatedUserRole> allowedRoles) {
         requireAuthenticated(user);
         if (!allowedRoles.contains(user.role())) {

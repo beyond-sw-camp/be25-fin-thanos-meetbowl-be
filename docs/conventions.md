@@ -278,6 +278,22 @@ JpaMinutesRepositoryAdapter
 
 Repository는 데이터 접근만 담당한다.
 
+---
+
+# 10. 도메인 / 영속성 구현 규칙
+
+도메인과 영속성 코드는 아래 원칙을 따른다.
+
+- Domain Model은 기본적으로 불변 객체로 두고, 상태 변경은 새 인스턴스를 반환하는 방식으로 처리한다.
+- Domain Model은 JPA Entity, Request DTO, Response DTO를 알지 못한다.
+- Infrastructure Entity는 외부 계층으로 노출하지 않으며, `from(domain)`과 `toDomain()` 변환 경로를 명시한다.
+- aggregate root를 먼저 설계하고, child entity는 실제로 필요한 경우에만 추가한다.
+- 핵심 도메인은 `meetingId` 같은 업무 키에 대해 중복 방지 정책을 명시적으로 둔다.
+- 저장소 Adapter와 Consumer는 중복 메시지와 중복 저장 시도를 고려해 멱등하게 작성한다.
+- 도메인 테스트는 업무 규칙만 검증하고, 인프라 테스트는 매핑과 저장 동작만 검증한다.
+- 시간은 `Instant`와 UTC 기준으로 다루고, 주요 ID는 UUID를 사용한다.
+- 상태값은 문자열 상수 대신 enum으로 고정한다.
+
 비즈니스 로직 작성 금지.
 
 ---
