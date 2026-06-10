@@ -16,12 +16,15 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
  * 회의 JPA Entity다. {@code meeting} 테이블과 1:1로 매핑되며 infrastructure 내부 모델로만 사용한다(API/Application/Domain
- * 비노출). 사용자/회의실/예약 참조는 모듈 간 직접 연관 대신 raw UUID 컬럼으로 둔다.
+ * 비노출). 사용자/회의실 참조는 모듈 간 직접 연관 대신 raw UUID 컬럼으로 둔다.
  */
 @Entity
 @Table(
         name = "meeting",
-        indexes = {@Index(name = "idx_meeting_host", columnList = "host_user_id")})
+        indexes = {
+            @Index(name = "idx_meeting_host", columnList = "host_user_id"),
+            @Index(name = "idx_meeting_room", columnList = "meeting_room_id")
+        })
 public class MeetingEntity extends BaseEntity {
 
     /** 회의 제목. */
@@ -35,6 +38,10 @@ public class MeetingEntity extends BaseEntity {
     /** 주최자(FK). */
     @Column(nullable = false, columnDefinition = "BINARY(16)")
     private UUID hostUserId;
+
+    /** 사용 회의실(FK, nullable). 화상회의만 진행하면 null. */
+    @Column(columnDefinition = "BINARY(16)")
+    private UUID meetingRoomId;
 
     /** 화상회의 provider 식별자(nullable). */
     @Column(length = 50)
@@ -61,6 +68,7 @@ public class MeetingEntity extends BaseEntity {
             String title,
             Instant scheduledAt,
             UUID hostUserId,
+            UUID meetingRoomId,
             String provider,
             String providerRoomId,
             MeetingStatus status,
@@ -69,6 +77,7 @@ public class MeetingEntity extends BaseEntity {
         this.title = title;
         this.scheduledAt = scheduledAt;
         this.hostUserId = hostUserId;
+        this.meetingRoomId = meetingRoomId;
         this.provider = provider;
         this.providerRoomId = providerRoomId;
         this.status = status;
@@ -82,6 +91,7 @@ public class MeetingEntity extends BaseEntity {
                         meeting.title(),
                         meeting.scheduledAt(),
                         meeting.hostUserId(),
+                        meeting.meetingRoomId(),
                         meeting.provider(),
                         meeting.providerRoomId(),
                         meeting.status(),
@@ -97,6 +107,7 @@ public class MeetingEntity extends BaseEntity {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 status,

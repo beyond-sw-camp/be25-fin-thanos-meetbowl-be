@@ -9,9 +9,10 @@ import com.meetbowl.common.exception.ErrorCode;
 /**
  * 회의 본체 도메인 모델이다.
  *
- * <p>"새 회의 예약" 폼이 만드는 회의 한 건을 표현한다. 회의실 점유(시간/회의실/중복방지)는 {@code RoomReservation}이, 회의 내용/날짜/시간은 예약이
- * 함께 보관하고, 이 모델은 회의의 주최자·화상 provider 연결·진행 상태를 소유한다. 참석자와 첨부파일은 별도 도메인 모델({@link MeetingAttendee},
- * {@link MeetingAttachment})이 회의를 {@code meetingId}로 참조해 소유한다.
+ * <p>"새 회의 예약" 폼이 만드는 회의 한 건을 표현한다. 회의가 사용하는 회의실은 {@code meetingRoomId} raw UUID로 직접 참조하며, 회의실
+ * 상세(이름/건물/수용 인원)는 조회 시 회의실 기준정보를 조인해 가져온다. 화상회의만 진행하는 경우 {@code meetingRoomId}는 null이다. 이 모델은 회의의
+ * 주최자·회의실 연결·화상 provider 연결·진행 상태를 소유한다. 참석자는 별도 도메인 모델({@link MeetingAttendee})이 회의를 {@code
+ * meetingId}로 참조해 소유한다.
  *
  * <p>불변 객체로 다루며 상태 전환은 새 인스턴스를 반환한다. 다른 도메인(사용자/회의실)은 raw UUID 참조로만 연결한다.
  */
@@ -27,6 +28,9 @@ public class Meeting {
 
     /** 주최자 사용자(FK). 회의 생성 요청자이며 참석자 중 HOST 역할. */
     private final UUID hostUserId;
+
+    /** 사용 회의실(FK, nullable). 화상회의만 진행하면 null. 상세는 회의실 기준정보를 조인해 조회한다. */
+    private final UUID meetingRoomId;
 
     /** 화상회의 provider 식별자(예: LIVEKIT). 외부 연동 전이면 null. */
     private final String provider;
@@ -48,6 +52,7 @@ public class Meeting {
             String title,
             Instant scheduledAt,
             UUID hostUserId,
+            UUID meetingRoomId,
             String provider,
             String providerRoomId,
             MeetingStatus status,
@@ -57,6 +62,7 @@ public class Meeting {
         this.title = title;
         this.scheduledAt = scheduledAt;
         this.hostUserId = hostUserId;
+        this.meetingRoomId = meetingRoomId;
         this.provider = provider;
         this.providerRoomId = providerRoomId;
         this.status = status;
@@ -68,6 +74,7 @@ public class Meeting {
             String title,
             Instant scheduledAt,
             UUID hostUserId,
+            UUID meetingRoomId,
             String provider,
             String providerRoomId) {
         return of(
@@ -75,6 +82,7 @@ public class Meeting {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 MeetingStatus.SCHEDULED,
@@ -87,6 +95,7 @@ public class Meeting {
             String title,
             Instant scheduledAt,
             UUID hostUserId,
+            UUID meetingRoomId,
             String provider,
             String providerRoomId,
             MeetingStatus status,
@@ -113,6 +122,7 @@ public class Meeting {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 status,
@@ -130,6 +140,7 @@ public class Meeting {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 MeetingStatus.IN_PROGRESS,
@@ -147,6 +158,7 @@ public class Meeting {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 MeetingStatus.ENDED,
@@ -164,9 +176,28 @@ public class Meeting {
                 title,
                 scheduledAt,
                 hostUserId,
+                meetingRoomId,
                 provider,
                 providerRoomId,
                 MeetingStatus.CANCELLED,
+                startedAt,
+                endedAt);
+    }
+
+    /** 회의 내용 수정(제목·예정시각·회의실). 종료/취소된 회의는 수정할 수 없다. 주최자·상태·진행시각은 보존한다. */
+    public Meeting change(String newTitle, Instant newScheduledAt, UUID newMeetingRoomId) {
+        if (status == MeetingStatus.ENDED || status == MeetingStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "종료되었거나 취소된 회의는 수정할 수 없습니다.");
+        }
+        return of(
+                id,
+                newTitle,
+                newScheduledAt,
+                hostUserId,
+                newMeetingRoomId,
+                provider,
+                providerRoomId,
+                status,
                 startedAt,
                 endedAt);
     }
@@ -189,6 +220,10 @@ public class Meeting {
 
     public UUID hostUserId() {
         return hostUserId;
+    }
+
+    public UUID meetingRoomId() {
+        return meetingRoomId;
     }
 
     public String provider() {
