@@ -1,48 +1,47 @@
 package com.meetbowl.domain.chatbot;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/** 챗봇 계약의 검증 문구와 정규화 기준이 모델마다 달라지는 것을 막기 위한 패키지 내부 정책이다. */
 final class ChatDomainValidators {
 
     private ChatDomainValidators() {}
 
     static void requireId(UUID id, String message) {
         if (id == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, message);
+            throw invalid(message);
         }
     }
 
-    static void requireText(
+    static String requireText(
             String value, int maxLength, String requiredMessage, String maxLengthMessage) {
         if (value == null || value.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, requiredMessage);
+            throw invalid(requiredMessage);
         }
-        if (value.trim().length() > maxLength) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, maxLengthMessage);
+
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw invalid(maxLengthMessage);
         }
+        return normalized;
     }
 
-    static void validateOptionalLength(String value, int maxLength, String message) {
-        String normalized = normalize(value);
-        if (normalized != null && normalized.length() > maxLength) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, message);
-        }
-    }
-
-    static void requireInstant(Instant instant, String message) {
-        if (instant == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, message);
-        }
-    }
-
-    static String normalize(String value) {
+    static String normalizeOptional(String value, int maxLength, String maxLengthMessage) {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return value.trim();
+
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw invalid(maxLengthMessage);
+        }
+        return normalized;
+    }
+
+    static BusinessException invalid(String message) {
+        return new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, message);
     }
 }

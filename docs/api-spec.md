@@ -351,15 +351,13 @@ DELETION_SCHEDULED
 
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
-| POST | `/ai/chat/sessions` | 새 대화 세션 시작 | User/Admin |
-| POST | `/ai/chat/sessions/{sessionId}/messages` | 기존 세션에 질의 | Owner |
-| GET | `/ai/chat/sessions` | 챗봇 대화 목록 조회 | User/Admin |
-| GET | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 상세 조회 | Owner |
-| DELETE | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 삭제 | Owner |
+| POST | `/ai/chat/messages` | 현재 화면의 대화 문맥으로 챗봇 질의 | User/Admin |
 
 `meetbowl-be`는 사용자 권한 context를 구성해 `meetbowl-ai`에 전달한다.
 
 `meetbowl-be`는 챗봇 질문마다 현재 인증 사용자의 권한 context를 다시 계산해 `meetbowl-ai`에 전달한다.
+
+챗봇 대화는 영속 데이터가 아니다. 프론트엔드는 현재 챗봇 화면의 메모리에서만 질문, 답변, citation을 유지하고 후속 질문에 필요한 범위만 `messageHistory`로 전송한다. `meetbowl-be`와 `meetbowl-ai`는 요청 처리 중에만 이를 사용하며 MariaDB, Qdrant, Redis, 로그에 저장하지 않는다. 사용자가 챗봇 화면을 나가거나 새로고침하거나 브라우저 탭을 닫으면 대화는 즉시 폐기되며 복구 API를 제공하지 않는다.
 
 검색 대상은 다음으로 제한한다.
 
@@ -369,7 +367,7 @@ DELETION_SCHEDULED
 - 사용자가 소유한 개인 드라이브 파일
 - 사용자가 현재 Owner 또는 Member인 공유 워크스페이스의 파일 버전
 
-개인 자료는 인증 사용자 ID를 기준으로 전체 검색하고, 공유 자료는 현재 접근 가능한 공유 워크스페이스 ID 목록으로 제한한다. 공유 워크스페이스 권한을 잃으면 다음 질문부터 검색 대상에서 제외하며, 기존 대화 조회 시 권한 없는 citation의 제목, 근거, 링크를 마스킹한다.
+개인 자료는 인증 사용자 ID를 기준으로 전체 검색하고, 공유 자료는 현재 접근 가능한 공유 워크스페이스 ID 목록으로 제한한다. 공유 워크스페이스 권한을 잃으면 다음 질문부터 검색 대상에서 제외한다.
 
 권한 없는 자료는 검색과 답변에 포함하면 안 된다.
 
