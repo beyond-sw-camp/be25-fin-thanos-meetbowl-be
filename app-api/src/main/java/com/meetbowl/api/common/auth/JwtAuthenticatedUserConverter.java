@@ -13,6 +13,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.application.auth.AccessTokenValidationService;
+
 /** JWT claim을 Spring Security 인증 객체와 Controller용 AuthenticatedUser로 변환한다. */
 @Component
 public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenticationToken> {
@@ -22,12 +24,27 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
     private static final String DISPLAY_NAME_CLAIM = "displayName";
     private static final String NAME_CLAIM = "name";
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM =
+            "initialPasswordChangeRequired";
+    private static final String PASSWORD_CHANGE_REQUIRED_AUTHORITY =
+            ROLE_PREFIX + "PASSWORD_CHANGE_REQUIRED";
+
+    private final AccessTokenValidationService accessTokenValidationService;
+
+    public JwtAuthenticatedUserConverter(
+            AccessTokenValidationService accessTokenValidationService) {
+        this.accessTokenValidationService = accessTokenValidationService;
+    }
 
     @Override
     public JwtAuthenticationToken convert(Jwt jwt) {
         AuthenticatedUser authenticatedUser = toAuthenticatedUser(jwt);
         Collection<GrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + authenticatedUser.role().name()));
+                authenticatedUser.initialPasswordChangeRequired()
+                        ? List.of(new SimpleGrantedAuthority(PASSWORD_CHANGE_REQUIRED_AUTHORITY))
+                        : List.of(
+                                new SimpleGrantedAuthority(
+                                        ROLE_PREFIX + authenticatedUser.role().name()));
 
         JwtAuthenticationToken authentication =
                 new JwtAuthenticationToken(jwt, authorities, authenticatedUser.userId().toString());
@@ -39,9 +56,25 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
         UUID userId = parseUuid(jwt.getSubject(), "sub");
         UUID organizationId = parseOptionalUuid(jwt.getClaimAsString(ORGANIZATION_ID_CLAIM));
         AuthenticatedUserRole role = parseRole(jwt.getClaimAsString(ROLE_CLAIM));
+        if (role == AuthenticatedUserRole.SYSTEM) {
+            throw new BadJwtException("SYSTEM role JWT is not allowed.");
+        }
         String displayName = resolveDisplayName(jwt, userId);
+        String tokenId = requireTokenId(jwt.getId());
+        boolean initialPasswordChangeRequired =
+                Boolean.TRUE.equals(jwt.getClaimAsBoolean(INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM));
+        if (accessTokenValidationService.isRevoked(tokenId)) {
+            throw new BadJwtException("Access Token is revoked.");
+        }
 
-        return new AuthenticatedUser(userId, organizationId, role, displayName);
+        return new AuthenticatedUser(
+                userId,
+                organizationId,
+                role,
+                displayName,
+                tokenId,
+                jwt.getExpiresAt(),
+                initialPasswordChangeRequired);
     }
 
     private UUID parseUuid(String value, String claimName) {
@@ -62,6 +95,13 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
         }
 
         return parseUuid(value, ORGANIZATION_ID_CLAIM);
+    }
+
+    private String requireTokenId(String tokenId) {
+        if (tokenId == null || tokenId.isBlank()) {
+            throw new BadJwtException("jti claim is required.");
+        }
+        return tokenId;
     }
 
     private AuthenticatedUserRole parseRole(String value) {
