@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.common.response.ApiResponse;
 
-/** Spring Security 인가 실패를 프로젝트 공통 실패 응답으로 변환한다. */
+/** 보안 필터 단계의 인가 실패도 Controller 이후 예외와 동일한 API 계약을 갖게 한다. */
 @Component
 public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 

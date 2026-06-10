@@ -27,7 +27,7 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, String message, List<ErrorDetail> details) {
         super(message);
         this.errorCode = errorCode;
-        // details는 외부에서 변경되지 않도록 복사해 응답 생성 시점까지 동일하게 유지한다.
+        // 예외가 계층을 통과하는 동안 응답 계약이 호출자 변경에 영향받지 않도록 방어적 복사한다.
         this.details = List.copyOf(details);
     }
 

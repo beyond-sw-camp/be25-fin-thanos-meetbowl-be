@@ -67,7 +67,6 @@ class PersonalWorkspaceCalendarEventTest {
                                         Instant.parse("2099-01-01T02:00:00Z"),
                                         false,
                                         CalendarEventSource.MEETING,
-                                        null,
                                         null));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
@@ -88,30 +87,73 @@ class PersonalWorkspaceCalendarEventTest {
                                         Instant.parse("2099-01-01T02:00:00Z"),
                                         false,
                                         CalendarEventSource.PERSONAL,
-                                        UUID.randomUUID(),
-                                        null));
+                                        UUID.randomUUID()));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 
     @Test
-    void googleCalendarEventRequiresConnectionAndExternalEventId() {
+    void createMeetingCalendarEvent() {
+        UUID meetingId = UUID.randomUUID();
+
+        PersonalWorkspaceCalendarEvent event =
+                PersonalWorkspaceCalendarEvent.createFromMeeting(
+                        UUID.randomUUID(),
+                        meetingId,
+                        "주간 회의",
+                        "회의실 A",
+                        Instant.parse("2099-01-01T01:00:00Z"),
+                        Instant.parse("2099-01-01T02:00:00Z"));
+
+        assertEquals(CalendarEventSource.MEETING, event.source());
+        assertEquals(meetingId, event.sourceId());
+    }
+
+    @Test
+    void meetingCalendarEventCannotBeUpdatedDirectly() {
+        PersonalWorkspaceCalendarEvent event =
+                PersonalWorkspaceCalendarEvent.createFromMeeting(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "주간 회의",
+                        null,
+                        Instant.parse("2099-01-01T01:00:00Z"),
+                        Instant.parse("2099-01-01T02:00:00Z"));
+
         BusinessException exception =
                 assertThrows(
                         BusinessException.class,
                         () ->
-                                PersonalWorkspaceCalendarEvent.of(
+                                event.updatePersonal(
+                                        "임의 수정",
                                         null,
-                                        UUID.randomUUID(),
-                                        "Google 일정",
-                                        null,
-                                        Instant.parse("2099-01-01T01:00:00Z"),
-                                        Instant.parse("2099-01-01T02:00:00Z"),
-                                        false,
-                                        CalendarEventSource.GOOGLE,
-                                        UUID.randomUUID(),
-                                        null));
+                                        Instant.parse("2099-01-01T03:00:00Z"),
+                                        Instant.parse("2099-01-01T04:00:00Z"),
+                                        false));
 
-        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
+    }
+
+    @Test
+    void meetingCalendarEventCanBeSynchronizedFromMeeting() {
+        PersonalWorkspaceCalendarEvent event =
+                PersonalWorkspaceCalendarEvent.createFromMeeting(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "변경 전",
+                        null,
+                        Instant.parse("2099-01-01T01:00:00Z"),
+                        Instant.parse("2099-01-01T02:00:00Z"));
+
+        PersonalWorkspaceCalendarEvent synchronizedEvent =
+                event.syncFromMeeting(
+                        "변경 후",
+                        "회의실 B",
+                        Instant.parse("2099-01-01T03:00:00Z"),
+                        Instant.parse("2099-01-01T04:00:00Z"));
+
+        assertEquals("변경 후", synchronizedEvent.title());
+        assertEquals(event.sourceId(), synchronizedEvent.sourceId());
+        assertEquals(event.ownerUserId(), synchronizedEvent.ownerUserId());
     }
 }

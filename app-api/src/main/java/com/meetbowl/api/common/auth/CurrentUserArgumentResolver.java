@@ -13,7 +13,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
-/** request attribute 또는 Spring Security 인증 객체에 저장된 AuthenticatedUser를 @CurrentUser 파라미터로 전달한다. */
+/** Controller가 인증 저장 위치를 알지 못하게 해 JWT와 Spring Security 세부 구현의 변경 범위를 이 경계로 제한한다. */
 @Component
 public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolver {
 

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.domain.personalworkspace.CalendarEventSource;
+
 interface SpringDataPersonalWorkspaceCalendarEventRepository
         extends JpaRepository<PersonalWorkspaceCalendarEventEntity, UUID> {
 
@@ -42,5 +44,6 @@ interface SpringDataPersonalWorkspaceCalendarEventRepository
             @Param("endedAt") Instant endedAt);
 
     @Transactional
-    long deleteByIdAndOwnerUserId(UUID eventId, UUID ownerUserId);
+    long deleteByIdAndOwnerUserIdAndSource(
+            UUID eventId, UUID ownerUserId, CalendarEventSource source);
 }

@@ -8,7 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 
-/** app-api의 MVC 확장 지점을 모아둔다. */
+/** 인증 사용자 주입 방식을 전 Controller에 일관되게 적용해 개별 Controller의 JWT 해석을 막는다. */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 

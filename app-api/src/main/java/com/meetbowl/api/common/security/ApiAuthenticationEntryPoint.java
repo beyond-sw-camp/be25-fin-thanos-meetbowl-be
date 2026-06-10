@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.common.response.ApiResponse;
 
-/** Spring Security 인증 실패를 프로젝트 공통 실패 응답으로 변환한다. */
+/** Spring Security의 기본 오류 본문 대신 프로젝트가 보장하는 인증 실패 계약을 유지한다. */
 @Component
 public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
 

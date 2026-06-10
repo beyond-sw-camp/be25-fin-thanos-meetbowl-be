@@ -12,7 +12,6 @@
 - 백업 자료 북마크 등록/해제
 - 개인 드라이브 파일 조회/업로드/다운로드/삭제
 - 개인 메모 조회/작성/수정/삭제
-- 구글 캘린더 연동 연결/해제
 
 ## 관련 문서
 
@@ -31,7 +30,6 @@
 - Infrastructure 계층에서 JPA Entity와 Domain Model 간 변환을 담당한다.
 - 다른 기능의 Entity/Repository를 직접 참조하지 않고 `userId`, `meetingId`, `mailId`, `minutesId` 등 UUID 식별자로만 연결한다.
 - 파일 원본은 DB에 저장하지 않고 S3 호환 스토리지의 `storageKey`와 파일 메타데이터만 저장한다.
-- 구글 캘린더 OAuth 토큰 원문은 DB에 직접 저장하지 않고 외부 자격 증명 참조값인 `credentialRef`만 저장한다.
 - Enum은 `EnumType.STRING`으로 저장하고 ordinal 저장은 사용하지 않는다.
 
 ## 도메인 모델
@@ -48,7 +46,6 @@
 - `PersonalWorkspaceBackupBookmark`
 - `PersonalWorkspaceDriveFile`
 - `PersonalWorkspaceMemo`
-- `GoogleCalendarConnection`
 
 Enum:
 
@@ -63,7 +60,6 @@ Repository Port:
 - `PersonalWorkspaceBackupBookmarkRepositoryPort`
 - `PersonalWorkspaceDriveFileRepositoryPort`
 - `PersonalWorkspaceMemoRepositoryPort`
-- `GoogleCalendarConnectionRepositoryPort`
 
 ## Persistence 모델
 
@@ -79,7 +75,6 @@ JPA Entity:
 - `PersonalWorkspaceBackupBookmarkEntity`
 - `PersonalWorkspaceDriveFileEntity`
 - `PersonalWorkspaceMemoEntity`
-- `GoogleCalendarConnectionEntity`
 
 Spring Data Repository:
 
@@ -89,7 +84,6 @@ Spring Data Repository:
 - `SpringDataPersonalWorkspaceBackupBookmarkRepository`
 - `SpringDataPersonalWorkspaceDriveFileRepository`
 - `SpringDataPersonalWorkspaceMemoRepository`
-- `SpringDataGoogleCalendarConnectionRepository`
 
 Adapter:
 
@@ -99,7 +93,6 @@ Adapter:
 - `JpaPersonalWorkspaceBackupBookmarkRepositoryAdapter`
 - `JpaPersonalWorkspaceDriveFileRepositoryAdapter`
 - `JpaPersonalWorkspaceMemoRepositoryAdapter`
-- `JpaGoogleCalendarConnectionRepositoryAdapter`
 
 JPA 설정:
 
@@ -113,18 +106,18 @@ JPA 설정:
 - `personal_workspace_backup_bookmarks`
 - `personal_workspace_drive_files`
 - `personal_workspace_memos`
-- `google_calendar_connections`
 
 ## 검증한 도메인 규칙
 
 - 개인 일정 제목은 필수다.
 - 개인 일정 시작 시각은 종료 시각보다 이전이어야 한다.
 - 회의 기반 일정은 원본 회의 식별자인 `sourceId`가 필요하다.
+- 회의 기반 일정은 회의 정보의 사용자별 투영 데이터이며 개인 캘린더에서 직접 수정하거나 삭제하지 않는다.
+- 동일 사용자에게 동일 회의 일정이 중복 생성되지 않도록 `(owner_user_id, source, source_id)` 유니크 제약을 둔다.
 - 자기 자신의 일정은 구독할 수 없다.
 - 개인 드라이브 파일은 원본 파일이 아니라 파일명, 크기, Content-Type, 저장 경로 메타데이터만 가진다.
 - 개인 드라이브 파일 삭제는 `deletedAt` 기반 soft delete로 표현한다.
 - 메모 수정 시각은 생성 시각보다 이전일 수 없다.
-- 구글 캘린더 연결 해제 시각은 연결 시각보다 이전일 수 없다.
 
 ## 테스트
 
@@ -133,7 +126,6 @@ JPA 설정:
 - `domain/src/test/java/com/meetbowl/domain/personalworkspace/PersonalWorkspaceCalendarEventTest.java`
 - `domain/src/test/java/com/meetbowl/domain/personalworkspace/PersonalWorkspaceCalendarSubscriptionTest.java`
 - `domain/src/test/java/com/meetbowl/domain/personalworkspace/PersonalWorkspaceDriveFileTest.java`
-- `domain/src/test/java/com/meetbowl/domain/personalworkspace/GoogleCalendarConnectionTest.java`
 - `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/personalworkspace/JpaPersonalWorkspaceRepositoryAdapterTest.java`
 
 실행 결과:
@@ -148,9 +140,9 @@ BUILD SUCCESSFUL
 
 ## 후속 작업
 
+- 회의 생성·수정·취소 흐름과 개인 캘린더 투영 동기화 UseCase 추가
 - PersonalWorkspace API별 UseCase/Command/Result 추가
 - Controller Request/Response DTO 추가
 - Owner 권한 검증 적용
 - 파일 업로드는 Object Storage Adapter와 연결
-- 구글 캘린더 연동은 외부 OAuth/Calendar Client Adapter와 연결
 - DB 마이그레이션 도구가 정해지면 위 테이블 기준 migration 작성

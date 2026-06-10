@@ -321,8 +321,8 @@ DELETION_SCHEDULED
 | POST | `/workspace/memos` | 개인 메모 작성 | User/Admin |
 | PATCH | `/workspace/memos/{memoId}` | 개인 메모 수정 | Owner |
 | DELETE | `/workspace/memos/{memoId}` | 개인 메모 삭제 | Owner |
-| POST | `/workspace/calendar/google/connect` | 구글 캘린더 연동 연결 | User/Admin |
-| DELETE | `/workspace/calendar/google/connect` | 구글 캘린더 연동 해제 | Owner |
+
+개인 캘린더에서 직접 수정·삭제할 수 있는 대상은 사용자가 작성한 개인 일정으로 제한한다. 회의에서 파생된 일정은 회의 정보가 기준이므로 회의 생성·수정·취소 흐름을 통해서만 변경한다.
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
 | DELETE | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 삭제 | Owner |

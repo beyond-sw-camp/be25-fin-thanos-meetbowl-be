@@ -13,7 +13,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-/** JWT claim을 Spring Security 인증 객체와 Controller용 AuthenticatedUser로 변환한다. */
+/** JWT 표현이 API 계층 밖으로 퍼지지 않도록 인증 정보를 프로젝트 내부 타입으로 격리한다. */
 @Component
 public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenticationToken> {
 

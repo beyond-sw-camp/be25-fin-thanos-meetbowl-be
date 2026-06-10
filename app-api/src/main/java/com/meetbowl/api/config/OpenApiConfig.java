@@ -14,7 +14,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 
-/** Swagger UI와 /v3/api-docs에 노출되는 API 문서의 기본 메타데이터를 설정한다. */
+/** 외부 JWT와 서버 간 토큰을 같은 인증 방식으로 오해하지 않도록 OpenAPI 보안 계약을 한곳에서 정의한다. */
 @Configuration
 public class OpenApiConfig {
 

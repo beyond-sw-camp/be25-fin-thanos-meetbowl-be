@@ -7,7 +7,6 @@ import java.lang.annotation.Target;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
-/** 내부 시스템 주체만 접근할 수 있는 API에 붙이는 전역 권한 어노테이션이다. */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @PreAuthorize("hasRole('SYSTEM')")
