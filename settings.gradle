@@ -1,3 +1,8 @@
+// Enable Gradle Toolchains auto-provisioning via Foojay so that JDK 25 can be resolved
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
 rootProject.name = 'meetbowl-be'
 
 include 'app-api'
