@@ -2,7 +2,7 @@ package com.meetbowl.common.time;
 
 import java.time.Clock;
 
-/** 시스템 기본 시간대에 따른 결과 차이를 없애고, 시간 의존 로직이 테스트 가능한 Clock 경계를 사용하도록 둔다. */
+/** 서버 내부 시간 기준은 UTC로 고정한다. 테스트에서는 Clock을 주입받는 구조로 확장할 수 있게 Clock 타입을 반환한다. */
 public final class UtcClock {
 
     private UtcClock() {}

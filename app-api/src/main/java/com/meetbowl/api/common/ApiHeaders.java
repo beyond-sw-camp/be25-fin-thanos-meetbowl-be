@@ -1,6 +1,6 @@
 package com.meetbowl.api.common;
 
-/** 인증·추적 헤더의 철자가 API 진입점마다 달라지는 것을 막기 위한 단일 정의다. */
+/** API 명세서에서 정의한 공통 요청 헤더 이름이다. Controller와 Swagger 설정에서 문자열 중복을 피하기 위해 사용한다. */
 public final class ApiHeaders {
 
     public static final String AUTHORIZATION = "Authorization";

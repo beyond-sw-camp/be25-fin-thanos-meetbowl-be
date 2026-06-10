@@ -10,7 +10,7 @@ import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
 import com.meetbowl.common.response.ApiResponse;
 
-/** 인증 설정이나 업무 의존성에 막히지 않고 배포 시스템이 애플리케이션 생존 여부를 확인할 수 있게 둔다. */
+/** 배포와 로컬 실행 확인을 위한 최소 헬스 체크 엔드포인트다. */
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/health")
 public class HealthController extends BaseController {

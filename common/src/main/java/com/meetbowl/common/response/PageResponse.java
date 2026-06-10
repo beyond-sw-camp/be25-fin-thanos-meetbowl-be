@@ -2,7 +2,7 @@ package com.meetbowl.common.response;
 
 import java.util.List;
 
-/** 페이지 번호와 메타데이터 해석이 목록 API마다 달라지지 않도록 외부 페이지 계약을 한 타입으로 제한한다. */
+/** 목록 API의 data 영역에 들어가는 공통 페이지 응답이다. page는 API 명세 기준에 맞춰 1부터 시작하는 값을 사용한다. */
 public record PageResponse<T>(
         List<T> items, int page, int size, long totalElements, int totalPages) {
 

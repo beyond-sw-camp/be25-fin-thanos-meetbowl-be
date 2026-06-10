@@ -5,8 +5,7 @@ import java.util.List;
 import com.meetbowl.common.response.ErrorDetail;
 
 /**
- * 업무 실패를 HTTP나 Spring 타입과 분리해 하위 계층이 전송 기술에 의존하지 않게 한다.
- * API 경계는 이 정보만 공통 응답으로 변환하므로, 도메인 규칙과 외부 오류 계약을 독립적으로 변경할 수 있다.
+ * 도메인/Application 계층에서 의도한 실패를 표현하는 예외다. Controller는 이 예외를 직접 처리하지 않고 GlobalExceptionHandler에 맡긴다.
  */
 public class BusinessException extends RuntimeException {
 
@@ -28,6 +27,7 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, String message, List<ErrorDetail> details) {
         super(message);
         this.errorCode = errorCode;
+        // details는 외부에서 변경되지 않도록 복사해 응답 생성 시점까지 동일하게 유지한다.
         this.details = List.copyOf(details);
     }
 

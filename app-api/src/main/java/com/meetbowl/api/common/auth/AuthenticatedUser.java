@@ -2,7 +2,7 @@ package com.meetbowl.api.common.auth;
 
 import java.util.UUID;
 
-/** 인증 방식이 바뀌어도 Controller와 UseCase의 사용자 계약이 함께 바뀌지 않도록 둔 중립 모델이다. */
+/** Controller가 받는 인증 사용자 정보다. JWT, 세션, 내부 토큰 파싱 결과는 이 타입으로 변환한 뒤 request attribute에 저장한다. */
 public record AuthenticatedUser(
         UUID userId, UUID organizationId, AuthenticatedUserRole role, String displayName) {
 
