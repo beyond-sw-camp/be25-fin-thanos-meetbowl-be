@@ -7,6 +7,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 하나의 메일에 대한 특정 사용자의 메일함 상태를 관리한다.
+ *
+ * <p>읽음, 휴지통 이동, 영구 삭제는 메일 본문이나 다른 수신자의 상태와 독립적으로 변경되어야 한다. 이 상태를 {@link Mail}에서 분리함으로써 한 사용자의 메일함
+ * 조작이 공용 메일 데이터와 다른 사용자의 화면에 영향을 주지 않도록 한다.
+ */
 public class MailboxEntry {
 
     private final UUID id;

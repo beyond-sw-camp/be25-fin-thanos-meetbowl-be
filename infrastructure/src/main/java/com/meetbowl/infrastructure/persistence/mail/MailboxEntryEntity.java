@@ -15,6 +15,12 @@ import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxType;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link MailboxEntry}의 사용자별 상태를 메일 본문과 분리해 저장하는 infrastructure 전용 엔티티다.
+ *
+ * <p>동일 메일과 소유자, 메일함 유형의 조합은 하나만 존재해야 화면 상태가 모호해지지 않으므로 DB 유일성 제약으로 애플리케이션 검증의 경쟁 조건을 보완한다. 메일과는
+ * ID로만 연결해 사용자 상태 변경이 메일 애그리거트의 JPA 연관관계 변경으로 번지지 않게 한다.
+ */
 @Entity
 @Table(
         name = "mailbox_entry",
