@@ -5,7 +5,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 /** Controller 메서드 파라미터에 붙여 인증 사용자 정보를 주입받는다. */
+@Parameter(hidden = true)
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CurrentUser {

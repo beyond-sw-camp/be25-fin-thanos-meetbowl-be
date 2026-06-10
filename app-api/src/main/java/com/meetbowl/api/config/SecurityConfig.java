@@ -77,7 +77,7 @@ public class SecurityConfig {
                                         .requestMatchers(PUBLIC_ENDPOINTS)
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/api/v1/meetings/*/join")
-                                        .hasAnyRole("USER", "ADMIN", "GUEST")
+                                        .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(SYSTEM_ENDPOINTS)
                                         .hasRole("SYSTEM")
                                         .requestMatchers(ADMIN_ENDPOINTS)

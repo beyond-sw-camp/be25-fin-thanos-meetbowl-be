@@ -1,5 +1,6 @@
 package com.meetbowl.domain.mail;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -8,5 +9,16 @@ public interface MailboxEntryRepositoryPort {
 
     MailboxEntry save(MailboxEntry mailboxEntry);
 
-    Optional<MailboxEntry> findByMailIdAndOwnerUserId(UUID mailId, UUID ownerUserId);
+    List<MailboxEntry> saveAll(List<MailboxEntry> mailboxEntries);
+
+    Optional<MailboxEntry> findAccessibleByMailIdAndOwnerUserId(UUID mailId, UUID ownerUserId);
+
+    List<MailboxEntry> findPageByOwnerUserIdAndMailboxType(
+            UUID ownerUserId, MailboxType mailboxType, int offset, int limit);
+
+    long countByOwnerUserIdAndMailboxType(UUID ownerUserId, MailboxType mailboxType);
+
+    List<MailboxEntry> findTrashPageByOwnerUserId(UUID ownerUserId, int offset, int limit);
+
+    long countTrashByOwnerUserId(UUID ownerUserId);
 }
