@@ -44,9 +44,6 @@ public class MinutesEntity extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String promptVersion;
 
-    @Column(columnDefinition = "BINARY(16)")
-    private UUID approvedByUserId;
-
     private Instant approvedAt;
 
     private Instant sharedAt;
@@ -65,7 +62,6 @@ public class MinutesEntity extends BaseEntity {
             String summary,
             String model,
             String promptVersion,
-            UUID approvedByUserId,
             Instant approvedAt,
             Instant sharedAt,
             Instant deletionScheduledAt) {
@@ -76,7 +72,6 @@ public class MinutesEntity extends BaseEntity {
         this.summary = summary;
         this.model = model;
         this.promptVersion = promptVersion;
-        this.approvedByUserId = approvedByUserId;
         this.approvedAt = approvedAt;
         this.sharedAt = sharedAt;
         this.deletionScheduledAt = deletionScheduledAt;
@@ -93,7 +88,6 @@ public class MinutesEntity extends BaseEntity {
                         minutes.summary(),
                         minutes.model(),
                         minutes.promptVersion(),
-                        minutes.approvedByUserId(),
                         minutes.approvedAt(),
                         minutes.sharedAt(),
                         minutes.deletionScheduledAt());
@@ -112,7 +106,6 @@ public class MinutesEntity extends BaseEntity {
                 summary,
                 model,
                 promptVersion,
-                approvedByUserId,
                 approvedAt,
                 sharedAt,
                 deletionScheduledAt);

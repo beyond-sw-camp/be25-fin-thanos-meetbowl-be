@@ -62,7 +62,7 @@ class JpaMinutesRepositoryAdapterTest {
         Minutes found = adapter.findById(saved.id()).orElseThrow();
 
         assertThat(found.status()).isEqualTo(MinutesStatus.APPROVED);
-        assertThat(found.approvedByUserId()).isEqualTo(reviewerUserId);
+        assertThat(found.reviewerUserId()).isEqualTo(reviewerUserId);
         assertThat(found.approvedAt()).isEqualTo(approvedAt);
     }
 

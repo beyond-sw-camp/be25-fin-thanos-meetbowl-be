@@ -1,5 +1,6 @@
 package com.meetbowl.api.health;
 
+import java.time.Clock;
 import java.time.Instant;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,8 +16,14 @@ import com.meetbowl.common.response.ApiResponse;
 @RequestMapping(ApiPaths.API_V1 + "/health")
 public class HealthController extends BaseController {
 
+    private final Clock clock;
+
+    public HealthController(Clock clock) {
+        this.clock = clock;
+    }
+
     @GetMapping
     public ApiResponse<HealthResponse> health() {
-        return ok(new HealthResponse("UP", Instant.now()));
+        return ok(new HealthResponse("UP", Instant.now(clock)));
     }
 }

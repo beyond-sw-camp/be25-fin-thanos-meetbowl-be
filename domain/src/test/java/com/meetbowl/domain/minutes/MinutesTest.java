@@ -71,6 +71,42 @@ class MinutesTest {
     }
 
     @Test
+    void onlyReviewerCanReviseMinutes() {
+        Minutes minutes = draftMinutes();
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> minutes.revise("수정된 회의 요약", UUID.randomUUID()));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
+    }
+
+    @Test
+    void reviseMinutesMovesToInReview() {
+        UUID reviewerUserId = UUID.randomUUID();
+        Minutes revised = draftMinutes(reviewerUserId).revise("수정된 회의 요약", reviewerUserId);
+
+        assertEquals(MinutesStatus.IN_REVIEW, revised.status());
+        assertEquals("수정된 회의 요약", revised.summary());
+    }
+
+    @Test
+    void approvedMinutesCannotBeRevised() {
+        UUID reviewerUserId = UUID.randomUUID();
+        Minutes approved =
+                draftMinutes(reviewerUserId)
+                        .approve(reviewerUserId, Instant.parse("2099-01-01T01:00:00Z"));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> approved.revise("수정된 회의 요약", reviewerUserId));
+
+        assertEquals(ErrorCode.MINUTES_ALREADY_APPROVED, exception.errorCode());
+    }
+
+    @Test
     void approveMinutes() {
         UUID reviewerUserId = UUID.randomUUID();
         Minutes minutes = draftMinutes(reviewerUserId);
@@ -79,7 +115,7 @@ class MinutesTest {
         Minutes approved = minutes.approve(reviewerUserId, approvedAt);
 
         assertEquals(MinutesStatus.APPROVED, approved.status());
-        assertEquals(reviewerUserId, approved.approvedByUserId());
+        assertEquals(reviewerUserId, approved.reviewerUserId());
         assertEquals(approvedAt, approved.approvedAt());
     }
 

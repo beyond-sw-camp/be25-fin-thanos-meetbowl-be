@@ -5,7 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -99,7 +101,7 @@ class SampleTaskControllerTest {
         private CreateSampleTaskCommand lastCommand;
 
         TestCreateSampleTaskUseCase() {
-            super(sampleTask -> sampleTask);
+            super(sampleTask -> sampleTask, Clock.fixed(CREATED_AT, ZoneOffset.UTC));
         }
 
         @Override
