@@ -93,7 +93,8 @@ UseCase와 업무 조율 계층이다.
 - Spring Data JPA Repository
 - Repository Adapter
 - Redis Adapter
-- RabbitMQ Publisher/Consumer
+- 공통 RabbitMQ Envelope Publisher
+- 도메인별 RabbitMQ Publisher/Consumer Adapter
 - Object Storage Adapter
 - ai-server Client
 - stt-server Client
@@ -108,6 +109,7 @@ UseCase와 업무 조율 계층이다.
 - 공통 예외
 - ErrorCode
 - 시간/ID 유틸
+- 이벤트 이름 계약 상수
 - Event Envelope
 - 공통 로깅 상수
 
@@ -332,14 +334,14 @@ Reviewer
   ↓ POST /meetings/{meetingId}/minutes/approve
 meetbowl-be
   ↓ 회의록 상태 APPROVED 변경
-  ↓ minutes.approved 이벤트 발행
+  ↓ document.index.requested 이벤트 발행
 RabbitMQ
   ↓
-mail consumer
-  ↓ 참석자 대상 내부 메일 생성
+meetbowl-ai
+  ↓ 회의록 임베딩 및 Qdrant 색인
 ```
 
-검토자 승인 전 자동 공유는 금지한다.
+검토자 승인 전 AI 검색/RAG용 색인은 금지한다.
 
 ---
 

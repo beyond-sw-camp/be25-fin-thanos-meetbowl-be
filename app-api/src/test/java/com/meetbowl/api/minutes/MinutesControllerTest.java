@@ -154,7 +154,10 @@ class MinutesControllerTest {
         private ApproveMinutesCommand lastCommand;
 
         TestApproveMinutesUseCase() {
-            super(new EmptyMinutesRepository(), Clock.fixed(APPROVED_AT, ZoneOffset.UTC));
+            super(
+                    new EmptyMinutesRepository(),
+                    event -> {},
+                    Clock.fixed(APPROVED_AT, ZoneOffset.UTC));
         }
 
         @Override

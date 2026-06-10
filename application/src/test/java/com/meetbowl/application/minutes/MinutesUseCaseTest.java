@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
+import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -61,7 +63,8 @@ class MinutesUseCaseTest {
     void otherOrganizationCannotApproveMinutes() {
         Fixture fixture = new Fixture();
         ApproveMinutesUseCase useCase =
-                new ApproveMinutesUseCase(fixture.repository, fixture.clock);
+                new ApproveMinutesUseCase(
+                        fixture.repository, fixture.eventPublisher, fixture.clock);
 
         BusinessException exception =
                 assertThrows(
@@ -80,7 +83,8 @@ class MinutesUseCaseTest {
     void reviewerCanApproveMinutes() {
         Fixture fixture = new Fixture();
         ApproveMinutesUseCase useCase =
-                new ApproveMinutesUseCase(fixture.repository, fixture.clock);
+                new ApproveMinutesUseCase(
+                        fixture.repository, fixture.eventPublisher, fixture.clock);
 
         MinutesResult result =
                 useCase.execute(
@@ -90,6 +94,17 @@ class MinutesUseCaseTest {
         assertEquals("APPROVED", result.status());
         assertEquals(fixture.now, result.approvedAt());
         assertEquals(fixture.reviewerUserId, result.reviewerUserId());
+        assertEquals(result.minutesId(), fixture.eventPublisher.publishedEvent.documentId());
+        assertEquals("MEETING_MINUTES", fixture.eventPublisher.publishedEvent.documentType());
+        assertEquals(
+                fixture.organizationId, fixture.eventPublisher.publishedEvent.organizationId());
+        assertEquals(fixture.reviewerUserId, fixture.eventPublisher.publishedEvent.ownerUserId());
+        assertEquals("회의록", fixture.eventPublisher.publishedEvent.title());
+        assertEquals("회의 요약", fixture.eventPublisher.publishedEvent.content());
+        assertEquals(
+                fixture.reviewerUserId, fixture.eventPublisher.publishedEvent.userIds().getFirst());
+        assertEquals(0, fixture.eventPublisher.publishedEvent.departmentIds().size());
+        assertEquals(0, fixture.eventPublisher.publishedEvent.sharedWorkspaceIds().size());
     }
 
     @Test
@@ -119,6 +134,8 @@ class MinutesUseCaseTest {
         private final UUID reviewerUserId = UUID.randomUUID();
         private final Instant now = Instant.parse("2099-01-01T01:00:00Z");
         private final Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        private final FakeDocumentIndexRequestedEventPort eventPublisher =
+                new FakeDocumentIndexRequestedEventPort();
         private final FakeMinutesRepository repository =
                 new FakeMinutesRepository(
                         Minutes.of(
@@ -133,6 +150,17 @@ class MinutesUseCaseTest {
                                 null,
                                 null,
                                 null));
+    }
+
+    private static class FakeDocumentIndexRequestedEventPort
+            implements DocumentIndexRequestedEventPort {
+
+        private DocumentIndexRequestedEvent publishedEvent;
+
+        @Override
+        public void publish(DocumentIndexRequestedEvent event) {
+            publishedEvent = event;
+        }
     }
 
     private static class FakeMinutesRepository implements MinutesRepositoryPort {
