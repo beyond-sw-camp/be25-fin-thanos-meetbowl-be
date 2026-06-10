@@ -1,0 +1,150 @@
+package com.meetbowl.application.auth;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.auth.LoginSession;
+import com.meetbowl.domain.auth.LoginSessionRepositoryPort;
+import com.meetbowl.domain.organization.Affiliate;
+import com.meetbowl.domain.organization.AffiliateRepositoryPort;
+import com.meetbowl.domain.organization.Department;
+import com.meetbowl.domain.organization.DepartmentRepositoryPort;
+import com.meetbowl.domain.organization.Position;
+import com.meetbowl.domain.organization.PositionRepositoryPort;
+import com.meetbowl.domain.organization.Team;
+import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.User;
+import com.meetbowl.domain.user.UserRepositoryPort;
+import com.meetbowl.domain.user.UserRole;
+
+@Service
+@Transactional
+public class LoginUseCase {
+
+    private final UserRepositoryPort userRepositoryPort;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final LoginSessionRepositoryPort loginSessionRepositoryPort;
+    private final AffiliateRepositoryPort affiliateRepositoryPort;
+    private final DepartmentRepositoryPort departmentRepositoryPort;
+    private final TeamRepositoryPort teamRepositoryPort;
+    private final PositionRepositoryPort positionRepositoryPort;
+
+    public LoginUseCase(
+            UserRepositoryPort userRepositoryPort,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider jwtTokenProvider,
+            LoginSessionRepositoryPort loginSessionRepositoryPort,
+            AffiliateRepositoryPort affiliateRepositoryPort,
+            DepartmentRepositoryPort departmentRepositoryPort,
+            TeamRepositoryPort teamRepositoryPort,
+            PositionRepositoryPort positionRepositoryPort) {
+        this.userRepositoryPort = userRepositoryPort;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.loginSessionRepositoryPort = loginSessionRepositoryPort;
+        this.affiliateRepositoryPort = affiliateRepositoryPort;
+        this.departmentRepositoryPort = departmentRepositoryPort;
+        this.teamRepositoryPort = teamRepositoryPort;
+        this.positionRepositoryPort = positionRepositoryPort;
+    }
+
+    public LoginResult execute(LoginCommand command) {
+        User user =
+                userRepositoryPort
+                        .findByLoginId(command.loginId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.COMMON_UNAUTHORIZED,
+                                                "아이디 또는 비밀번호가 올바르지 않습니다."));
+
+        Instant now = Instant.now();
+        if (!user.canLoginAt(now)) {
+            throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "로그인할 수 없는 계정 상태입니다.");
+        }
+
+        if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
+            throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        // Admin 단일 세션 제어
+        if (user.role() == UserRole.ADMIN) {
+            List<LoginSession> activeSessions =
+                    loginSessionRepositoryPort.findActiveByUserId(user.id());
+            activeSessions.forEach(
+                    session -> loginSessionRepositoryPort.save(session.deactivate()));
+        }
+
+        String sessionTokenId = UUID.randomUUID().toString();
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", user.role().name());
+        claims.put("displayName", user.name());
+        if (user.affiliateId() != null) {
+            claims.put("organizationId", user.affiliateId().toString());
+        }
+
+        String accessToken = jwtTokenProvider.createToken(user.id().toString(), claims);
+
+        LoginSession session =
+                new LoginSession(
+                        null,
+                        user.id(),
+                        sessionTokenId,
+                        true,
+                        now.plusSeconds(jwtTokenProvider.getExpirationSeconds()),
+                        now,
+                        command.ipAddress(),
+                        command.userAgent(),
+                        null,
+                        null);
+        loginSessionRepositoryPort.save(session);
+
+        return new LoginResult(
+                accessToken,
+                "Bearer",
+                jwtTokenProvider.getExpirationSeconds(),
+                new LoginResult.UserSummary(
+                        user.id(),
+                        user.loginId(),
+                        user.name(),
+                        user.email(),
+                        user.role(),
+                        user.status(),
+                        getAffiliateName(user.affiliateId()),
+                        getDepartmentName(user.departmentId()),
+                        getTeamName(user.teamId()),
+                        getPositionName(user.positionId())));
+    }
+
+    private String getAffiliateName(UUID id) {
+        return id == null
+                ? null
+                : affiliateRepositoryPort.findById(id).map(Affiliate::name).orElse(null);
+    }
+
+    private String getDepartmentName(UUID id) {
+        return id == null
+                ? null
+                : departmentRepositoryPort.findById(id).map(Department::name).orElse(null);
+    }
+
+    private String getTeamName(UUID id) {
+        return id == null ? null : teamRepositoryPort.findById(id).map(Team::name).orElse(null);
+    }
+
+    private String getPositionName(UUID id) {
+        return id == null
+                ? null
+                : positionRepositoryPort.findById(id).map(Position::name).orElse(null);
+    }
+}

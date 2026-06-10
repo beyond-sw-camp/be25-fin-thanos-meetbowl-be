@@ -37,4 +37,18 @@ public record LoginSession(
     public boolean isUsable(Instant now) {
         return active && !isExpired(now);
     }
+
+    public LoginSession deactivate() {
+        return new LoginSession(
+                id,
+                userId,
+                sessionTokenId,
+                false,
+                expiresAt,
+                lastLoginAt,
+                ipAddress,
+                userAgent,
+                createdAt,
+                updatedAt);
+    }
 }

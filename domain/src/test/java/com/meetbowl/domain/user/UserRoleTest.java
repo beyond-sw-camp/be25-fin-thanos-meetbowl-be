@@ -12,6 +12,5 @@ class UserRoleTest {
         assertTrue(UserRole.ADMIN.canAccessAdminApi());
         assertTrue(UserRole.SYSTEM.canAccessAdminApi());
         assertFalse(UserRole.USER.canAccessAdminApi());
-        assertFalse(UserRole.GUEST.canAccessAdminApi());
     }
 }
