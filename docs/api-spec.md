@@ -42,6 +42,10 @@ Authorization: Bearer {accessToken}
 X-Internal-Token: {internalToken}
 ```
 
+- 내부 서버 전용 API와 System 전용 API는 `X-Internal-Token`으로만 인증한다.
+- `SYSTEM` 역할의 JWT 발급과 일반 로그인은 허용하지 않는다.
+- 내부 토큰은 일반 사용자, 관리자, Guest API 인증에 사용할 수 없다.
+
 ### 공통 성공 응답
 
 ```json
@@ -148,6 +152,7 @@ X-Internal-Token: {internalToken}
   Refresh Token은 발급받지 않는다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
+- 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.
 
 ---
 

@@ -2,6 +2,7 @@ package com.meetbowl.application.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -17,6 +18,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.auth.JwtTokenProvider;
 import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.user.User;
@@ -67,18 +70,34 @@ class AuthTokenIssuerTest {
         verify(tokenStateRepositoryPort, never()).saveRefreshToken(any(), any(), any());
     }
 
+    @Test
+    void issue_fails_for_system_account() {
+        User user = createUser(false, UserRole.SYSTEM);
+        AuthTokenIssuer issuer =
+                new AuthTokenIssuer(jwtTokenProvider, tokenStateRepositoryPort, 120L);
+
+        BusinessException exception =
+                assertThrows(BusinessException.class, () -> issuer.issue(user));
+
+        assertEquals(ErrorCode.COMMON_UNAUTHORIZED, exception.errorCode());
+    }
+
     private User createUser() {
         return createUser(false);
     }
 
     private User createUser(boolean initialPasswordChangeRequired) {
+        return createUser(initialPasswordChangeRequired, UserRole.USER);
+    }
+
+    private User createUser(boolean initialPasswordChangeRequired, UserRole role) {
         return User.of(
                 UUID.randomUUID(),
                 "user1",
                 "hash",
                 "name",
                 "email",
-                UserRole.USER,
+                role,
                 UserStatus.ACTIVE,
                 null,
                 null,

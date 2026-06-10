@@ -43,6 +43,9 @@ public class RefreshTokenUseCase {
         if (!user.canLoginAt(Instant.now())) {
             throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "로그인할 수 없는 계정 상태입니다.");
         }
+        if (user.isSystemAccount()) {
+            throw new BusinessException(ErrorCode.AUTH_REFRESH_TOKEN_INVALID);
+        }
         if (user.initialPasswordChangeRequired()) {
             throw new BusinessException(ErrorCode.AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED);
         }

@@ -67,6 +67,10 @@ public class LoginUseCase {
         if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
             throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
+        if (user.isSystemAccount()) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_UNAUTHORIZED, "시스템 계정은 내부 인증만 사용할 수 있습니다.");
+        }
 
         IssuedTokens tokens =
                 user.initialPasswordChangeRequired()

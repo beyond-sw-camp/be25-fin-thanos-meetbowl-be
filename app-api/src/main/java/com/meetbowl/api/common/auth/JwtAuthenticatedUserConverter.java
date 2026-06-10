@@ -56,6 +56,9 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
         UUID userId = parseUuid(jwt.getSubject(), "sub");
         UUID organizationId = parseOptionalUuid(jwt.getClaimAsString(ORGANIZATION_ID_CLAIM));
         AuthenticatedUserRole role = parseRole(jwt.getClaimAsString(ROLE_CLAIM));
+        if (role == AuthenticatedUserRole.SYSTEM) {
+            throw new BadJwtException("SYSTEM role JWT is not allowed.");
+        }
         String displayName = resolveDisplayName(jwt, userId);
         String tokenId = requireTokenId(jwt.getId());
         boolean initialPasswordChangeRequired =

@@ -79,6 +79,10 @@ initialPasswordChangeRequired: 초기 비밀번호 변경 제한 토큰 여부
 
 Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`를 사용한다.
 
+내부 서버 전용 API는 `X-Internal-Token` 헤더를 사용하며, 일반 로그인으로 `SYSTEM` JWT를
+발급하지 않는다. `prod` 프로필에서는 공개되지 않은 32 bytes 이상의
+`MEETBOWL_INTERNAL_TOKEN` 환경 변수가 필수다.
+
 ## Architecture Checks
 
 `./gradlew check`는 ArchUnit으로 모듈 의존 방향을 검증한다.

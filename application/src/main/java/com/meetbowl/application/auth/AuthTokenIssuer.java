@@ -10,6 +10,8 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.auth.JwtTokenProvider;
 import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.user.User;
@@ -45,6 +47,10 @@ public class AuthTokenIssuer {
     }
 
     private IssuedTokens issue(User user, boolean issueRefreshToken) {
+        if (user.isSystemAccount()) {
+            throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "시스템 계정에는 JWT를 발급할 수 없습니다.");
+        }
+
         String accessTokenId = UUID.randomUUID().toString();
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.role().name());

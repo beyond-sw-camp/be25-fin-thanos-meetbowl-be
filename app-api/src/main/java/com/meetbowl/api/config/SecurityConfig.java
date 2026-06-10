@@ -18,11 +18,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.meetbowl.api.common.auth.JwtAuthenticatedUserConverter;
 import com.meetbowl.api.common.security.ApiAccessDeniedHandler;
 import com.meetbowl.api.common.security.ApiAuthenticationEntryPoint;
+import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 
 /** JWT 기반 인증을 전역으로 적용한다. Controller는 인증 처리 대신 @CurrentUser로 검증된 사용자만 전달받는다. */
 @Configuration
@@ -58,7 +60,8 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticatedUserConverter jwtAuthenticatedUserConverter,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-            ApiAccessDeniedHandler apiAccessDeniedHandler)
+            ApiAccessDeniedHandler apiAccessDeniedHandler,
+            InternalTokenAuthenticationFilter internalTokenAuthenticationFilter)
             throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -104,6 +107,8 @@ public class SecurityConfig {
                                         jwt ->
                                                 jwt.jwtAuthenticationConverter(
                                                         jwtAuthenticatedUserConverter)))
+                .addFilterBefore(
+                        internalTokenAuthenticationFilter, BearerTokenAuthenticationFilter.class)
                 .build();
     }
 
@@ -112,6 +117,13 @@ public class SecurityConfig {
         SecretKeySpec secretKey =
                 new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+    }
+
+    @Bean
+    InternalTokenAuthenticationFilter internalTokenAuthenticationFilter(
+            @Value("${meetbowl.security.internal-token}") String internalToken,
+            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint) {
+        return new InternalTokenAuthenticationFilter(internalToken, apiAuthenticationEntryPoint);
     }
 
     @Bean

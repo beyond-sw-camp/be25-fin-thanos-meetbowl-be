@@ -82,6 +82,13 @@ class JwtAuthenticatedUserConverterTest {
                 authentication.getAuthorities().iterator().next().getAuthority());
     }
 
+    @Test
+    void systemRoleJwtFailsAuthentication() {
+        Jwt jwt = jwtBuilder(UUID.randomUUID()).claim("role", "SYSTEM").build();
+
+        assertThrows(BadJwtException.class, () -> converter.convert(jwt));
+    }
+
     private Jwt.Builder jwtBuilder(UUID userId) {
         Instant now = Instant.now();
         return Jwt.withTokenValue("token")

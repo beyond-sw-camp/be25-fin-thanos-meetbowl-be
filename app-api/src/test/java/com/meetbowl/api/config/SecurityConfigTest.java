@@ -16,6 +16,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.meetbowl.api.common.ApiHeaders;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -28,6 +29,7 @@ import com.nimbusds.jwt.SignedJWT;
 class SecurityConfigTest {
 
     private static final String JWT_SECRET = "meetbowl-local-development-secret-key-32bytes";
+    private static final String INTERNAL_TOKEN = "meetbowl-test-internal-token-value-32bytes";
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
@@ -77,17 +79,55 @@ class SecurityConfigTest {
     }
 
     @Test
-    void systemCanOnlyAccessSystemEndpoint() throws Exception {
+    void systemJwtCannotAccessSystemEndpoint() throws Exception {
         String accessToken = createAccessToken("SYSTEM");
 
         mockMvc.perform(
                         post("/api/v1/internal/mails/send")
                                 .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
 
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    @Test
+    void validInternalTokenCanAccessInternalEndpoint() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/internal/mails/send")
+                                .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void invalidInternalTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/internal/mails/send")
+                                .header(ApiHeaders.INTERNAL_TOKEN, "invalid-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
+    void missingInternalTokenReturnsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/v1/internal/mails/send"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
+    void internalTokenDoesNotAuthenticateGeneralApi() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me").header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
+    void internalTokenCanAccessSystemShareEndpoint() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/meetings/"
+                                        + UUID.randomUUID()
+                                        + "/minutes/share/participants")
+                                .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -97,8 +137,8 @@ class SecurityConfigTest {
         mockMvc.perform(
                         post("/api/v1/internal/mails/send")
                                 .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
     }
 
     @Test

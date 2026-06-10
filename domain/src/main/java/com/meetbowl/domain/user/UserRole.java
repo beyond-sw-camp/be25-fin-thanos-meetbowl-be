@@ -6,6 +6,6 @@ public enum UserRole {
     SYSTEM;
 
     public boolean canAccessAdminApi() {
-        return this == ADMIN || this == SYSTEM;
+        return this == ADMIN;
     }
 }

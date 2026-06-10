@@ -8,9 +8,9 @@ import org.junit.jupiter.api.Test;
 class UserRoleTest {
 
     @Test
-    void canAccessAdminApi_success_only_admin_and_system() {
+    void canAccessAdminApi_success_only_admin() {
         assertTrue(UserRole.ADMIN.canAccessAdminApi());
-        assertTrue(UserRole.SYSTEM.canAccessAdminApi());
+        assertFalse(UserRole.SYSTEM.canAccessAdminApi());
         assertFalse(UserRole.USER.canAccessAdminApi());
     }
 }

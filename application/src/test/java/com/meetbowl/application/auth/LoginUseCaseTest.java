@@ -123,6 +123,22 @@ class LoginUseCaseTest {
         verify(authTokenIssuer).issueInitialPasswordChangeToken(user);
     }
 
+    @Test
+    void loginSystemAccount_failsAfterCredentialValidation() {
+        String loginId = "system1";
+        User user = createUser(loginId, "hash", UserRole.SYSTEM);
+        given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password", "hash")).willReturn(true);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
+
+        assertEquals(
+                com.meetbowl.common.exception.ErrorCode.COMMON_UNAUTHORIZED, exception.errorCode());
+    }
+
     private User createUser(String loginId, String hash, UserRole role) {
         return createUser(loginId, hash, role, false);
     }

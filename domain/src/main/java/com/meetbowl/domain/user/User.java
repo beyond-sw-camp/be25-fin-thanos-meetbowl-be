@@ -138,6 +138,10 @@ public class User {
         return status == UserStatus.ACTIVE && isWithinActivePeriod(now);
     }
 
+    public boolean isSystemAccount() {
+        return role == UserRole.SYSTEM;
+    }
+
     public User completeInitialPasswordChange(String newPasswordHash) {
         validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
         if (!initialPasswordChangeRequired) {
