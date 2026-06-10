@@ -13,7 +13,10 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-/** JPA Entity가 공통으로 상속하는 기반 클래스다. 주요 도메인 ID는 UUID를 기본으로 하고, 저장/수정 시각은 UTC Instant로 다룬다. */
+/**
+ * 식별자와 감사 시각 정책이 엔티티마다 달라져 데이터 계약이 흔들리지 않도록 영속성 공통 규칙을 한곳에 둔다.
+ * 이 타입은 JPA 내부 기반 클래스일 뿐이며 도메인 모델이나 API 계약으로 노출하지 않는다.
+ */
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {

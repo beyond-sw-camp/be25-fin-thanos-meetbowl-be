@@ -5,9 +5,7 @@ import org.springframework.http.ResponseEntity;
 
 import com.meetbowl.common.response.ApiResponse;
 
-/**
- * Controller에서 공통 성공 응답을 짧고 일관되게 만들기 위한 기반 클래스다. 비즈니스 예외는 여기서 처리하지 않고 GlobalExceptionHandler가 담당한다.
- */
+/** Controller가 응답 외피를 직접 조립하면서 공통 API 계약을 벗어나지 않도록 성공 응답 생성 지점을 제한한다. */
 public abstract class BaseController {
 
     protected <T> ApiResponse<T> ok(T data) {

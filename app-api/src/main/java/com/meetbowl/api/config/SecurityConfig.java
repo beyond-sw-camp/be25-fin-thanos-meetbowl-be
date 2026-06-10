@@ -21,7 +21,10 @@ import com.meetbowl.api.common.auth.JwtAuthenticatedUserConverter;
 import com.meetbowl.api.common.security.ApiAccessDeniedHandler;
 import com.meetbowl.api.common.security.ApiAuthenticationEntryPoint;
 
-/** JWT 기반 인증을 전역으로 적용한다. Controller는 인증 처리 대신 @CurrentUser로 검증된 사용자만 전달받는다. */
+/**
+ * 인증 누락이 개별 Controller 구현 실수로 이어지지 않도록 공개 경로를 제외한 모든 요청을 기본 차단한다.
+ * Controller에는 검증이 끝난 사용자만 전달해 토큰 파싱과 업무 권한 판단의 책임도 분리한다.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
