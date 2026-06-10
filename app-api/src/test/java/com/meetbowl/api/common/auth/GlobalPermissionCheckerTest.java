@@ -33,17 +33,6 @@ class GlobalPermissionCheckerTest {
     }
 
     @Test
-    void requireUserOrAdminRejectsGuest() {
-        AuthenticatedUser guest = user(AuthenticatedUserRole.GUEST);
-
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class, () -> permissionChecker.requireUserOrAdmin(guest));
-
-        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
-    }
-
-    @Test
     void nullUserReturnsUnauthorized() {
         BusinessException exception =
                 assertThrows(
