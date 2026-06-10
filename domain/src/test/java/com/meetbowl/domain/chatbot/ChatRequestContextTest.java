@@ -3,7 +3,9 @@ package com.meetbowl.domain.chatbot;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,19 +15,34 @@ class ChatRequestContextTest {
 
     @Test
     void createsStatelessRequestWithEmptyConversation() {
-        ChatAccessContext accessContext =
-                new ChatAccessContext(Set.of(ChatSourceType.MINUTES), Set.of());
-
-        ChatRequestContext request = new ChatRequestContext("  배포 일정을 알려줘  ", null, accessContext);
+        ChatRequestContext request =
+                new ChatRequestContext("  배포 일정을 알려줘  ", null, UUID.randomUUID(), Set.of());
 
         assertEquals("배포 일정을 알려줘", request.question());
         assertEquals(ChatConversationContext.empty(), request.conversation());
     }
 
     @Test
-    void requiresTrustedAccessContext() {
+    void requiresUserId() {
         assertThrows(
                 BusinessException.class,
-                () -> new ChatRequestContext("질문", ChatConversationContext.empty(), null));
+                () ->
+                        new ChatRequestContext(
+                                "질문", ChatConversationContext.empty(), null, Set.of()));
+    }
+
+    @Test
+    void copiesSharedWorkspaceIdsSoCallerCannotWidenScopeDuringAiExecution() {
+        Set<UUID> workspaceIds = new HashSet<>();
+        workspaceIds.add(UUID.randomUUID());
+
+        ChatRequestContext request =
+                new ChatRequestContext("질문", null, UUID.randomUUID(), workspaceIds);
+        workspaceIds.add(UUID.randomUUID());
+
+        assertEquals(1, request.sharedWorkspaceIds().size());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> request.sharedWorkspaceIds().add(UUID.randomUUID()));
     }
 }
