@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 
+import com.meetbowl.domain.personalworkspace.CalendarEventSource;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEvent;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEventRepositoryPort;
 
@@ -54,7 +55,9 @@ public class JpaPersonalWorkspaceCalendarEventRepositoryAdapter
     }
 
     @Override
-    public boolean deleteByIdAndOwnerUserId(UUID eventId, UUID ownerUserId) {
-        return repository.deleteByIdAndOwnerUserId(eventId, ownerUserId) > 0;
+    public boolean deletePersonalByIdAndOwnerUserId(UUID eventId, UUID ownerUserId) {
+        return repository.deleteByIdAndOwnerUserIdAndSource(
+                        eventId, ownerUserId, CalendarEventSource.PERSONAL)
+                > 0;
     }
 }

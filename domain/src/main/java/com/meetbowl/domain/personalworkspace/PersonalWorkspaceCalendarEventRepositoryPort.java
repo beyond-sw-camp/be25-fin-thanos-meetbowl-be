@@ -17,5 +17,6 @@ public interface PersonalWorkspaceCalendarEventRepositoryPort {
     List<PersonalWorkspaceCalendarEvent> findVisibleByUserIdAndPeriod(
             UUID userId, Instant startedAt, Instant endedAt);
 
-    boolean deleteByIdAndOwnerUserId(UUID eventId, UUID ownerUserId);
+    /** 회의 투영 일정이 개인 캘린더 삭제 경로를 통해 원본과 분리되는 것을 막는다. */
+    boolean deletePersonalByIdAndOwnerUserId(UUID eventId, UUID ownerUserId);
 }

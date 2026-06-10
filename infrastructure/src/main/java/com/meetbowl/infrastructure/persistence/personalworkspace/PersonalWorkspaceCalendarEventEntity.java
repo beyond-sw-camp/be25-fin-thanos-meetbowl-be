@@ -19,13 +19,8 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
         name = "personal_workspace_calendar_events",
         uniqueConstraints =
                 @UniqueConstraint(
-                        name = "uk_personal_workspace_google_calendar_event",
-                        columnNames = {
-                            "owner_user_id",
-                            "source",
-                            "source_id",
-                            "external_event_id"
-                        }))
+                        name = "uk_calendar_event_owner_source",
+                        columnNames = {"owner_user_id", "source", "source_id"}))
 public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "BINARY(16)")
@@ -53,9 +48,6 @@ public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
     @Column(columnDefinition = "BINARY(16)")
     private UUID sourceId;
 
-    @Column(length = 255)
-    private String externalEventId;
-
     protected PersonalWorkspaceCalendarEventEntity() {}
 
     private PersonalWorkspaceCalendarEventEntity(
@@ -66,8 +58,7 @@ public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
             Instant endedAt,
             boolean allDay,
             CalendarEventSource source,
-            UUID sourceId,
-            String externalEventId) {
+            UUID sourceId) {
         this.ownerUserId = ownerUserId;
         this.title = title;
         this.description = description;
@@ -76,7 +67,6 @@ public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
         this.allDay = allDay;
         this.source = source;
         this.sourceId = sourceId;
-        this.externalEventId = externalEventId;
     }
 
     static PersonalWorkspaceCalendarEventEntity from(PersonalWorkspaceCalendarEvent event) {
@@ -89,8 +79,7 @@ public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
                         event.endedAt(),
                         event.allDay(),
                         event.source(),
-                        event.sourceId(),
-                        event.externalEventId());
+                        event.sourceId());
         entity.setId(event.id());
         return entity;
     }
@@ -105,7 +94,6 @@ public class PersonalWorkspaceCalendarEventEntity extends BaseEntity {
                 endedAt,
                 allDay,
                 source,
-                sourceId,
-                externalEventId);
+                sourceId);
     }
 }
