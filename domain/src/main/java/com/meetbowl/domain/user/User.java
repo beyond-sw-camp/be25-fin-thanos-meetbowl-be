@@ -138,6 +138,31 @@ public class User {
         return status == UserStatus.ACTIVE && isWithinActivePeriod(now);
     }
 
+    public User completeInitialPasswordChange(String newPasswordHash) {
+        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
+        if (!initialPasswordChangeRequired) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 계정이 아닙니다.");
+        }
+
+        return new User(
+                id,
+                loginId,
+                newPasswordHash,
+                name,
+                email,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                false,
+                activeFrom,
+                activeUntil,
+                createdAt,
+                updatedAt);
+    }
+
     public UUID id() {
         return id;
     }

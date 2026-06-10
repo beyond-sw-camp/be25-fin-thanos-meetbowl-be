@@ -18,6 +18,8 @@ import com.meetbowl.domain.user.User;
 public class AuthTokenIssuer {
 
     private static final int REFRESH_TOKEN_BYTES = 32;
+    private static final String INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM =
+            "initialPasswordChangeRequired";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
@@ -35,11 +37,19 @@ public class AuthTokenIssuer {
     }
 
     public IssuedTokens issue(User user) {
+        return issue(user, true);
+    }
+
+    public IssuedTokens issueInitialPasswordChangeToken(User user) {
+        return issue(user, false);
+    }
+
+    private IssuedTokens issue(User user, boolean issueRefreshToken) {
         String accessTokenId = UUID.randomUUID().toString();
-        String refreshToken = createRefreshToken();
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.role().name());
         claims.put("displayName", user.name());
+        claims.put(INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM, user.initialPasswordChangeRequired());
         if (user.affiliateId() != null) {
             claims.put("organizationId", user.affiliateId().toString());
         }
@@ -47,6 +57,17 @@ public class AuthTokenIssuer {
         String accessToken =
                 jwtTokenProvider.createAccessToken(
                         user.id().toString(), accessTokenId, Map.copyOf(claims));
+
+        if (!issueRefreshToken) {
+            return new IssuedTokens(
+                    accessToken,
+                    null,
+                    "Bearer",
+                    jwtTokenProvider.getAccessTokenExpirationSeconds(),
+                    0L);
+        }
+
+        String refreshToken = createRefreshToken();
         tokenStateRepositoryPort.saveRefreshToken(
                 RefreshTokenHasher.hash(refreshToken),
                 user.id(),

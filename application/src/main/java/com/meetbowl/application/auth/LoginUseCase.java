@@ -68,7 +68,10 @@ public class LoginUseCase {
             throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        IssuedTokens tokens = authTokenIssuer.issue(user);
+        IssuedTokens tokens =
+                user.initialPasswordChangeRequired()
+                        ? authTokenIssuer.issueInitialPasswordChangeToken(user)
+                        : authTokenIssuer.issue(user);
 
         return new LoginResult(
                 tokens.accessToken(),
@@ -86,7 +89,8 @@ public class LoginUseCase {
                         getAffiliateName(user.affiliateId()),
                         getDepartmentName(user.departmentId()),
                         getTeamName(user.teamId()),
-                        getPositionName(user.positionId())));
+                        getPositionName(user.positionId()),
+                        user.initialPasswordChangeRequired()));
     }
 
     private String getAffiliateName(UUID id) {

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -105,7 +106,29 @@ class LoginUseCaseTest {
                 () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
     }
 
+    @Test
+    void loginInitialPasswordUser_issuesRestrictedToken() {
+        String loginId = "user1";
+        User user = createUser(loginId, "hash", UserRole.USER, true);
+        given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
+        given(passwordEncoder.matches("password", "hash")).willReturn(true);
+        given(authTokenIssuer.issueInitialPasswordChangeToken(user))
+                .willReturn(new IssuedTokens("restricted", null, "Bearer", 900L, 0L));
+
+        LoginResult result = loginUseCase.execute(new LoginCommand(loginId, "password"));
+
+        assertEquals("restricted", result.accessToken());
+        assertEquals(null, result.refreshToken());
+        assertEquals(true, result.user().initialPasswordChangeRequired());
+        verify(authTokenIssuer).issueInitialPasswordChangeToken(user);
+    }
+
     private User createUser(String loginId, String hash, UserRole role) {
+        return createUser(loginId, hash, role, false);
+    }
+
+    private User createUser(
+            String loginId, String hash, UserRole role, boolean initialPasswordChangeRequired) {
         return User.of(
                 UUID.randomUUID(),
                 loginId,
@@ -118,7 +141,7 @@ class LoginUseCaseTest {
                 null,
                 null,
                 null,
-                false,
+                initialPasswordChangeRequired,
                 null,
                 null,
                 null,

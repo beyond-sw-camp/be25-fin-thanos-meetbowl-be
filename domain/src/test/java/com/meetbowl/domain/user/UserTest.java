@@ -1,5 +1,6 @@
 package com.meetbowl.domain.user;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,6 +36,16 @@ class UserTest {
         assertTrue(user(UserStatus.INACTIVE, null, null).isInactive());
     }
 
+    @Test
+    void completeInitialPasswordChange_updatesHashAndClearsRequiredFlag() {
+        User user = initialPasswordUser();
+
+        User changed = user.completeInitialPasswordChange("newPasswordHash");
+
+        assertEquals("newPasswordHash", changed.passwordHash());
+        assertFalse(changed.initialPasswordChangeRequired());
+    }
+
     private static User user(UserStatus status, Instant activeFrom, Instant activeUntil) {
         return User.of(
                 UUID.randomUUID(),
@@ -51,6 +62,26 @@ class UserTest {
                 false,
                 activeFrom,
                 activeUntil,
+                NOW,
+                NOW);
+    }
+
+    private static User initialPasswordUser() {
+        return User.of(
+                UUID.randomUUID(),
+                "user01",
+                "passwordHash",
+                "홍길동",
+                "user01@example.com",
+                UserRole.USER,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                null,
+                null,
+                true,
+                null,
+                null,
                 NOW,
                 NOW);
     }

@@ -115,6 +115,33 @@ class SecurityConfigTest {
     }
 
     @Test
+    void initialPasswordChangeTokenCanOnlyAccessInitialPasswordChangeEndpoint() throws Exception {
+        String accessToken = createAccessToken("ADMIN", true);
+
+        mockMvc.perform(
+                        post("/api/v1/auth/password/change-initial")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(
+                        get("/api/v1/admin/dashboard")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void normalUserCannotAccessInitialPasswordChangeEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        post("/api/v1/auth/password/change-initial")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
     void userCannotAccessAdminEndpoint() throws Exception {
         String accessToken = createAccessToken("USER");
 
@@ -156,6 +183,11 @@ class SecurityConfigTest {
     }
 
     private String createAccessToken(String role) throws Exception {
+        return createAccessToken(role, false);
+    }
+
+    private String createAccessToken(String role, boolean initialPasswordChangeRequired)
+            throws Exception {
         Instant now = Instant.now();
         JWTClaimsSet claims =
                 new JWTClaimsSet.Builder()
@@ -163,6 +195,7 @@ class SecurityConfigTest {
                         .jwtID(UUID.randomUUID().toString())
                         .claim("organizationId", UUID.randomUUID().toString())
                         .claim("role", role)
+                        .claim("initialPasswordChangeRequired", initialPasswordChangeRequired)
                         .claim("displayName", "홍길동")
                         .issueTime(Date.from(now))
                         .expirationTime(Date.from(now.plusSeconds(300)))

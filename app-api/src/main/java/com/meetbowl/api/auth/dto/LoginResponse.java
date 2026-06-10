@@ -20,5 +20,6 @@ public record LoginResponse(
             String affiliate,
             String department,
             String team,
-            String position) {}
+            String position,
+            boolean initialPasswordChangeRequired) {}
 }

@@ -64,6 +64,24 @@ class JwtAuthenticatedUserConverterTest {
         assertThrows(BadJwtException.class, () -> converter.convert(jwt));
     }
 
+    @Test
+    void initialPasswordChangeTokenOnlyGetsPasswordChangeAuthority() {
+        Jwt jwt =
+                jwtBuilder(UUID.randomUUID())
+                        .claim("role", "ADMIN")
+                        .claim("initialPasswordChangeRequired", true)
+                        .build();
+
+        JwtAuthenticationToken authentication = converter.convert(jwt);
+
+        AuthenticatedUser user =
+                assertInstanceOf(AuthenticatedUser.class, authentication.getDetails());
+        assertEquals(true, user.initialPasswordChangeRequired());
+        assertEquals(
+                "ROLE_PASSWORD_CHANGE_REQUIRED",
+                authentication.getAuthorities().iterator().next().getAuthority());
+    }
+
     private Jwt.Builder jwtBuilder(UUID userId) {
         Instant now = Instant.now();
         return Jwt.withTokenValue("token")

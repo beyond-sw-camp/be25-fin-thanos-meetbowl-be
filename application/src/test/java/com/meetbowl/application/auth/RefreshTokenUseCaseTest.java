@@ -65,7 +65,30 @@ class RefreshTokenUseCaseTest {
         assertEquals(ErrorCode.AUTH_REFRESH_TOKEN_INVALID, exception.errorCode());
     }
 
+    @Test
+    void refresh_fail_when_initial_password_change_is_required() {
+        String refreshToken = "refresh-token";
+        User user = createUser(true);
+        RefreshTokenUseCase useCase =
+                new RefreshTokenUseCase(
+                        tokenStateRepositoryPort, userRepositoryPort, authTokenIssuer);
+        given(tokenStateRepositoryPort.consumeRefreshToken(RefreshTokenHasher.hash(refreshToken)))
+                .willReturn(Optional.of(user.id()));
+        given(userRepositoryPort.findById(user.id())).willReturn(Optional.of(user));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> useCase.execute(new RefreshTokenCommand(refreshToken)));
+
+        assertEquals(ErrorCode.AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED, exception.errorCode());
+    }
+
     private User createUser() {
+        return createUser(false);
+    }
+
+    private User createUser(boolean initialPasswordChangeRequired) {
         return User.of(
                 UUID.randomUUID(),
                 "user1",
@@ -78,7 +101,7 @@ class RefreshTokenUseCaseTest {
                 null,
                 null,
                 null,
-                false,
+                initialPasswordChangeRequired,
                 null,
                 null,
                 null,

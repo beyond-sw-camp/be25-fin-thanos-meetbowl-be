@@ -21,6 +21,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.meetbowl.api.auth.dto.ChangeInitialPasswordRequest;
 import com.meetbowl.api.auth.dto.LoginRequest;
 import com.meetbowl.api.auth.dto.LogoutRequest;
 import com.meetbowl.api.auth.dto.RefreshTokenRequest;
@@ -31,6 +32,7 @@ import com.meetbowl.api.common.auth.AuthenticatedUserRole;
 import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.AccessTokenValidationService;
+import com.meetbowl.application.auth.ChangeInitialPasswordUseCase;
 import com.meetbowl.application.auth.IssuedTokens;
 import com.meetbowl.application.auth.LoginResult;
 import com.meetbowl.application.auth.LoginUseCase;
@@ -48,6 +50,7 @@ class AuthControllerTest {
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
     @MockitoBean private RefreshTokenUseCase refreshTokenUseCase;
     @MockitoBean private LogoutUseCase logoutUseCase;
+    @MockitoBean private ChangeInitialPasswordUseCase changeInitialPasswordUseCase;
 
     @Test
     @DisplayName("로그인 성공")
@@ -72,7 +75,8 @@ class AuthControllerTest {
                                 "계열사",
                                 "부서",
                                 "팀",
-                                "직급"));
+                                "직급",
+                                false));
         given(loginUseCase.execute(any())).willReturn(result);
 
         // when & then
@@ -86,7 +90,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-                .andExpect(jsonPath("$.data.user.name").value("홍길동"));
+                .andExpect(jsonPath("$.data.user.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.user.initialPasswordChangeRequired").value(false));
     }
 
     @Test
@@ -135,5 +140,66 @@ class AuthControllerTest {
                                         authenticatedUser))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void changeInitialPasswordSuccess() throws Exception {
+        given(changeInitialPasswordUseCase.execute(any()))
+                .willReturn(
+                        new IssuedTokens("new-access", "new-refresh", "Bearer", 900L, 1209600L));
+        AuthenticatedUser authenticatedUser =
+                new AuthenticatedUser(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        AuthenticatedUserRole.USER,
+                        "홍길동",
+                        "restricted-token-id",
+                        Instant.now().plusSeconds(300),
+                        true);
+
+        mockMvc.perform(
+                        post("/api/v1/auth/password/change-initial")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        new ObjectMapper()
+                                                .writeValueAsString(
+                                                        new ChangeInitialPasswordRequest(
+                                                                "new-password", "new-password")))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accessToken").value("new-access"))
+                .andExpect(jsonPath("$.data.refreshToken").value("new-refresh"));
+    }
+
+    @Test
+    void changeInitialPasswordFailsWhenConfirmationDoesNotMatch() throws Exception {
+        AuthenticatedUser authenticatedUser =
+                new AuthenticatedUser(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        AuthenticatedUserRole.USER,
+                        "홍길동",
+                        "restricted-token-id",
+                        Instant.now().plusSeconds(300),
+                        true);
+
+        mockMvc.perform(
+                        post("/api/v1/auth/password/change-initial")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        new ObjectMapper()
+                                                .writeValueAsString(
+                                                        new ChangeInitialPasswordRequest(
+                                                                "new-password",
+                                                                "different-password")))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
 }

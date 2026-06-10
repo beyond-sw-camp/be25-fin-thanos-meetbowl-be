@@ -10,7 +10,18 @@ public record AuthenticatedUser(
         AuthenticatedUserRole role,
         String displayName,
         String accessTokenId,
-        Instant accessTokenExpiresAt) {
+        Instant accessTokenExpiresAt,
+        boolean initialPasswordChangeRequired) {
+
+    public AuthenticatedUser(
+            UUID userId,
+            UUID organizationId,
+            AuthenticatedUserRole role,
+            String displayName,
+            String accessTokenId,
+            Instant accessTokenExpiresAt) {
+        this(userId, organizationId, role, displayName, accessTokenId, accessTokenExpiresAt, false);
+    }
 
     public AuthenticatedUser(
             UUID userId, UUID organizationId, AuthenticatedUserRole role, String displayName) {
@@ -20,7 +31,8 @@ public record AuthenticatedUser(
                 role,
                 displayName,
                 "test-token-id",
-                Instant.now().plusSeconds(300));
+                Instant.now().plusSeconds(300),
+                false);
     }
 
     public boolean isAdmin() {

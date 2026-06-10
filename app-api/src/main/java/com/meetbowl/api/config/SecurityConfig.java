@@ -49,10 +49,6 @@ public class SecurityConfig {
         "/api/v1/admin/**", "/api/v1/auth/password/reset-by-admin", "/api/v1/mails/announcements"
     };
 
-    private static final String[] USER_ONLY_ENDPOINTS = {
-        "/api/v1/auth/password/change-initial", "/api/v1/auth/password/reset-request"
-    };
-
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
         "/api/v1/users/me", "/api/v1/users/recipients/search", "/api/v1/users/*/simple-profile"
     };
@@ -83,7 +79,9 @@ public class SecurityConfig {
                                         .hasRole("SYSTEM")
                                         .requestMatchers(ADMIN_ENDPOINTS)
                                         .hasRole("ADMIN")
-                                        .requestMatchers(USER_ONLY_ENDPOINTS)
+                                        .requestMatchers("/api/v1/auth/password/change-initial")
+                                        .hasRole("PASSWORD_CHANGE_REQUIRED")
+                                        .requestMatchers("/api/v1/auth/password/reset-request")
                                         .hasRole("USER")
                                         .requestMatchers(
                                                 HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)

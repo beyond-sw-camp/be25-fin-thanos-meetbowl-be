@@ -74,6 +74,7 @@ sub: 사용자 UUID
 organizationId: 조직 UUID
 role: USER | ADMIN | GUEST | SYSTEM
 displayName: 표시 이름
+initialPasswordChangeRequired: 초기 비밀번호 변경 제한 토큰 여부
 ```
 
 Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`를 사용한다.

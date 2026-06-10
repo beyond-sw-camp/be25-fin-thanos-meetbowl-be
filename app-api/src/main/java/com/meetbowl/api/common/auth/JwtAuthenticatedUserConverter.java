@@ -24,6 +24,10 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
     private static final String DISPLAY_NAME_CLAIM = "displayName";
     private static final String NAME_CLAIM = "name";
     private static final String ROLE_PREFIX = "ROLE_";
+    private static final String INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM =
+            "initialPasswordChangeRequired";
+    private static final String PASSWORD_CHANGE_REQUIRED_AUTHORITY =
+            ROLE_PREFIX + "PASSWORD_CHANGE_REQUIRED";
 
     private final AccessTokenValidationService accessTokenValidationService;
 
@@ -36,7 +40,11 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
     public JwtAuthenticationToken convert(Jwt jwt) {
         AuthenticatedUser authenticatedUser = toAuthenticatedUser(jwt);
         Collection<GrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority(ROLE_PREFIX + authenticatedUser.role().name()));
+                authenticatedUser.initialPasswordChangeRequired()
+                        ? List.of(new SimpleGrantedAuthority(PASSWORD_CHANGE_REQUIRED_AUTHORITY))
+                        : List.of(
+                                new SimpleGrantedAuthority(
+                                        ROLE_PREFIX + authenticatedUser.role().name()));
 
         JwtAuthenticationToken authentication =
                 new JwtAuthenticationToken(jwt, authorities, authenticatedUser.userId().toString());
@@ -50,12 +58,20 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
         AuthenticatedUserRole role = parseRole(jwt.getClaimAsString(ROLE_CLAIM));
         String displayName = resolveDisplayName(jwt, userId);
         String tokenId = requireTokenId(jwt.getId());
+        boolean initialPasswordChangeRequired =
+                Boolean.TRUE.equals(jwt.getClaimAsBoolean(INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM));
         if (accessTokenValidationService.isRevoked(tokenId)) {
             throw new BadJwtException("Access Token is revoked.");
         }
 
         return new AuthenticatedUser(
-                userId, organizationId, role, displayName, tokenId, jwt.getExpiresAt());
+                userId,
+                organizationId,
+                role,
+                displayName,
+                tokenId,
+                jwt.getExpiresAt(),
+                initialPasswordChangeRequired);
     }
 
     private UUID parseUuid(String value, String claimName) {

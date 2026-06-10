@@ -144,6 +144,10 @@ X-Internal-Token: {internalToken}
 - Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
 - Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
 - 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
+  Refresh Token은 발급받지 않는다.
+- 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
+- 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
 
 ---
 

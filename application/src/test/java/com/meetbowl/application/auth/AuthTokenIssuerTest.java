@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.Duration;
@@ -49,7 +50,28 @@ class AuthTokenIssuerTest {
         assertEquals(RefreshTokenHasher.hash(tokens.refreshToken()), tokenHashCaptor.getValue());
     }
 
+    @Test
+    void issueInitialPasswordChangeToken_doesNotIssueRefreshToken() {
+        User user = createUser(true);
+        AuthTokenIssuer issuer =
+                new AuthTokenIssuer(jwtTokenProvider, tokenStateRepositoryPort, 120L);
+        given(jwtTokenProvider.createAccessToken(eq(user.id().toString()), any(), any()))
+                .willReturn("restricted-access-token");
+        given(jwtTokenProvider.getAccessTokenExpirationSeconds()).willReturn(30L);
+
+        IssuedTokens tokens = issuer.issueInitialPasswordChangeToken(user);
+
+        assertEquals("restricted-access-token", tokens.accessToken());
+        assertEquals(null, tokens.refreshToken());
+        assertEquals(0L, tokens.refreshTokenExpiresIn());
+        verify(tokenStateRepositoryPort, never()).saveRefreshToken(any(), any(), any());
+    }
+
     private User createUser() {
+        return createUser(false);
+    }
+
+    private User createUser(boolean initialPasswordChangeRequired) {
         return User.of(
                 UUID.randomUUID(),
                 "user1",
@@ -62,7 +84,7 @@ class AuthTokenIssuerTest {
                 null,
                 null,
                 null,
-                false,
+                initialPasswordChangeRequired,
                 null,
                 null,
                 null,
