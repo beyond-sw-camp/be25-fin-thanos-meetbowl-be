@@ -137,7 +137,7 @@ X-Internal-Token: {internalToken}
 | POST | `/auth/password/reset-by-admin` | 관리자가 비밀번호 초기화 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
-Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 Admin 계정의 동시 접속은 하나의 세션만 유지한다.
+현재 인증은 짧은 수명의 stateless Access Token을 사용한다. 로그아웃 시 클라이언트는 보관 중인 Access Token을 폐기한다.
 
 ---
 

@@ -5,12 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,8 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.domain.auth.LoginSession;
-import com.meetbowl.domain.auth.LoginSessionRepositoryPort;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.DepartmentRepositoryPort;
 import com.meetbowl.domain.organization.PositionRepositoryPort;
@@ -42,7 +35,6 @@ class LoginUseCaseTest {
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
-    @Mock private LoginSessionRepositoryPort loginSessionRepositoryPort;
     @Mock private AffiliateRepositoryPort affiliateRepositoryPort;
     @Mock private DepartmentRepositoryPort departmentRepositoryPort;
     @Mock private TeamRepositoryPort teamRepositoryPort;
@@ -55,7 +47,6 @@ class LoginUseCaseTest {
                         userRepositoryPort,
                         passwordEncoder,
                         jwtTokenProvider,
-                        loginSessionRepositoryPort,
                         affiliateRepositoryPort,
                         departmentRepositoryPort,
                         teamRepositoryPort,
@@ -69,7 +60,7 @@ class LoginUseCaseTest {
         String loginId = "user1";
         String password = "password";
         User user = createUser(loginId, "hash", UserRole.USER);
-        LoginCommand command = new LoginCommand(loginId, password, "127.0.0.1", "agent");
+        LoginCommand command = new LoginCommand(loginId, password);
 
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
         given(passwordEncoder.matches(password, "hash")).willReturn(true);
@@ -81,44 +72,6 @@ class LoginUseCaseTest {
 
         // then
         assertEquals("token", result.accessToken());
-        verify(loginSessionRepositoryPort, times(1)).save(any());
-    }
-
-    @Test
-    @DisplayName("로그인 성공 - 어드민은 기존 세션 비활성화(단일 세션)")
-    void loginSuccessAdminSingleSession() {
-        // given
-        String loginId = "admin1";
-        String password = "password";
-        User admin = createUser(loginId, "hash", UserRole.ADMIN);
-        LoginCommand command = new LoginCommand(loginId, password, "127.0.0.1", "agent");
-
-        LoginSession existingSession =
-                new LoginSession(
-                        UUID.randomUUID(),
-                        admin.id(),
-                        "token1",
-                        true,
-                        Instant.now().plusSeconds(3600),
-                        Instant.now(),
-                        "127.0.0.1",
-                        "agent",
-                        null,
-                        null);
-
-        given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(admin));
-        given(passwordEncoder.matches(password, "hash")).willReturn(true);
-        given(loginSessionRepositoryPort.findActiveByUserId(admin.id()))
-                .willReturn(List.of(existingSession));
-        given(jwtTokenProvider.createToken(anyString(), any())).willReturn("new-token");
-        given(jwtTokenProvider.getExpirationSeconds()).willReturn(3600L);
-
-        // when
-        loginUseCase.execute(command);
-
-        // then
-        verify(loginSessionRepositoryPort, atLeastOnce()).save(any());
-        verify(loginSessionRepositoryPort, times(2)).save(any());
     }
 
     @Test
@@ -149,9 +102,7 @@ class LoginUseCaseTest {
         // when & then
         assertThrows(
                 BusinessException.class,
-                () ->
-                        loginUseCase.execute(
-                                new LoginCommand(loginId, "password", "127.0.0.1", "agent")));
+                () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
     }
 
     private User createUser(String loginId, String hash, UserRole role) {

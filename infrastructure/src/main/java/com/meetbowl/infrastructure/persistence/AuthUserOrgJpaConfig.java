@@ -6,8 +6,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import com.meetbowl.infrastructure.persistence.admin.AdminAuditLogEntity;
 import com.meetbowl.infrastructure.persistence.admin.SpringDataAdminAuditLogRepository;
-import com.meetbowl.infrastructure.persistence.auth.LoginSessionEntity;
-import com.meetbowl.infrastructure.persistence.auth.SpringDataLoginSessionRepository;
 import com.meetbowl.infrastructure.persistence.mail.MailRetentionPolicyEntity;
 import com.meetbowl.infrastructure.persistence.mail.SpringDataMailRetentionPolicyRepository;
 import com.meetbowl.infrastructure.persistence.organization.AffiliateEntity;
@@ -27,7 +25,6 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
         basePackageClasses = {
             UserEntity.class,
             UserSettingEntity.class,
-            LoginSessionEntity.class,
             AffiliateEntity.class,
             DepartmentEntity.class,
             PositionEntity.class,
@@ -39,7 +36,6 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
         basePackageClasses = {
             SpringDataUserRepository.class,
             SpringDataUserSettingRepository.class,
-            SpringDataLoginSessionRepository.class,
             SpringDataAffiliateRepository.class,
             SpringDataDepartmentRepository.class,
             SpringDataPositionRepository.class,

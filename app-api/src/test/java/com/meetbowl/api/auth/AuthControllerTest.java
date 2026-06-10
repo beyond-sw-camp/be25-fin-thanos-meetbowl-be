@@ -2,7 +2,6 @@ package com.meetbowl.api.auth;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -29,7 +28,6 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.LoginResult;
 import com.meetbowl.application.auth.LoginUseCase;
-import com.meetbowl.application.auth.LogoutUseCase;
 
 @WebMvcTest(AuthController.class)
 @Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})
@@ -39,7 +37,6 @@ class AuthControllerTest {
     // Boot 4 모듈러 테스트 환경에서 ObjectMapper 빈이 자동 등록되지 않을 수 있어 직접 생성 사용
 
     @MockitoBean private LoginUseCase loginUseCase;
-    @MockitoBean private LogoutUseCase logoutUseCase;
 
     @Test
     @DisplayName("로그인 성공")
@@ -81,8 +78,6 @@ class AuthControllerTest {
     @Test
     @DisplayName("로그아웃 성공")
     void logoutSuccess() throws Exception {
-        willDoNothing().given(logoutUseCase).execute(any());
-
         AuthenticatedUser authenticatedUser =
                 new AuthenticatedUser(
                         UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),

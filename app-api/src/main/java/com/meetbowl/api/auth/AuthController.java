@@ -2,7 +2,6 @@ package com.meetbowl.api.auth;
 
 import java.util.Objects;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,13 +13,9 @@ import com.meetbowl.api.auth.dto.LoginRequest;
 import com.meetbowl.api.auth.dto.LoginResponse;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
-import com.meetbowl.api.common.auth.AuthenticatedUser;
-import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.application.auth.LoginCommand;
 import com.meetbowl.application.auth.LoginResult;
 import com.meetbowl.application.auth.LoginUseCase;
-import com.meetbowl.application.auth.LogoutCommand;
-import com.meetbowl.application.auth.LogoutUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
 @RestController
@@ -28,23 +23,15 @@ import com.meetbowl.common.response.ApiResponse;
 public class AuthController extends BaseController {
 
     private final LoginUseCase loginUseCase;
-    private final LogoutUseCase logoutUseCase;
 
-    public AuthController(LoginUseCase loginUseCase, LogoutUseCase logoutUseCase) {
+    public AuthController(LoginUseCase loginUseCase) {
         this.loginUseCase = loginUseCase;
-        this.logoutUseCase = logoutUseCase;
     }
 
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResult result =
-                loginUseCase.execute(
-                        new LoginCommand(
-                                request.loginId(),
-                                request.password(),
-                                servletRequest.getRemoteAddr(),
-                                servletRequest.getHeader("User-Agent")));
+                loginUseCase.execute(new LoginCommand(request.loginId(), request.password()));
 
         return ok(
                 new LoginResponse(
@@ -65,8 +52,7 @@ public class AuthController extends BaseController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@CurrentUser AuthenticatedUser currentUser) {
-        logoutUseCase.execute(new LogoutCommand(currentUser.userId()));
+    public ApiResponse<Void> logout() {
         return ok();
     }
 }
