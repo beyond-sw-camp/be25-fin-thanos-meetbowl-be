@@ -42,6 +42,10 @@ Authorization: Bearer {accessToken}
 X-Internal-Token: {internalToken}
 ```
 
+- 내부 서버 전용 API와 System 전용 API는 `X-Internal-Token`으로만 인증한다.
+- `SYSTEM` 역할의 JWT 발급과 일반 로그인은 허용하지 않는다.
+- 내부 토큰은 일반 사용자, 관리자, Guest API 인증에 사용할 수 없다.
+
 ### 공통 성공 응답
 
 ```json
@@ -111,6 +115,7 @@ X-Internal-Token: {internalToken}
 | `COMMON_CONFLICT` | 409 | 상태 충돌 |
 | `AUTH_INVALID_CREDENTIALS` | 401 | 로그인 정보 오류 |
 | `AUTH_TOKEN_EXPIRED` | 401 | 토큰 만료 |
+| `AUTH_REFRESH_TOKEN_INVALID` | 401 | Refresh Token이 유효하지 않거나 이미 사용됨 |
 | `AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED` | 403 | 초기 비밀번호 변경 필요 |
 | `USER_NOT_FOUND` | 404 | 사용자 없음 |
 | `MEETING_NOT_FOUND` | 404 | 회의 없음 |
@@ -132,12 +137,22 @@ X-Internal-Token: {internalToken}
 |---|---|---|---|
 | POST | `/auth/login` | 로그인 | Public |
 | POST | `/auth/logout` | 로그아웃 | User/Admin |
+| POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
 | POST | `/auth/password/reset-by-admin` | 관리자가 비밀번호 초기화 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
-Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 Admin 계정의 동시 접속은 하나의 세션만 유지한다.
+로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
+
+- Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
+- Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
+- 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
+  Refresh Token은 발급받지 않는다.
+- 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
+- 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
+- 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.
 
 ---
 
@@ -325,8 +340,8 @@ DELETION_SCHEDULED
 | POST | `/workspace/memos` | 개인 메모 작성 | User/Admin |
 | PATCH | `/workspace/memos/{memoId}` | 개인 메모 수정 | Owner |
 | DELETE | `/workspace/memos/{memoId}` | 개인 메모 삭제 | Owner |
-| POST | `/workspace/calendar/google/connect` | 구글 캘린더 연동 연결 | User/Admin |
-| DELETE | `/workspace/calendar/google/connect` | 구글 캘린더 연동 해제 | Owner |
+
+개인 캘린더에서 직접 수정·삭제할 수 있는 대상은 사용자가 작성한 개인 일정으로 제한한다. 회의에서 파생된 일정은 회의 정보가 기준이므로 회의 생성·수정·취소 흐름을 통해서만 변경한다.
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
 | DELETE | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 삭제 | Owner |
@@ -355,15 +370,23 @@ DELETION_SCHEDULED
 
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
-| POST | `/ai/chat/sessions` | 새 대화 세션 시작 | User/Admin |
-| POST | `/ai/chat/sessions/{sessionId}/messages` | 기존 세션에 질의 | Owner |
-| GET | `/ai/chat/sessions` | 챗봇 대화 목록 조회 | User/Admin |
-| GET | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 상세 조회 | Owner |
-| DELETE | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 삭제 | Owner |
+| POST | `/ai/chat/messages` | 현재 화면의 대화 문맥으로 챗봇 질의 | User/Admin |
 
 `meetbowl-be`는 사용자 권한 context를 구성해 `meetbowl-ai`에 전달한다.
 
-권한 context에는 백업 메일, 즐겨찾기한 회의록, 개인 워크스페이스 자료, 사용자가 초대된 공유 워크스페이스 자료, 공유 워크스페이스 파일/버전 자료가 포함될 수 있다.
+`meetbowl-be`는 챗봇 질문마다 현재 인증 사용자의 권한 context를 다시 계산해 `meetbowl-ai`에 전달한다.
+
+챗봇 대화는 영속 데이터가 아니다. 프론트엔드는 현재 챗봇 화면의 메모리에서만 질문, 답변, citation을 유지하고 후속 질문에 필요한 범위만 `messageHistory`로 전송한다. `meetbowl-be`와 `meetbowl-ai`는 요청 처리 중에만 이를 사용하며 MariaDB, Qdrant, Redis, 로그에 저장하지 않는다. 사용자가 챗봇 화면을 나가거나 새로고침하거나 브라우저 탭을 닫으면 대화는 즉시 폐기되며 복구 API를 제공하지 않는다.
+
+검색 대상은 다음으로 제한한다.
+
+- 사용자가 수동 또는 자동으로 백업한 메일
+- 사용자가 Host 또는 Participant인 회의 중 상태가 `APPROVED` 또는 `SHARED`인 회의록
+- 사용자가 소유한 개인 메모
+- 사용자가 소유한 개인 드라이브 파일
+- 사용자가 현재 Owner 또는 Member인 공유 워크스페이스의 파일 버전
+
+개인 자료는 인증 사용자 ID를 기준으로 전체 검색하고, 공유 자료는 현재 접근 가능한 공유 워크스페이스 ID 목록으로 제한한다. 공유 워크스페이스 권한을 잃으면 다음 질문부터 검색 대상에서 제외한다.
 
 권한 없는 자료는 검색과 답변에 포함하면 안 된다.
 

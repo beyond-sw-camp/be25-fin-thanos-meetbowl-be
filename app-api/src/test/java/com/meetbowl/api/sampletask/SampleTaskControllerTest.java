@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.meetbowl.api.common.GlobalExceptionHandler;
@@ -27,6 +28,7 @@ import com.meetbowl.api.common.auth.AuthenticatedUserAttributes;
 import com.meetbowl.api.common.auth.AuthenticatedUserRole;
 import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.config.WebMvcConfig;
+import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.application.sampletask.CreateSampleTaskCommand;
 import com.meetbowl.application.sampletask.CreateSampleTaskUseCase;
 import com.meetbowl.application.sampletask.SampleTaskResult;
@@ -43,6 +45,7 @@ import com.meetbowl.application.sampletask.SampleTaskResult;
 class SampleTaskControllerTest {
 
     @Autowired private MockMvc mockMvc;
+    @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Autowired private CreateSampleTaskUseCase createSampleTaskUseCase;
 

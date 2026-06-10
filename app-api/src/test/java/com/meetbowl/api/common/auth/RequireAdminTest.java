@@ -13,6 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +22,7 @@ import com.meetbowl.api.common.GlobalExceptionHandler;
 import com.meetbowl.api.common.security.ApiAccessDeniedHandler;
 import com.meetbowl.api.common.security.ApiAuthenticationEntryPoint;
 import com.meetbowl.api.config.SecurityConfig;
+import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.common.response.ApiResponse;
 
 @WebMvcTest(controllers = RequireAdminSampleController.class)
@@ -34,17 +36,18 @@ import com.meetbowl.common.response.ApiResponse;
 class RequireAdminTest {
 
     @Autowired private MockMvc mockMvc;
+    @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Test
     void adminCanAccessAdminEndpoint() throws Exception {
-        mockMvc.perform(get("/sample/admin-only").with(jwt().authorities(adminAuthority())))
+        mockMvc.perform(get("/api/v1/admin/sample-only").with(jwt().authorities(adminAuthority())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
     void userCannotAccessAdminEndpoint() throws Exception {
-        mockMvc.perform(get("/sample/admin-only").with(jwt().authorities(userAuthority())))
+        mockMvc.perform(get("/api/v1/admin/sample-only").with(jwt().authorities(userAuthority())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
@@ -63,7 +66,7 @@ class RequireAdminTest {
 class RequireAdminSampleController {
 
     @RequireAdmin
-    @GetMapping("/sample/admin-only")
+    @GetMapping("/api/v1/admin/sample-only")
     ApiResponse<Void> adminOnly() {
         return ApiResponse.ok();
     }

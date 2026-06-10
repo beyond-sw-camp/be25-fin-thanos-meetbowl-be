@@ -14,6 +14,7 @@ public enum ErrorCode {
     // Auth
     AUTH_INVALID_CREDENTIALS("AUTH_INVALID_CREDENTIALS", "로그인 정보가 올바르지 않습니다.", 401),
     AUTH_TOKEN_EXPIRED("AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다.", 401),
+    AUTH_REFRESH_TOKEN_INVALID("AUTH_REFRESH_TOKEN_INVALID", "Refresh Token이 유효하지 않습니다.", 401),
     AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED(
             "AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED", "초기 비밀번호 변경이 필요합니다.", 403),
 
