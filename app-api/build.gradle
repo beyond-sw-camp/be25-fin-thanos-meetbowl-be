@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation project(':application')
+    implementation project(':domain')
     implementation project(':common')
     runtimeOnly project(':infrastructure')
 
@@ -17,9 +18,10 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    testImplementation project(':domain')
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-web'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'com.h2database:h2'

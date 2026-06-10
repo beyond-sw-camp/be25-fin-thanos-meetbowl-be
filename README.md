@@ -58,10 +58,13 @@ API 인증은 JWT Bearer Token을 기본으로 한다.
 Authorization: Bearer {accessToken}
 ```
 
-로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다.
+Access Token은 짧은 수명의 JWT이며, Refresh Token과 로그아웃된 Access Token 상태는 Redis에서 TTL로 관리한다.
+
+로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다. `prod` 프로필에서는 공개되지 않은
+32 bytes 이상의 `MEETBOWL_JWT_SECRET` 환경 변수가 필수다.
 
 ```bash
-MEETBOWL_JWT_SECRET=change-me-to-a-secure-256-bit-secret
+MEETBOWL_JWT_SECRET=<random-secret-of-at-least-32-bytes>
 ```
 
 초기 JWT claim 기준은 다음과 같다.
@@ -71,9 +74,14 @@ sub: 사용자 UUID
 organizationId: 조직 UUID
 role: USER | ADMIN | GUEST | SYSTEM
 displayName: 표시 이름
+initialPasswordChangeRequired: 초기 비밀번호 변경 제한 토큰 여부
 ```
 
 Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`를 사용한다.
+
+내부 서버 전용 API는 `X-Internal-Token` 헤더를 사용하며, 일반 로그인으로 `SYSTEM` JWT를
+발급하지 않는다. `prod` 프로필에서는 공개되지 않은 32 bytes 이상의
+`MEETBOWL_INTERNAL_TOKEN` 환경 변수가 필수다.
 
 ## Architecture Checks
 

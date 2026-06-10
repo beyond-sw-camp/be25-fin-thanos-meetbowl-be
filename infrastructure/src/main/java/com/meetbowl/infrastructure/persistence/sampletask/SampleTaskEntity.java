@@ -15,12 +15,15 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 @Table(name = "sample_tasks")
 public class SampleTaskEntity extends BaseEntity {
 
+    /** 작업 소유자 사용자 ID(UUID). */
     @Column(nullable = false, columnDefinition = "BINARY(16)")
     private UUID ownerUserId;
 
+    /** 작업 제목. */
     @Column(nullable = false, length = 100)
     private String title;
 
+    /** 작업 생성 시각(UTC). */
     @Column(nullable = false)
     private Instant taskCreatedAt;
 
