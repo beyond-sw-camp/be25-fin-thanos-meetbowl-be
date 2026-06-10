@@ -26,6 +26,12 @@ import com.meetbowl.domain.mail.MailType;
 import com.meetbowl.domain.mail.RelatedResourceType;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link Mail} 애그리거트를 관계형 스키마에 저장하기 위한 infrastructure 전용 모델이다.
+ *
+ * <p>도메인 모델이 JPA 수명주기와 연관관계 관리에 종속되지 않도록 별도 엔티티를 두며, 변환 책임도 이 영속성 경계 안에 한정한다. 멱등성 키의 유일성은 동시 요청에서도
+ * 애플리케이션의 선행 조회만으로 보장할 수 없으므로 DB 제약으로도 보호한다.
+ */
 @Entity
 @Table(
         name = "mail",

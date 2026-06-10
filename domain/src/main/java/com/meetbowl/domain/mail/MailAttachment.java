@@ -6,6 +6,11 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * Object Storage에 저장된 첨부파일을 메일 도메인에서 참조하기 위한 메타데이터 모델이다.
+ *
+ * <p>파일 원본을 업무 DB에 저장하거나 도메인 계층이 스토리지 SDK에 의존하지 않도록, 저장 위치와 검증에 필요한 정보만 보유한다.
+ */
 public class MailAttachment {
 
     private final UUID id;

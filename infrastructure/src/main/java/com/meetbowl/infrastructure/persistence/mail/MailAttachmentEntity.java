@@ -15,6 +15,12 @@ import jakarta.persistence.UniqueConstraint;
 import com.meetbowl.domain.mail.MailAttachment;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * 메일에 귀속된 첨부파일 메타데이터를 저장하는 infrastructure 전용 엔티티다.
+ *
+ * <p>첨부파일의 생명주기는 메일 애그리거트가 소유하므로 {@link MailEntity}와 함께 저장·삭제되며, 파일 원본은 Object Storage에 남겨 DB와 대용량
+ * 바이너리 저장 책임을 분리한다.
+ */
 @Entity
 @Table(
         name = "mail_attachment",

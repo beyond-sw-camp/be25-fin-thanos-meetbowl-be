@@ -51,5 +51,4 @@ MailboxEntry
 
 영속성 Entity는 `infrastructure` 내부에서만 사용한다.
 Domain 모델과 영속성 Entity 간 변환은 Persistence Adapter 경계에서 수행한다.
-가변 Entity는 `version` 컬럼을 사용해 낙관적 락을 적용한다.
 운영 스키마는 Flyway migration으로 관리하고 Hibernate는 `validate`만 수행한다.

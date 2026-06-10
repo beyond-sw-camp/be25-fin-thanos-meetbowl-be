@@ -11,6 +11,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 메일 본문, 수신 대상, 첨부파일과 발송 생명주기의 정합성을 함께 보호하는 애그리거트 루트다.
+ *
+ * <p>발송 상태 전이는 외부 메시지 처리나 영속성 구현에 흩어지면 중복 발송 및 잘못된 재시도 상태를 만들 수 있으므로 이 모델 안에서만 허용한다. 사용자별 읽음·삭제 상태는
+ * 동일한 메일을 받은 사용자끼리 영향을 주지 않아야 하므로 {@link MailboxEntry}가 별도로 관리한다.
+ */
 public class Mail {
 
     public static final int MAX_SUBJECT_LENGTH = 200;
