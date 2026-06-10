@@ -7,6 +7,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -34,10 +35,26 @@ public class SecurityConfig {
         "/api/v1/health",
         "/api/v1/auth/login",
         "/api/v1/auth/token/refresh",
-        "/api/v1/auth/password/reset-request",
+        "/api/v1/meetings/guest-join",
         "/swagger-ui.html",
         "/swagger-ui/**",
         "/v3/api-docs/**"
+    };
+
+    private static final String[] SYSTEM_ENDPOINTS = {
+        "/api/v1/internal/**", "/api/v1/meetings/*/minutes/share/participants"
+    };
+
+    private static final String[] ADMIN_ENDPOINTS = {
+        "/api/v1/admin/**", "/api/v1/auth/password/reset-by-admin", "/api/v1/mails/announcements"
+    };
+
+    private static final String[] USER_ONLY_ENDPOINTS = {
+        "/api/v1/auth/password/change-initial", "/api/v1/auth/password/reset-request"
+    };
+
+    private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
+        "/api/v1/users/me", "/api/v1/users/recipients/search", "/api/v1/users/*/simple-profile"
     };
 
     @Bean
@@ -60,8 +77,29 @@ public class SecurityConfig {
                                 authorize
                                         .requestMatchers(PUBLIC_ENDPOINTS)
                                         .permitAll()
+                                        .requestMatchers(HttpMethod.POST, "/api/v1/meetings/*/join")
+                                        .hasAnyRole("USER", "ADMIN", "GUEST")
+                                        .requestMatchers(SYSTEM_ENDPOINTS)
+                                        .hasRole("SYSTEM")
+                                        .requestMatchers(ADMIN_ENDPOINTS)
+                                        .hasRole("ADMIN")
+                                        .requestMatchers(USER_ONLY_ENDPOINTS)
+                                        .hasRole("USER")
+                                        .requestMatchers(
+                                                HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)
+                                        .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me")
+                                        .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers("/api/v1/users/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers(HttpMethod.GET, "/api/v1/organizations")
+                                        .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers("/api/v1/organizations/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers("/api/v1/**")
+                                        .hasAnyRole("USER", "ADMIN")
                                         .anyRequest()
-                                        .authenticated())
+                                        .denyAll())
                 .oauth2ResourceServer(
                         oauth2 ->
                                 oauth2.jwt(

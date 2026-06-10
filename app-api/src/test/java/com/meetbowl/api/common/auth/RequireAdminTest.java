@@ -40,14 +40,14 @@ class RequireAdminTest {
 
     @Test
     void adminCanAccessAdminEndpoint() throws Exception {
-        mockMvc.perform(get("/sample/admin-only").with(jwt().authorities(adminAuthority())))
+        mockMvc.perform(get("/api/v1/admin/sample-only").with(jwt().authorities(adminAuthority())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
     void userCannotAccessAdminEndpoint() throws Exception {
-        mockMvc.perform(get("/sample/admin-only").with(jwt().authorities(userAuthority())))
+        mockMvc.perform(get("/api/v1/admin/sample-only").with(jwt().authorities(userAuthority())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
@@ -66,7 +66,7 @@ class RequireAdminTest {
 class RequireAdminSampleController {
 
     @RequireAdmin
-    @GetMapping("/sample/admin-only")
+    @GetMapping("/api/v1/admin/sample-only")
     ApiResponse<Void> adminOnly() {
         return ApiResponse.ok();
     }

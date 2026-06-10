@@ -1,6 +1,7 @@
 package com.meetbowl.api.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,20 +51,118 @@ class SecurityConfigTest {
 
     @Test
     void protectedEndpointWithValidJwtPassesSecurityFilter() throws Exception {
-        String accessToken = createAccessToken();
+        String accessToken = createAccessToken("USER");
 
         mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound());
     }
 
-    private String createAccessToken() throws Exception {
+    @Test
+    void guestCanAccessPublicGuestJoinEndpoint() throws Exception {
+        mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void guestCanOnlyAccessInvitedMeetingJoinEndpoint() throws Exception {
+        String accessToken = createAccessToken("GUEST");
+
+        mockMvc.perform(
+                        post("/api/v1/meetings/" + UUID.randomUUID() + "/join")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/mails/inbox").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void systemCanOnlyAccessSystemEndpoint() throws Exception {
+        String accessToken = createAccessToken("SYSTEM");
+
+        mockMvc.perform(
+                        post("/api/v1/internal/mails/send")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void userCannotAccessInternalEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        post("/api/v1/internal/mails/send")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void passwordResetRequestRequiresUserRole() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password/reset-request"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+
+        String accessToken = createAccessToken("USER");
+        mockMvc.perform(
+                        post("/api/v1/auth/password/reset-request")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void userCannotAccessAdminEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        get("/api/v1/admin/dashboard")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void userCannotAccessAdminOnlyUserManagementEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        get("/api/v1/users/" + UUID.randomUUID())
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void adminCanAccessAdminEndpoint() throws Exception {
+        String accessToken = createAccessToken("ADMIN");
+
+        mockMvc.perform(
+                        get("/api/v1/admin/dashboard")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void nonApiEndpointIsDeniedEvenWhenAuthenticated() throws Exception {
+        String accessToken = createAccessToken("ADMIN");
+
+        mockMvc.perform(get("/unconfigured").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    private String createAccessToken(String role) throws Exception {
         Instant now = Instant.now();
         JWTClaimsSet claims =
                 new JWTClaimsSet.Builder()
                         .subject(UUID.randomUUID().toString())
                         .jwtID(UUID.randomUUID().toString())
                         .claim("organizationId", UUID.randomUUID().toString())
-                        .claim("role", "USER")
+                        .claim("role", role)
                         .claim("displayName", "홍길동")
                         .issueTime(Date.from(now))
                         .expirationTime(Date.from(now.plusSeconds(300)))
