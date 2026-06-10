@@ -7,7 +7,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.meetbowl.application.auth.JwtTokenProvider;
+import com.meetbowl.domain.auth.JwtTokenProvider;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSSigner;
@@ -29,7 +29,7 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
     }
 
     @Override
-    public String createToken(String subject, Map<String, Object> claims) {
+    public String createAccessToken(String subject, String tokenId, Map<String, Object> claims) {
         try {
             JWSSigner signer = new MACSigner(secret);
             Instant now = Instant.now();
@@ -37,6 +37,7 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
             JWTClaimsSet.Builder claimsBuilder =
                     new JWTClaimsSet.Builder()
                             .issuer("meetbowl")
+                            .jwtID(tokenId)
                             .issueTime(Date.from(now))
                             .expirationTime(Date.from(now.plusSeconds(expirationSeconds)))
                             .subject(subject);
@@ -54,7 +55,7 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
     }
 
     @Override
-    public long getExpirationSeconds() {
+    public long getAccessTokenExpirationSeconds() {
         return expirationSeconds;
     }
 }

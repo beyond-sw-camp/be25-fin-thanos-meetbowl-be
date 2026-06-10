@@ -111,6 +111,7 @@ X-Internal-Token: {internalToken}
 | `COMMON_CONFLICT` | 409 | 상태 충돌 |
 | `AUTH_INVALID_CREDENTIALS` | 401 | 로그인 정보 오류 |
 | `AUTH_TOKEN_EXPIRED` | 401 | 토큰 만료 |
+| `AUTH_REFRESH_TOKEN_INVALID` | 401 | Refresh Token이 유효하지 않거나 이미 사용됨 |
 | `AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED` | 403 | 초기 비밀번호 변경 필요 |
 | `USER_NOT_FOUND` | 404 | 사용자 없음 |
 | `MEETING_NOT_FOUND` | 404 | 회의 없음 |
@@ -132,12 +133,17 @@ X-Internal-Token: {internalToken}
 |---|---|---|---|
 | POST | `/auth/login` | 로그인 | Public |
 | POST | `/auth/logout` | 로그아웃 | User/Admin |
+| POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
 | POST | `/auth/password/reset-by-admin` | 관리자가 비밀번호 초기화 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
-현재 인증은 짧은 수명의 stateless Access Token을 사용한다. 로그아웃 시 클라이언트는 보관 중인 Access Token을 폐기한다.
+로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
+
+- Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
+- Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
+- 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
 
 ---
 

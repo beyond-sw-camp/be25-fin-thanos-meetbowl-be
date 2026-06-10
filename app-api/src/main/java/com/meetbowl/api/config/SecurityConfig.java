@@ -33,6 +33,7 @@ public class SecurityConfig {
         "/error",
         "/api/v1/health",
         "/api/v1/auth/login",
+        "/api/v1/auth/token/refresh",
         "/api/v1/auth/password/reset-request",
         "/swagger-ui.html",
         "/swagger-ui/**",

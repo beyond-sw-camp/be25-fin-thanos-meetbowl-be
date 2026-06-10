@@ -3,7 +3,6 @@ package com.meetbowl.application.auth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 import java.util.Optional;
@@ -34,7 +33,7 @@ class LoginUseCaseTest {
 
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private PasswordEncoder passwordEncoder;
-    @Mock private JwtTokenProvider jwtTokenProvider;
+    @Mock private AuthTokenIssuer authTokenIssuer;
     @Mock private AffiliateRepositoryPort affiliateRepositoryPort;
     @Mock private DepartmentRepositoryPort departmentRepositoryPort;
     @Mock private TeamRepositoryPort teamRepositoryPort;
@@ -46,7 +45,7 @@ class LoginUseCaseTest {
                 new LoginUseCase(
                         userRepositoryPort,
                         passwordEncoder,
-                        jwtTokenProvider,
+                        authTokenIssuer,
                         affiliateRepositoryPort,
                         departmentRepositoryPort,
                         teamRepositoryPort,
@@ -64,14 +63,15 @@ class LoginUseCaseTest {
 
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
         given(passwordEncoder.matches(password, "hash")).willReturn(true);
-        given(jwtTokenProvider.createToken(anyString(), any())).willReturn("token");
-        given(jwtTokenProvider.getExpirationSeconds()).willReturn(3600L);
+        given(authTokenIssuer.issue(any()))
+                .willReturn(new IssuedTokens("access", "refresh", "Bearer", 900L, 1209600L));
 
         // when
         LoginResult result = loginUseCase.execute(command);
 
         // then
-        assertEquals("token", result.accessToken());
+        assertEquals("access", result.accessToken());
+        assertEquals("refresh", result.refreshToken());
     }
 
     @Test

@@ -58,6 +58,8 @@ API 인증은 JWT Bearer Token을 기본으로 한다.
 Authorization: Bearer {accessToken}
 ```
 
+Access Token은 짧은 수명의 JWT이며, Refresh Token과 로그아웃된 Access Token 상태는 Redis에서 TTL로 관리한다.
+
 로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다.
 
 ```bash

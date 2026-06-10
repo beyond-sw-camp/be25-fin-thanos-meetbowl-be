@@ -5,7 +5,13 @@ import java.util.UUID;
 import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 
-public record LoginResult(String accessToken, String tokenType, long expiresAt, UserSummary user) {
+public record LoginResult(
+        String accessToken,
+        String refreshToken,
+        String tokenType,
+        long accessTokenExpiresIn,
+        long refreshTokenExpiresIn,
+        UserSummary user) {
 
     public record UserSummary(
             UUID userId,

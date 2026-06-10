@@ -11,12 +11,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.GlobalExceptionHandler;
 import com.meetbowl.api.config.WebMvcConfig;
+import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.common.response.ApiResponse;
 
 @WebMvcTest(controllers = CurrentUserSampleController.class)
@@ -25,6 +27,7 @@ import com.meetbowl.common.response.ApiResponse;
 class CurrentUserArgumentResolverTest {
 
     @Autowired private MockMvc mockMvc;
+    @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Test
     void injectsAuthenticatedUserFromRequestAttribute() throws Exception {

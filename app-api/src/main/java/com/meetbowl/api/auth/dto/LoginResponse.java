@@ -3,7 +3,12 @@ package com.meetbowl.api.auth.dto;
 import java.util.UUID;
 
 public record LoginResponse(
-        String accessToken, String tokenType, long expiresAt, UserSummary user) {
+        String accessToken,
+        String refreshToken,
+        String tokenType,
+        long accessTokenExpiresIn,
+        long refreshTokenExpiresIn,
+        UserSummary user) {
 
     public record UserSummary(
             UUID userId,

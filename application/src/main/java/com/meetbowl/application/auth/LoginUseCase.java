@@ -1,8 +1,6 @@
 package com.meetbowl.application.auth;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,7 +26,7 @@ public class LoginUseCase {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthTokenIssuer authTokenIssuer;
     private final AffiliateRepositoryPort affiliateRepositoryPort;
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
@@ -37,14 +35,14 @@ public class LoginUseCase {
     public LoginUseCase(
             UserRepositoryPort userRepositoryPort,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider,
+            AuthTokenIssuer authTokenIssuer,
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
-        this.jwtTokenProvider = jwtTokenProvider;
+        this.authTokenIssuer = authTokenIssuer;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
@@ -70,19 +68,14 @@ public class LoginUseCase {
             throw new BusinessException(ErrorCode.COMMON_UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("role", user.role().name());
-        claims.put("displayName", user.name());
-        if (user.affiliateId() != null) {
-            claims.put("organizationId", user.affiliateId().toString());
-        }
-
-        String accessToken = jwtTokenProvider.createToken(user.id().toString(), claims);
+        IssuedTokens tokens = authTokenIssuer.issue(user);
 
         return new LoginResult(
-                accessToken,
-                "Bearer",
-                jwtTokenProvider.getExpirationSeconds(),
+                tokens.accessToken(),
+                tokens.refreshToken(),
+                tokens.tokenType(),
+                tokens.accessTokenExpiresIn(),
+                tokens.refreshTokenExpiresIn(),
                 new LoginResult.UserSummary(
                         user.id(),
                         user.loginId(),

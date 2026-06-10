@@ -12,8 +12,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -27,6 +29,7 @@ class SecurityConfigTest {
     private static final String JWT_SECRET = "meetbowl-local-development-secret-key-32bytes";
 
     @Autowired private MockMvc mockMvc;
+    @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Test
     void healthEndpointIsPublic() throws Exception {
@@ -58,6 +61,7 @@ class SecurityConfigTest {
         JWTClaimsSet claims =
                 new JWTClaimsSet.Builder()
                         .subject(UUID.randomUUID().toString())
+                        .jwtID(UUID.randomUUID().toString())
                         .claim("organizationId", UUID.randomUUID().toString())
                         .claim("role", "USER")
                         .claim("displayName", "홍길동")
