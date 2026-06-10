@@ -8,9 +8,8 @@ import com.meetbowl.common.exception.ErrorCode;
 /**
  * 회의실 기준정보 도메인 모델이다.
  *
- * <p>관리자가 이름·소속 건물·층·위치·수용 인원·사용 가능 여부를 등록/수정/삭제한다(FR-088). 보유 장비는 "여러 개"라 별도 모델({@link
- * RoomEquipment})이 {@code meetingRoomId}로 참조해 소유한다. 사용자는 {@code isAvailable=true}인 회의실을 예약할 수 있고,
- * {@code false}이면 신규 예약을 차단한다. 건물은 {@code buildingId} raw UUID로 참조한다.
+ * <p>관리자가 이름·소속 건물·층·위치·수용 인원·사용 가능 여부를 등록/수정/삭제한다(FR-088). 사용자는 {@code isAvailable=true}인 회의실을
+ * 예약할 수 있고, {@code false}이면 신규 예약을 차단한다. 건물은 {@code buildingId} raw UUID로 참조한다.
  */
 public class MeetingRoom {
 

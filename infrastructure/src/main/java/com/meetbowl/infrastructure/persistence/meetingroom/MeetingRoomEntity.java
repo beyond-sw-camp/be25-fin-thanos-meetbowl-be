@@ -11,8 +11,7 @@ import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
- * 회의실 JPA Entity다. {@code meeting_room} 테이블과 1:1로 매핑된다. 건물은 raw UUID로 참조하고, 보유 장비는 별도 테이블({@link
- * RoomEquipmentEntity})이 소유한다.
+ * 회의실 JPA Entity다. {@code meeting_room} 테이블과 1:1로 매핑된다. 건물은 raw UUID로 참조한다.
  */
 @Entity
 @Table(
