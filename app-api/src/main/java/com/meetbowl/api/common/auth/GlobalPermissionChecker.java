@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
-/** Controller 또는 API 조립 계층에서 전역 권한을 일관된 방식으로 검사한다. 리소스별 권한은 각 UseCase에서 별도로 검사한다. */
+/** 전역 권한 검사만 담당해 API 진입 권한과 리소스별 업무 권한이 한 조건식에 섞이지 않게 한다. */
 @Component
 public class GlobalPermissionChecker {
 

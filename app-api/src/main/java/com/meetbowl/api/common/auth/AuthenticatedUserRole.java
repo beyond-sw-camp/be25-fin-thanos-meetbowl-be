@@ -1,6 +1,6 @@
 package com.meetbowl.api.common.auth;
 
-/** 로그인 주체의 전역 권한이다. Host, Participant, Reviewer 같은 리소스별 권한은 각 UseCase에서 별도로 판정한다. */
+/** 전역 역할과 회의별 역할을 섞으면 권한 범위가 과도하게 넓어지므로 시스템 수준 권한만 표현한다. */
 public enum AuthenticatedUserRole {
     USER,
     ADMIN,
