@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.domain.chatbot.ChatMessageCitation;
 import com.meetbowl.domain.chatbot.ChatMessageCitationRepositoryPort;
 
+/** 도메인 citation Repository Port를 Spring Data JPA로 구현하는 영속성 Adapter다. */
 @Repository
 public class JpaChatMessageCitationRepositoryAdapter implements ChatMessageCitationRepositoryPort {
 

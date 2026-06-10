@@ -10,6 +10,7 @@ import com.meetbowl.domain.chatbot.ChatSession;
 import com.meetbowl.domain.chatbot.ChatSessionRepositoryPort;
 import com.meetbowl.domain.chatbot.ChatSessionStatus;
 
+/** 도메인 세션 Repository Port를 Spring Data JPA로 구현하는 영속성 Adapter다. */
 @Repository
 public class JpaChatSessionRepositoryAdapter implements ChatSessionRepositoryPort {
 

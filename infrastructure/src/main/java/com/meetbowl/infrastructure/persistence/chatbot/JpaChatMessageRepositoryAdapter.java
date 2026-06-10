@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.domain.chatbot.ChatMessage;
 import com.meetbowl.domain.chatbot.ChatMessageRepositoryPort;
 
+/** 도메인 메시지 Repository Port를 Spring Data JPA로 구현하는 영속성 Adapter다. */
 @Repository
 public class JpaChatMessageRepositoryAdapter implements ChatMessageRepositoryPort {
 
