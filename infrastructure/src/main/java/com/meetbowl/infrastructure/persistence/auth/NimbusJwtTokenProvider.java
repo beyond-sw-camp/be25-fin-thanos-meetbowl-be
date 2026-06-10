@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
@@ -24,7 +25,7 @@ public class NimbusJwtTokenProvider implements JwtTokenProvider {
     public NimbusJwtTokenProvider(
             @Value("${meetbowl.security.jwt.secret}") String secret,
             @Value("${meetbowl.security.jwt.expiration-seconds:3600}") long expirationSeconds) {
-        this.secret = secret.getBytes();
+        this.secret = secret.getBytes(StandardCharsets.UTF_8);
         this.expirationSeconds = expirationSeconds;
     }
 

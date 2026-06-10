@@ -60,10 +60,11 @@ Authorization: Bearer {accessToken}
 
 Access Token은 짧은 수명의 JWT이며, Refresh Token과 로그아웃된 Access Token 상태는 Redis에서 TTL로 관리한다.
 
-로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다.
+로컬 JWT 검증 secret은 환경 변수로 덮어쓸 수 있다. `prod` 프로필에서는 공개되지 않은
+32 bytes 이상의 `MEETBOWL_JWT_SECRET` 환경 변수가 필수다.
 
 ```bash
-MEETBOWL_JWT_SECRET=change-me-to-a-secure-256-bit-secret
+MEETBOWL_JWT_SECRET=<random-secret-of-at-least-32-bytes>
 ```
 
 초기 JWT claim 기준은 다음과 같다.
