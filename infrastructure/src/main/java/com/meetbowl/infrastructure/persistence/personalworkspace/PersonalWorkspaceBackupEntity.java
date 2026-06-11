@@ -1,12 +1,16 @@
 package com.meetbowl.infrastructure.persistence.personalworkspace;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -43,8 +47,14 @@ public class PersonalWorkspaceBackupEntity extends BaseEntity {
     @Column(length = 1000)
     private String summary;
 
+    @Column(columnDefinition = "MEDIUMTEXT")
+    private String body;
+
     @Column(nullable = false)
     private Instant backedUpAt;
+
+    @OneToMany(mappedBy = "backup", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PersonalWorkspaceBackupAttachmentEntity> attachments = new ArrayList<>();
 
     protected PersonalWorkspaceBackupEntity() {}
 
@@ -54,12 +64,14 @@ public class PersonalWorkspaceBackupEntity extends BaseEntity {
             UUID sourceId,
             String title,
             String summary,
+            String body,
             Instant backedUpAt) {
         this.ownerUserId = ownerUserId;
         this.sourceType = sourceType;
         this.sourceId = sourceId;
         this.title = title;
         this.summary = summary;
+        this.body = body;
         this.backedUpAt = backedUpAt;
     }
 
@@ -71,13 +83,30 @@ public class PersonalWorkspaceBackupEntity extends BaseEntity {
                         backup.sourceId(),
                         backup.title(),
                         backup.summary(),
+                        backup.body(),
                         backup.backedUpAt());
         entity.setId(backup.id());
+        backup.attachments()
+                .forEach(
+                        attachment ->
+                                entity.attachments.add(
+                                        PersonalWorkspaceBackupAttachmentEntity.from(
+                                                entity, attachment)));
         return entity;
     }
 
     PersonalWorkspaceBackup toDomain() {
         return PersonalWorkspaceBackup.of(
-                getId(), ownerUserId, sourceType, sourceId, title, summary, backedUpAt);
+                getId(),
+                ownerUserId,
+                sourceType,
+                sourceId,
+                title,
+                summary,
+                body,
+                attachments.stream()
+                        .map(PersonalWorkspaceBackupAttachmentEntity::toDomain)
+                        .toList(),
+                backedUpAt);
     }
 }

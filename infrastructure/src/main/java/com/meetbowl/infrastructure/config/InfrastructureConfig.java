@@ -10,5 +10,4 @@ import com.meetbowl.infrastructure.messaging.RabbitMessagingProperties;
 @EnableJpaAuditing
 @EnableConfigurationProperties(RabbitMessagingProperties.class)
 @Configuration
-public class InfrastructureConfig {
-}
+public class InfrastructureConfig {}
