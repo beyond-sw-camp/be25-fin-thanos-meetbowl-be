@@ -48,7 +48,7 @@ public class SecurityConfig {
     };
 
     private static final String[] ADMIN_ENDPOINTS = {
-        "/api/v1/admin/**", "/api/v1/auth/password/reset-by-admin", "/api/v1/mails/announcements"
+        "/api/v1/admin/**", "/api/v1/mails/announcements"
     };
 
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {

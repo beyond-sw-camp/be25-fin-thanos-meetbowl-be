@@ -1,6 +1,8 @@
 package com.meetbowl.application.admin;
 
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,13 +20,15 @@ import com.meetbowl.domain.user.UserRepositoryPort;
 @Service
 public class ResetUserPasswordUseCase {
 
-    private static final int MINIMUM_PASSWORD_LENGTH = 8;
-    private static final int MAXIMUM_PASSWORD_LENGTH = 100;
+    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
+    private static final char[] TEMPORARY_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray();
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TransactionOperations transactionOperations;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public ResetUserPasswordUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -37,33 +41,27 @@ public class ResetUserPasswordUseCase {
         this.transactionOperations = transactionOperations;
     }
 
-    public void execute(ResetUserPasswordCommand command) {
-        validatePassword(command.newPassword());
+    public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
+        return Objects.requireNonNull(
+                transactionOperations.execute(
+                        status -> {
+                            User user =
+                                    userRepositoryPort
+                                            .findById(command.userId())
+                                            .orElseThrow(
+                                                    () ->
+                                                            new BusinessException(
+                                                                    ErrorCode.USER_NOT_FOUND));
 
-        transactionOperations.executeWithoutResult(
-                status -> {
-                    User user =
-                            userRepositoryPort
-                                    .findById(command.userId())
-                                    .orElseThrow(
-                                            () -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                            String temporaryPassword = generateTemporaryPassword(user);
+                            User updatedUser =
+                                    user.resetPasswordByAdmin(
+                                            passwordEncoder.encode(temporaryPassword));
+                            userRepositoryPort.save(updatedUser);
 
-                    User updatedUser =
-                            user.resetPasswordByAdmin(
-                                    passwordEncoder.encode(command.newPassword()));
-                    userRepositoryPort.save(updatedUser);
-
-                    logAudit(command, AuditResult.SUCCESS, null);
-                });
-    }
-
-    private void validatePassword(String password) {
-        if (password == null
-                || password.length() < MINIMUM_PASSWORD_LENGTH
-                || password.length() > MAXIMUM_PASSWORD_LENGTH) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "비밀번호는 8자 이상 100자 이하여야 합니다.");
-        }
+                            logAudit(command, AuditResult.SUCCESS, null);
+                            return new ResetUserPasswordResult(temporaryPassword);
+                        }));
     }
 
     private void logAudit(
@@ -84,5 +82,26 @@ public class ResetUserPasswordUseCase {
                         command.userAgent(),
                         Instant.now());
         adminAuditLogRepositoryPort.save(log);
+    }
+
+    private String generateTemporaryPassword(User user) {
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String temporaryPassword = generateRandomPassword();
+            if (!passwordEncoder.matches(temporaryPassword, user.passwordHash())) {
+                return temporaryPassword;
+            }
+        }
+
+        throw new BusinessException(
+                ErrorCode.COMMON_INTERNAL_ERROR, "임시 비밀번호를 생성할 수 없습니다.");
+    }
+
+    private String generateRandomPassword() {
+        StringBuilder builder = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
+        for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
+            int randomIndex = secureRandom.nextInt(TEMPORARY_PASSWORD_ALPHABET.length);
+            builder.append(TEMPORARY_PASSWORD_ALPHABET[randomIndex]);
+        }
+        return builder.toString();
     }
 }
