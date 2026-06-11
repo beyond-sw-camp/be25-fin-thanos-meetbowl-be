@@ -11,8 +11,8 @@ import com.meetbowl.domain.community.PostLike;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
- * 게시글 좋아요 JPA Entity다. {@code community_post_like} 테이블과 1:1로 매핑된다. (post_id, user_id) 유니크로 한 사용자의 중복
- * 좋아요를 차단한다.
+ * 게시글 좋아요 JPA Entity다. {@code community_post_like} 테이블과 1:1로 매핑된다. (post_id, user_id) 유니크로 한 사용자의
+ * 중복 좋아요를 차단한다.
  */
 @Entity
 @Table(

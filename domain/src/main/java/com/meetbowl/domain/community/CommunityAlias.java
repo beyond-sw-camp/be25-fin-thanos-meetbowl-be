@@ -1,9 +1,9 @@
 package com.meetbowl.domain.community;
 
+import java.util.UUID;
+
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-
-import java.util.UUID;
 
 /**
  * 커뮤니티 익명 표시명 매핑 도메인 모델이다(FR-119).

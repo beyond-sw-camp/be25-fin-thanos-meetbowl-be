@@ -1,9 +1,9 @@
 package com.meetbowl.domain.community;
 
+import java.util.UUID;
+
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-
-import java.util.UUID;
 
 /**
  * 익명 커뮤니티 댓글 도메인 모델이다. 대댓글 없이 단일 레벨(게시글에 직접 달리는 댓글).
@@ -16,7 +16,7 @@ public class Comment {
     private final UUID id;
 
     /** 소속 게시글(FK). */
-    private final UUID postId; //어느 게시글의 댓글인지
+    private final UUID postId; // 어느 게시글의 댓글인지
 
     /** 내용(필수). */
     private final String content;
