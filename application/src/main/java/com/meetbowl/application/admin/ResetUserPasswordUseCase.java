@@ -1,0 +1,111 @@
+package com.meetbowl.application.admin;
+
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionOperations;
+
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.admin.AdminAuditLog;
+import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
+import com.meetbowl.domain.admin.AuditResult;
+import com.meetbowl.domain.user.User;
+import com.meetbowl.domain.user.UserRepositoryPort;
+
+@Service
+public class ResetUserPasswordUseCase {
+
+    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
+    private static final char[] TEMPORARY_PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray();
+
+    private final UserRepositoryPort userRepositoryPort;
+    private final PasswordEncoder passwordEncoder;
+    private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
+    private final TransactionOperations transactionOperations;
+    private final SecureRandom secureRandom = new SecureRandom();
+
+    public ResetUserPasswordUseCase(
+            UserRepositoryPort userRepositoryPort,
+            PasswordEncoder passwordEncoder,
+            AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
+            TransactionOperations transactionOperations) {
+        this.userRepositoryPort = userRepositoryPort;
+        this.passwordEncoder = passwordEncoder;
+        this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
+        this.transactionOperations = transactionOperations;
+    }
+
+    public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
+        // 관리자 초기화는 1회용 임시 비밀번호를 생성하고 해시만 저장한다.
+        return Objects.requireNonNull(
+                transactionOperations.execute(
+                        status -> {
+                            User user =
+                                    userRepositoryPort
+                                            .findById(command.userId())
+                                            .orElseThrow(
+                                                    () ->
+                                                            new BusinessException(
+                                                                    ErrorCode.USER_NOT_FOUND));
+
+                            String temporaryPassword = generateTemporaryPassword(user);
+                            User updatedUser =
+                                    user.resetPasswordByAdmin(
+                                            passwordEncoder.encode(temporaryPassword));
+                            userRepositoryPort.save(updatedUser);
+
+                            logAudit(command, AuditResult.SUCCESS, null);
+                            return new ResetUserPasswordResult(temporaryPassword);
+                        }));
+    }
+
+    private void logAudit(
+            ResetUserPasswordCommand command, AuditResult result, String failureReason) {
+        // 감사 로그에는 관리자 작업 흔적만 남기고 원문 비밀번호는 남기지 않는다.
+        AdminAuditLog log =
+                new AdminAuditLog(
+                        UUID.randomUUID(),
+                        command.adminId(),
+                        command.adminName(),
+                        "USER",
+                        command.userId(),
+                        "USER_MANAGEMENT",
+                        "PASSWORD_RESET",
+                        result,
+                        null,
+                        failureReason != null ? failureReason : "PASSWORD_RESET_COMPLETED",
+                        command.ipAddress(),
+                        command.userAgent(),
+                        Instant.now());
+        adminAuditLogRepositoryPort.save(log);
+    }
+
+    private String generateTemporaryPassword(User user) {
+        // 현재 비밀번호와 사실상 같은 값이 나오지 않도록 다시 생성한다.
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String temporaryPassword = generateRandomPassword();
+            if (!passwordEncoder.matches(temporaryPassword, user.passwordHash())) {
+                return temporaryPassword;
+            }
+        }
+
+        throw new BusinessException(
+                ErrorCode.COMMON_INTERNAL_ERROR, "?꾩떆 鍮꾨?踰덊샇瑜??앹꽦?????놁뒿?덈떎.");
+    }
+
+    private String generateRandomPassword() {
+        // 허용된 문자 집합으로 사람이 읽기 쉬운 임시 비밀번호를 만든다.
+        StringBuilder builder = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
+        for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
+            int randomIndex = secureRandom.nextInt(TEMPORARY_PASSWORD_ALPHABET.length);
+            builder.append(TEMPORARY_PASSWORD_ALPHABET[randomIndex]);
+        }
+        return builder.toString();
+    }
+}
