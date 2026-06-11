@@ -37,7 +37,7 @@ import com.meetbowl.common.response.ApiResponse;
 
 @Validated
 @RestController
-@RequestMapping(ApiPaths.API_V1 + "/users")
+@RequestMapping(ApiPaths.API_V1 + "/admin/users")
 public class AdminUserController extends BaseController {
 
     private static final String USER_ID_PATH = "/{userId:[0-9a-fA-F-]{36}}";
@@ -68,6 +68,7 @@ public class AdminUserController extends BaseController {
                                         request.loginId(),
                                         request.name(),
                                         request.email(),
+                                        request.role().name(),
                                         request.status().name(),
                                         request.affiliateId(),
                                         request.departmentId(),
@@ -116,6 +117,7 @@ public class AdminUserController extends BaseController {
                                         userId,
                                         request.name(),
                                         request.email(),
+                                        request.role().name(),
                                         request.affiliateId(),
                                         request.departmentId(),
                                         request.teamId(),

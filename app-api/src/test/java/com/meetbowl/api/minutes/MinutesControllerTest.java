@@ -1,23 +1,22 @@
 package com.meetbowl.api.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -36,17 +35,10 @@ import com.meetbowl.application.minutes.ApproveMinutesUseCase;
 import com.meetbowl.application.minutes.MinutesResult;
 import com.meetbowl.application.minutes.ReviseMinutesCommand;
 import com.meetbowl.application.minutes.ReviseMinutesUseCase;
-import com.meetbowl.domain.minutes.Minutes;
-import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 
 @WebMvcTest(controllers = MinutesController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({
-    CurrentUserArgumentResolver.class,
-    GlobalExceptionHandler.class,
-    MinutesControllerTest.TestUseCaseConfig.class,
-    WebMvcConfig.class
-})
+@Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})
 class MinutesControllerTest {
 
     private static final UUID MEETING_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -59,31 +51,32 @@ class MinutesControllerTest {
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
     @MockitoBean private GlobalPermissionChecker globalPermissionChecker;
-    @Autowired private ReviseMinutesUseCase reviseMinutesUseCase;
-    @Autowired private ApproveMinutesUseCase approveMinutesUseCase;
+    @MockitoBean private ReviseMinutesUseCase reviseMinutesUseCase;
+    @MockitoBean private ApproveMinutesUseCase approveMinutesUseCase;
 
     @Test
     void reviseMinutes() throws Exception {
+        given(reviseMinutesUseCase.execute(any()))
+                .willReturn(result("IN_REVIEW", "Updated summary", null));
+
         mockMvc.perform(
                         patch("/api/v1/meetings/{meetingId}/minutes", MEETING_ID)
                                 .requestAttr(
                                         AuthenticatedUserAttributes.CURRENT_USER,
                                         authenticatedUser())
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                {"summary":"수정된 회의 요약"}
-                                """))
+                                .content("{\"summary\":\"Updated summary\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("IN_REVIEW"))
-                .andExpect(jsonPath("$.data.summary").value("수정된 회의 요약"));
+                .andExpect(jsonPath("$.data.summary").value("Updated summary"));
 
-        ReviseMinutesCommand command =
-                ((TestReviseMinutesUseCase) reviseMinutesUseCase).lastCommand;
-        assertEquals(MEETING_ID, command.meetingId());
-        assertEquals(USER_ID, command.actorUserId());
-        assertEquals(ORGANIZATION_ID, command.actorOrganizationId());
+        ArgumentCaptor<ReviseMinutesCommand> commandCaptor =
+                ArgumentCaptor.forClass(ReviseMinutesCommand.class);
+        verify(reviseMinutesUseCase).execute(commandCaptor.capture());
+        assertEquals(MEETING_ID, commandCaptor.getValue().meetingId());
+        assertEquals(USER_ID, commandCaptor.getValue().actorUserId());
+        assertEquals(ORGANIZATION_ID, commandCaptor.getValue().actorOrganizationId());
     }
 
     @Test
@@ -94,16 +87,16 @@ class MinutesControllerTest {
                                         AuthenticatedUserAttributes.CURRENT_USER,
                                         authenticatedUser())
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                {"summary":" "}
-                                """))
+                                .content("{\"summary\":\" \"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
     }
 
     @Test
     void approveMinutes() throws Exception {
+        given(approveMinutesUseCase.execute(any()))
+                .willReturn(result("APPROVED", "Meeting summary", APPROVED_AT));
+
         mockMvc.perform(
                         post("/api/v1/meetings/{meetingId}/minutes/approve", MEETING_ID)
                                 .requestAttr(
@@ -114,89 +107,21 @@ class MinutesControllerTest {
                 .andExpect(jsonPath("$.data.status").value("APPROVED"))
                 .andExpect(jsonPath("$.data.approvedAt").value("2099-01-01T01:00:00Z"));
 
-        ApproveMinutesCommand command =
-                ((TestApproveMinutesUseCase) approveMinutesUseCase).lastCommand;
-        assertEquals(MEETING_ID, command.meetingId());
-        assertEquals(USER_ID, command.actorUserId());
-        assertEquals(ORGANIZATION_ID, command.actorOrganizationId());
+        ArgumentCaptor<ApproveMinutesCommand> commandCaptor =
+                ArgumentCaptor.forClass(ApproveMinutesCommand.class);
+        verify(approveMinutesUseCase).execute(commandCaptor.capture());
+        assertEquals(MEETING_ID, commandCaptor.getValue().meetingId());
+        assertEquals(USER_ID, commandCaptor.getValue().actorUserId());
+        assertEquals(ORGANIZATION_ID, commandCaptor.getValue().actorOrganizationId());
     }
 
     private AuthenticatedUser authenticatedUser() {
-        return new AuthenticatedUser(USER_ID, ORGANIZATION_ID, AuthenticatedUserRole.USER, "검토자");
-    }
-
-    @TestConfiguration
-    static class TestUseCaseConfig {
-
-        @Bean
-        ReviseMinutesUseCase reviseMinutesUseCase() {
-            return new TestReviseMinutesUseCase();
-        }
-
-        @Bean
-        ApproveMinutesUseCase approveMinutesUseCase() {
-            return new TestApproveMinutesUseCase();
-        }
-    }
-
-    private static class TestReviseMinutesUseCase extends ReviseMinutesUseCase {
-
-        private ReviseMinutesCommand lastCommand;
-
-        TestReviseMinutesUseCase() {
-            super(new EmptyMinutesRepository());
-        }
-
-        @Override
-        public MinutesResult execute(ReviseMinutesCommand command) {
-            lastCommand = command;
-            return result("IN_REVIEW", command.summary(), null);
-        }
-    }
-
-    private static class TestApproveMinutesUseCase extends ApproveMinutesUseCase {
-
-        private ApproveMinutesCommand lastCommand;
-
-        TestApproveMinutesUseCase() {
-            super(
-                    new EmptyMinutesRepository(),
-                    event -> {},
-                    Clock.fixed(APPROVED_AT, ZoneOffset.UTC));
-        }
-
-        @Override
-        public MinutesResult execute(ApproveMinutesCommand command) {
-            lastCommand = command;
-            return result("APPROVED", "회의 요약", APPROVED_AT);
-        }
+        return new AuthenticatedUser(
+                USER_ID, ORGANIZATION_ID, AuthenticatedUserRole.USER, "Reviewer");
     }
 
     private static MinutesResult result(String status, String summary, Instant approvedAt) {
         return new MinutesResult(
                 MINUTES_ID, MEETING_ID, ORGANIZATION_ID, USER_ID, status, summary, approvedAt);
-    }
-
-    private static class EmptyMinutesRepository implements MinutesRepositoryPort {
-
-        @Override
-        public Minutes save(Minutes minutes) {
-            return minutes;
-        }
-
-        @Override
-        public Optional<Minutes> findById(UUID minutesId) {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<Minutes> findByMeetingId(UUID meetingId) {
-            return Optional.empty();
-        }
-
-        @Override
-        public boolean existsByMeetingId(UUID meetingId) {
-            return false;
-        }
     }
 }

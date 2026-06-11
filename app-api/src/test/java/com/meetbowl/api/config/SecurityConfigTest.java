@@ -191,7 +191,7 @@ class SecurityConfigTest {
         String accessToken = createAccessToken("USER");
 
         mockMvc.perform(
-                        get("/api/v1/users/" + UUID.randomUUID())
+                        get("/api/v1/admin/users/" + UUID.randomUUID())
                                 .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
