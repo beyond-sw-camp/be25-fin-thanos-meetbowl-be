@@ -9,4 +9,6 @@ public interface MailRepositoryPort {
     Mail save(Mail mail);
 
     Optional<Mail> findById(UUID mailId);
+
+    Optional<Mail> findByIdempotencyKey(UUID idempotencyKey);
 }

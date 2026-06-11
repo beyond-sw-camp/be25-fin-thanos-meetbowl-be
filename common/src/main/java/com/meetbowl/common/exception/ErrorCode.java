@@ -33,7 +33,9 @@ public enum ErrorCode {
     MINUTES_ALREADY_APPROVED("MINUTES_ALREADY_APPROVED", "이미 승인된 회의록입니다.", 409),
 
     // Mail
+    MAIL_NOT_FOUND("MAIL_NOT_FOUND", "메일을 찾을 수 없습니다.", 404),
     MAIL_FORBIDDEN_ACCESS("MAIL_FORBIDDEN_ACCESS", "메일 접근 권한이 없습니다.", 403),
+    MAIL_IDEMPOTENCY_CONFLICT("MAIL_IDEMPOTENCY_CONFLICT", "동일한 멱등성 키로 다른 메일을 요청할 수 없습니다.", 409),
 
     // File
     FILE_INVALID_EXTENSION("FILE_INVALID_EXTENSION", "허용되지 않는 파일 형식입니다.", 415),
