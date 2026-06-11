@@ -14,6 +14,7 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
 import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
 import com.meetbowl.domain.admin.AuditResult;
+import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
@@ -39,6 +40,7 @@ public class AdminUserManagementUseCase {
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
+    private final TokenStateRepositoryPort tokenStateRepositoryPort;
 
     public AdminUserManagementUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -48,7 +50,8 @@ public class AdminUserManagementUseCase {
             PositionRepositoryPort positionRepositoryPort,
             PasswordEncoder passwordEncoder,
             TemporaryPasswordGenerator temporaryPasswordGenerator,
-            AdminAuditLogRepositoryPort adminAuditLogRepositoryPort) {
+            AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
+            TokenStateRepositoryPort tokenStateRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
@@ -57,13 +60,13 @@ public class AdminUserManagementUseCase {
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
+        this.tokenStateRepositoryPort = tokenStateRepositoryPort;
     }
 
     @Transactional
     public CreateResult create(CreateCommand command) {
         validateLoginId(command.loginId());
         validateEmail(command.email());
-        UserRole role = parseRole(command.role());
         UserStatus status = parseStatus(command.status());
         // 조직 기준정보는 기존 저장소 포트를 통해서만 존재 여부를 확인한다.
         validateOrganizationReferences(
@@ -74,7 +77,7 @@ public class AdminUserManagementUseCase {
         ensureLoginIdIsUnique(command.loginId());
         ensureEmailIsUnique(command.email(), null);
 
-        // 생성 시에는 임시 비밀번호 원문을 한 번만 만들고, 저장은 해시 값으로만 남긴다.
+        // 최초 관리자는 서비스 초기화 과정에서만 제공한다. 관리 API로 만드는 계정은 일반 사용자로 고정한다.
         String temporaryPassword = temporaryPasswordGenerator.generate();
         Instant now = Instant.now();
         User user =
@@ -84,7 +87,7 @@ public class AdminUserManagementUseCase {
                         passwordEncoder.encode(temporaryPassword),
                         command.name(),
                         command.email(),
-                        role,
+                        UserRole.USER,
                         status,
                         command.affiliateId(),
                         command.departmentId(),
@@ -111,7 +114,8 @@ public class AdminUserManagementUseCase {
 
     @Transactional(readOnly = true)
     public PageResult search(SearchCommand command) {
-        Paged<User> page = userRepositoryPort.findPage(command.keyword(), command.page(), command.size());
+        Paged<User> page =
+                userRepositoryPort.findPage(command.keyword(), command.page(), command.size());
         List<UserSummary> items = page.content().stream().map(this::resolveSummary).toList();
         return new PageResult(items, page.totalElements(), command.page(), command.size());
     }
@@ -125,7 +129,6 @@ public class AdminUserManagementUseCase {
     @Transactional
     public UserSummary update(UpdateCommand command) {
         validateEmail(command.email());
-        UserRole role = parseRole(command.role());
         validateOrganizationReferences(
                 command.affiliateId(),
                 command.departmentId(),
@@ -133,6 +136,7 @@ public class AdminUserManagementUseCase {
                 command.positionId());
 
         User current = getUserOrThrow(command.userId());
+        ensureManagedUser(current);
         ensureEmailIsUnique(command.email(), current.id());
 
         User updated =
@@ -143,7 +147,7 @@ public class AdminUserManagementUseCase {
                         command.departmentId(),
                         command.positionId(),
                         command.teamId(),
-                        role,
+                        current.role(),
                         command.activeFrom(),
                         command.activeUntil());
         User saved = userRepositoryPort.save(updated);
@@ -163,8 +167,11 @@ public class AdminUserManagementUseCase {
     @Transactional
     public UserSummary updateStatus(UpdateStatusCommand command) {
         User current = getUserOrThrow(command.userId());
+        ensureManagedUser(current);
         UserStatus status = parseStatus(command.status());
         User saved = userRepositoryPort.save(current.changeStatus(status));
+        // 상태 변경 즉시 기존 Access/Refresh Token을 모두 폐기해 잠금·비활성 계정의 접근을 차단한다.
+        tokenStateRepositoryPort.revokeUserSessions(saved.id(), Instant.now());
         UserSummary summary = resolveSummary(saved);
         saveAudit(
                 command.adminId(),
@@ -196,21 +203,6 @@ public class AdminUserManagementUseCase {
         }
     }
 
-    private UserRole parseRole(String role) {
-        if (role == null || role.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "권한은 필수입니다.");
-        }
-        try {
-            UserRole parsed = UserRole.valueOf(role);
-            if (parsed == UserRole.SYSTEM) {
-                throw new IllegalArgumentException();
-            }
-            return parsed;
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "권한은 ADMIN 또는 USER만 사용할 수 있습니다.");
-        }
-    }
-
     private UserStatus parseStatus(String status) {
         if (status == null || status.isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 상태는 필수입니다.");
@@ -229,11 +221,24 @@ public class AdminUserManagementUseCase {
     }
 
     private void ensureEmailIsUnique(String email, UUID currentUserId) {
-        userRepositoryPort.findByEmail(email).ifPresent(user -> {
-            if (currentUserId == null || !Objects.equals(user.id(), currentUserId)) {
-                throw new BusinessException(ErrorCode.COMMON_CONFLICT, "이미 사용 중인 이메일입니다.");
-            }
-        });
+        userRepositoryPort
+                .findByEmail(email)
+                .ifPresent(
+                        user -> {
+                            if (currentUserId == null
+                                    || !Objects.equals(user.id(), currentUserId)) {
+                                throw new BusinessException(
+                                        ErrorCode.COMMON_CONFLICT, "이미 사용 중인 이메일입니다.");
+                            }
+                        });
+    }
+
+    private void ensureManagedUser(User user) {
+        // 초기 관리자와 시스템 계정은 일반 회원 관리 API의 대상이 아니다.
+        if (user.role() != UserRole.USER) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "관리자 및 시스템 계정은 회원 관리 API로 변경할 수 없습니다.");
+        }
     }
 
     private void validateOrganizationReferences(
@@ -321,11 +326,16 @@ public class AdminUserManagementUseCase {
     private String resolveDepartmentName(UUID departmentId) {
         return departmentId == null
                 ? null
-                : departmentRepositoryPort.findById(departmentId).map(Department::name).orElse(null);
+                : departmentRepositoryPort
+                        .findById(departmentId)
+                        .map(Department::name)
+                        .orElse(null);
     }
 
     private String resolveTeamName(UUID teamId) {
-        return teamId == null ? null : teamRepositoryPort.findById(teamId).map(Team::name).orElse(null);
+        return teamId == null
+                ? null
+                : teamRepositoryPort.findById(teamId).map(Team::name).orElse(null);
     }
 
     private String resolvePositionName(UUID positionId) {
@@ -336,21 +346,22 @@ public class AdminUserManagementUseCase {
 
     private String snapshot(UserSummary summary) {
         return String.format(
-                """
+                        """
                 {"userId":"%s","loginId":"%s","name":"%s","email":"%s","role":"%s","status":"%s","affiliateId":"%s","departmentId":"%s","teamId":"%s","positionId":"%s","activeFrom":"%s","activeUntil":"%s"}
                 """,
-                summary.userId(),
-                summary.loginId(),
-                summary.name(),
-                summary.email(),
-                summary.role(),
-                summary.status(),
-                summary.affiliateId(),
-                summary.departmentId(),
-                summary.teamId(),
-                summary.positionId(),
-                summary.activeFrom(),
-                summary.activeUntil()).trim();
+                        summary.userId(),
+                        summary.loginId(),
+                        summary.name(),
+                        summary.email(),
+                        summary.role(),
+                        summary.status(),
+                        summary.affiliateId(),
+                        summary.departmentId(),
+                        summary.teamId(),
+                        summary.positionId(),
+                        summary.activeFrom(),
+                        summary.activeUntil())
+                .trim();
     }
 
     private void saveAudit(
@@ -385,7 +396,6 @@ public class AdminUserManagementUseCase {
             String loginId,
             String name,
             String email,
-            String role,
             String status,
             UUID affiliateId,
             UUID departmentId,
@@ -404,7 +414,6 @@ public class AdminUserManagementUseCase {
             UUID userId,
             String name,
             String email,
-            String role,
             UUID affiliateId,
             UUID departmentId,
             UUID teamId,

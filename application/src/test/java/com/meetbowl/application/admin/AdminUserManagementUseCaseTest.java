@@ -1,8 +1,6 @@
 package com.meetbowl.application.admin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,8 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
+import com.meetbowl.domain.auth.TokenStateRepositoryPort;
+import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.Department;
@@ -50,11 +49,12 @@ class AdminUserManagementUseCaseTest {
     @Mock private PositionRepositoryPort positionRepositoryPort;
     @Mock private TemporaryPasswordGenerator temporaryPasswordGenerator;
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
+    @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Test
-    void createAdminUser_success_returnsTemporaryPassword_and_savesHashedInitialPassword() {
+    void createUser_alwaysSavesUserRole() {
         AdminUserManagementUseCase useCase = useCase();
         UUID affiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
@@ -72,7 +72,6 @@ class AdminUserManagementUseCaseTest {
                                 "admin01",
                                 "관리자",
                                 "admin01@example.com",
-                                "ADMIN",
                                 "ACTIVE",
                                 affiliateId,
                                 departmentId,
@@ -90,10 +89,9 @@ class AdminUserManagementUseCaseTest {
         assertEquals("admin01", savedUser.getValue().loginId());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
         assertTrue(
-                passwordEncoder.matches(
-                        "Temp1234Abcd5678", savedUser.getValue().passwordHash()));
+                passwordEncoder.matches("Temp1234Abcd5678", savedUser.getValue().passwordHash()));
         assertEquals("Temp1234Abcd5678", result.temporaryPassword());
-        assertEquals(UserRole.ADMIN.name(), result.user().role());
+        assertEquals(UserRole.USER.name(), result.user().role());
         assertEquals(UserStatus.ACTIVE.name(), result.user().status());
     }
 
@@ -116,7 +114,6 @@ class AdminUserManagementUseCaseTest {
                                 "user01",
                                 "사용자",
                                 "user01@example.com",
-                                "USER",
                                 "ACTIVE",
                                 affiliateId,
                                 departmentId,
@@ -148,7 +145,6 @@ class AdminUserManagementUseCaseTest {
                                                 "admin01",
                                                 "관리자",
                                                 "admin01@example.com",
-                                                "ADMIN",
                                                 "ACTIVE",
                                                 null,
                                                 null,
@@ -180,7 +176,6 @@ class AdminUserManagementUseCaseTest {
                                                 "admin01",
                                                 "관리자",
                                                 "admin01@example.com",
-                                                "ADMIN",
                                                 "ACTIVE",
                                                 null,
                                                 null,
@@ -246,7 +241,6 @@ class AdminUserManagementUseCaseTest {
                                 current.id(),
                                 "수정된 이름",
                                 "updated@example.com",
-                                "ADMIN",
                                 affiliateId,
                                 departmentId,
                                 teamId,
@@ -262,7 +256,7 @@ class AdminUserManagementUseCaseTest {
         verify(userRepositoryPort).save(savedUser.capture());
         assertEquals("수정된 이름", savedUser.getValue().name());
         assertEquals("updated@example.com", savedUser.getValue().email());
-        assertEquals(UserRole.ADMIN, savedUser.getValue().role());
+        assertEquals(UserRole.USER, savedUser.getValue().role());
         assertEquals(current.id(), result.userId());
     }
 
@@ -287,6 +281,8 @@ class AdminUserManagementUseCaseTest {
         verify(userRepositoryPort).save(savedUser.capture());
         assertEquals(UserStatus.LOCKED, savedUser.getValue().status());
         assertEquals("LOCKED", result.status());
+        verify(tokenStateRepositoryPort)
+                .revokeUserSessions(org.mockito.ArgumentMatchers.eq(current.id()), any());
     }
 
     @Test
@@ -295,7 +291,8 @@ class AdminUserManagementUseCaseTest {
         UUID userId = UUID.randomUUID();
         given(userRepositoryPort.findById(userId)).willReturn(Optional.empty());
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> useCase.get(userId));
+        BusinessException exception =
+                assertThrows(BusinessException.class, () -> useCase.get(userId));
 
         assertEquals(ErrorCode.USER_NOT_FOUND, exception.errorCode());
     }
@@ -315,7 +312,6 @@ class AdminUserManagementUseCaseTest {
                                                 userId,
                                                 "이름",
                                                 "user@example.com",
-                                                "USER",
                                                 null,
                                                 null,
                                                 null,
@@ -328,6 +324,57 @@ class AdminUserManagementUseCaseTest {
                                                 "Mozilla/5.0")));
 
         assertEquals(ErrorCode.USER_NOT_FOUND, exception.errorCode());
+    }
+
+    @Test
+    void updateFailsWhenTargetIsInitialAdmin() {
+        AdminUserManagementUseCase useCase = useCase();
+        User admin = createUser("initial-admin", "admin@example.com", UserRole.ADMIN);
+        given(userRepositoryPort.findById(admin.id())).willReturn(Optional.of(admin));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.update(
+                                        new AdminUserManagementUseCase.UpdateCommand(
+                                                admin.id(),
+                                                "관리자",
+                                                "updated-admin@example.com",
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                UUID.randomUUID(),
+                                                "admin",
+                                                "127.0.0.1",
+                                                "Mozilla/5.0")));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
+    }
+
+    @Test
+    void updateStatusFailsWhenTargetIsInitialAdmin() {
+        AdminUserManagementUseCase useCase = useCase();
+        User admin = createUser("initial-admin", "admin@example.com", UserRole.ADMIN);
+        given(userRepositoryPort.findById(admin.id())).willReturn(Optional.of(admin));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.updateStatus(
+                                        new AdminUserManagementUseCase.UpdateStatusCommand(
+                                                admin.id(),
+                                                "INACTIVE",
+                                                admin.id(),
+                                                "admin",
+                                                "127.0.0.1",
+                                                "Mozilla/5.0")));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
     }
 
     @Test
@@ -361,17 +408,22 @@ class AdminUserManagementUseCaseTest {
                 positionRepositoryPort,
                 passwordEncoder,
                 temporaryPasswordGenerator,
-                adminAuditLogRepositoryPort);
+                adminAuditLogRepositoryPort,
+                tokenStateRepositoryPort);
     }
 
     private User createUser(String loginId, String email) {
+        return createUser(loginId, email, UserRole.USER);
+    }
+
+    private User createUser(String loginId, String email, UserRole role) {
         return User.of(
                 UUID.randomUUID(),
                 loginId,
                 passwordEncoder.encode("password"),
                 "이름",
                 email,
-                UserRole.USER,
+                role,
                 UserStatus.ACTIVE,
                 UUID.randomUUID(),
                 UUID.randomUUID(),

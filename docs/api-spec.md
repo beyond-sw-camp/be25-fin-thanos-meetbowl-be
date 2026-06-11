@@ -140,7 +140,7 @@ X-Internal-Token: {internalToken}
 | POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
-| POST | `/admin/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
+| POST | `/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
 로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
@@ -148,9 +148,13 @@ X-Internal-Token: {internalToken}
 - Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
 - Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
 - 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- Access Token은 서명, 만료 시간과 함께 `issuer=meetbowl`을 검증하며 `iat`가 없는 토큰은 허용하지 않는다.
+- 관리자에 의한 사용자 상태 변경과 비밀번호 초기화 시 해당 사용자의 모든 Refresh Token을 폐기하고, 변경 시각 이전에 발급된 Access Token을 거부한다.
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
 - 관리자 비밀번호 초기화 응답에는 임시 비밀번호 원문이 1회 포함되며, 이후에는 저장되지 않는다.
+- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
 - 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.

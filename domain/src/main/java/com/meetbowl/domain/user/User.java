@@ -145,8 +145,7 @@ public class User {
     public User completeInitialPasswordChange(String newPasswordHash) {
         validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
         if (!initialPasswordChangeRequired) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 상태가 아닙니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 상태가 아닙니다.");
         }
 
         return new User(

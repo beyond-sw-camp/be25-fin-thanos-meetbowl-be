@@ -57,7 +57,8 @@ public class ChangeInitialPasswordUseCase {
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (!user.initialPasswordChangeRequired()) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂??怨꾩젙???꾨떃?덈떎.");
+            throw new BusinessException(
+                    ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂??怨꾩젙???꾨떃?덈떎.");
         }
         if (passwordEncoder.matches(command.newPassword(), user.passwordHash())) {
             throw new BusinessException(

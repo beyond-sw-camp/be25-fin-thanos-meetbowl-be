@@ -25,6 +25,7 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
 import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
+import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
@@ -37,6 +38,7 @@ class ResetUserPasswordUseCaseTest {
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     @Mock private TransactionOperations transactionOperations;
     @Mock private TemporaryPasswordGenerator temporaryPasswordGenerator;
+    @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -55,11 +57,7 @@ class ResetUserPasswordUseCaseTest {
         ResetUserPasswordResult result =
                 useCase.execute(
                         new ResetUserPasswordCommand(
-                                user.id(),
-                                UUID.randomUUID(),
-                                "admin",
-                                "127.0.0.1",
-                                "Mozilla/5.0"));
+                                user.id(), UUID.randomUUID(), "admin", "127.0.0.1", "Mozilla/5.0"));
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
@@ -69,6 +67,8 @@ class ResetUserPasswordUseCaseTest {
                 passwordEncoder.matches(
                         result.temporaryPassword(), savedUser.getValue().passwordHash()));
         verify(adminAuditLogRepositoryPort).save(any(AdminAuditLog.class));
+        verify(tokenStateRepositoryPort)
+                .revokeUserSessions(org.mockito.ArgumentMatchers.eq(user.id()), any());
     }
 
     @Test
@@ -93,13 +93,36 @@ class ResetUserPasswordUseCaseTest {
         assertEquals(ErrorCode.USER_NOT_FOUND, exception.errorCode());
     }
 
+    @Test
+    void resetPassword_failsWhenTargetIsInitialAdmin() {
+        User admin = createUser(UserRole.ADMIN);
+        ResetUserPasswordUseCase useCase = useCase();
+        given(userRepositoryPort.findById(admin.id())).willReturn(Optional.of(admin));
+        executeTransactionCallback();
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new ResetUserPasswordCommand(
+                                                admin.id(),
+                                                admin.id(),
+                                                "admin",
+                                                "127.0.0.1",
+                                                "Mozilla/5.0")));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
+    }
+
     private ResetUserPasswordUseCase useCase() {
         return new ResetUserPasswordUseCase(
                 userRepositoryPort,
                 passwordEncoder,
                 temporaryPasswordGenerator,
                 adminAuditLogRepositoryPort,
-                transactionOperations);
+                transactionOperations,
+                tokenStateRepositoryPort);
     }
 
     @SuppressWarnings("unchecked")
@@ -108,19 +131,23 @@ class ResetUserPasswordUseCaseTest {
                 .willAnswer(
                         invocation ->
                                 ((org.springframework.transaction.support.TransactionCallback<
-                                                ResetUserPasswordResult>)
+                                                        ResetUserPasswordResult>)
                                                 invocation.getArgument(0))
                                         .doInTransaction(null));
     }
 
     private User createUser() {
+        return createUser(UserRole.USER);
+    }
+
+    private User createUser(UserRole role) {
         return User.of(
                 UUID.randomUUID(),
                 "user1",
                 passwordEncoder.encode("existing-password"),
                 "name",
                 "email",
-                UserRole.USER,
+                role,
                 UserStatus.ACTIVE,
                 null,
                 null,

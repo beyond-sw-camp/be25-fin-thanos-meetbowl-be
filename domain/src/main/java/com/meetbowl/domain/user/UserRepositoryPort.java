@@ -1,9 +1,9 @@
 package com.meetbowl.domain.user;
 
-import com.meetbowl.domain.common.Paged;
-
 import java.util.Optional;
 import java.util.UUID;
+
+import com.meetbowl.domain.common.Paged;
 
 public interface UserRepositoryPort {
 

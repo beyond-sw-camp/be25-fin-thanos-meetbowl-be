@@ -37,8 +37,10 @@ import com.meetbowl.common.response.ApiResponse;
 
 @Validated
 @RestController
-@RequestMapping(ApiPaths.API_V1 + "/admin/users")
+@RequestMapping(ApiPaths.API_V1 + "/users")
 public class AdminUserController extends BaseController {
+
+    private static final String USER_ID_PATH = "/{userId:[0-9a-fA-F-]{36}}";
 
     private final AdminUserManagementUseCase adminUserManagementUseCase;
     private final ResetUserPasswordUseCase resetUserPasswordUseCase;
@@ -66,7 +68,6 @@ public class AdminUserController extends BaseController {
                                         request.loginId(),
                                         request.name(),
                                         request.email(),
-                                        request.role().name(),
                                         request.status().name(),
                                         request.affiliateId(),
                                         request.departmentId(),
@@ -90,17 +91,18 @@ public class AdminUserController extends BaseController {
         return ok(
                 AdminUserListResponse.from(
                         adminUserManagementUseCase.search(
-                                new AdminUserManagementUseCase.SearchCommand(keyword, page, size))));
+                                new AdminUserManagementUseCase.SearchCommand(
+                                        keyword, page, size))));
     }
 
-    @GetMapping("/{userId}")
+    @GetMapping(USER_ID_PATH)
     public ApiResponse<AdminUserResponse> get(
             @CurrentUser AuthenticatedUser admin, @PathVariable UUID userId) {
         requireAdmin(admin);
         return ok(AdminUserResponse.from(adminUserManagementUseCase.get(userId)));
     }
 
-    @PatchMapping("/{userId}")
+    @PatchMapping(USER_ID_PATH)
     public ApiResponse<AdminUserResponse> update(
             @CurrentUser AuthenticatedUser admin,
             @PathVariable UUID userId,
@@ -114,7 +116,6 @@ public class AdminUserController extends BaseController {
                                         userId,
                                         request.name(),
                                         request.email(),
-                                        request.role().name(),
                                         request.affiliateId(),
                                         request.departmentId(),
                                         request.teamId(),
@@ -127,7 +128,7 @@ public class AdminUserController extends BaseController {
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
-    @PatchMapping("/{userId}/status")
+    @PatchMapping(USER_ID_PATH + "/status")
     public ApiResponse<AdminUserResponse> updateStatus(
             @CurrentUser AuthenticatedUser admin,
             @PathVariable UUID userId,
@@ -146,7 +147,7 @@ public class AdminUserController extends BaseController {
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
-    @PostMapping("/{userId}/password/reset")
+    @PostMapping(USER_ID_PATH + "/password/reset")
     public ApiResponse<AdminResetPasswordResponse> resetPassword(
             @CurrentUser AuthenticatedUser admin,
             @PathVariable UUID userId,
