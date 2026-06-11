@@ -55,6 +55,7 @@ public enum ErrorCode {
     // AI/STT integration
     AI_RAG_ACCESS_DENIED("AI_RAG_ACCESS_DENIED", "AI 자료 접근 권한이 없습니다.", 403),
     AI_RESPONSE_VALIDATION_FAILED("AI_RESPONSE_VALIDATION_FAILED", "AI 응답 값이 올바르지 않습니다.", 502),
+    AI_PROVIDER_UNAVAILABLE("AI_PROVIDER_UNAVAILABLE", "AI 서버를 사용할 수 없습니다.", 503),
 
     STT_SESSION_NOT_FOUND("STT_SESSION_NOT_FOUND", "STT 세션을 찾을 수 없습니다.", 404),
     STT_PROVIDER_UNAVAILABLE("STT_PROVIDER_UNAVAILABLE", "STT Provider를 사용할 수 없습니다.", 503),
