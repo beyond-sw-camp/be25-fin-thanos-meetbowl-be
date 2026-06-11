@@ -24,6 +24,11 @@ import com.meetbowl.application.personalworkspace.backup.RemoveBackupBookmarkUse
 import com.meetbowl.application.personalworkspace.backup.SearchBackupsUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
+/**
+ * 개인 워크스페이스 백업 자료 API Controller다.
+ *
+ * <p>백업 자료 목록 조회·검색과 북마크 등록/해제를 제공한다. 모든 조회·변경은 현재 사용자 소유 자료로 제한해 다른 사용자의 백업을 노출하지 않는다.
+ */
 @RequireUserOrAdmin
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/workspace/backups")

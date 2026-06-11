@@ -8,6 +8,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
+/** 공유 파일 엔티티의 Spring Data JPA 리포지토리다. 새 버전 동시 추가 충돌을 막기 위해 비관적 쓰기 잠금 조회를 제공한다. */
 interface SpringDataSharedWorkspaceFileRepository
         extends JpaRepository<SharedWorkspaceFileEntity, UUID> {
 

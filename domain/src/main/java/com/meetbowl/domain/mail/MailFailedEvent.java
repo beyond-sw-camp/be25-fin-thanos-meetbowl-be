@@ -20,6 +20,7 @@ public record MailFailedEvent(
         boolean retryable) {
 
     public MailFailedEvent {
+        // 발행 이후 호출자가 수신자 목록을 바꿔 이벤트 계약이 달라지는 것을 막는다.
         recipientUserIds = List.copyOf(recipientUserIds);
     }
 }

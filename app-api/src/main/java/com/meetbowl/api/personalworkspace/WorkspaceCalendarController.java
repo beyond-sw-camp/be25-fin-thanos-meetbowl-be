@@ -41,6 +41,12 @@ import com.meetbowl.application.personalworkspace.calendar.UpdateCalendarEventCo
 import com.meetbowl.application.personalworkspace.calendar.UpdateCalendarEventUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
+/**
+ * 개인 워크스페이스 캘린더 API Controller다.
+ *
+ * <p>개인 일정 등록/수정/삭제와 동료 일정 구독/해제를 제공한다. 직접 수정·삭제할 수 있는 대상은 사용자가 만든 개인 일정으로 제한하고, 회의에서 파생된 일정은 회의
+ * 흐름을 통해서만 바뀐다(여기서는 손대지 않는다).
+ */
 @RequireUserOrAdmin
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/workspace/calendar")

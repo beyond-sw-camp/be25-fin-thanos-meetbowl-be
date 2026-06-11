@@ -6,6 +6,11 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 개인 워크스페이스 백업 자료 애그리거트다.
+ *
+ * <p>메일·회의록 등 원본 자료를 개인 보관함으로 옮긴 사본을 표현한다. 출처 유형/ID로 원본을 가리키며, 소유자·제목·백업 시각을 필수로 검증한다.
+ */
 public class PersonalWorkspaceBackup {
 
     private static final int MAX_TITLE_LENGTH = 150;

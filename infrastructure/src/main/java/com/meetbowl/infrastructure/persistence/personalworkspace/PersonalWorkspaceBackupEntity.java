@@ -14,6 +14,10 @@ import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackup;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackupSourceType;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link PersonalWorkspaceBackup} 애그리거트를 저장하는 영속 엔티티다. (소유자, 출처 유형, 출처 ID) 유니크 제약으로 같은 원본의 중복 백업을
+ * 막는다.
+ */
 @Entity
 @Table(
         name = "personal_workspace_backups",

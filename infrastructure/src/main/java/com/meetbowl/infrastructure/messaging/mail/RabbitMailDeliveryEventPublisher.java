@@ -20,6 +20,7 @@ public class RabbitMailDeliveryEventPublisher implements MailDeliveryEventPort {
 
     @Override
     public void publishSent(MailSentEvent event) {
+        // 이벤트 이름을 routing key로 사용하고, 공통 발행기가 Envelope 래핑과 영속 전송을 처리한다.
         rabbitEventPublisher.publish(EventTypes.MAIL_SENT, MailSentMessage.from(event));
     }
 

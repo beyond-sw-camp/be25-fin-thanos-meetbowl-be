@@ -40,6 +40,7 @@ public class InternalMailController extends BaseController {
     @PostMapping("/send")
     public ResponseEntity<ApiResponse<SendMailResponse>> send(
             @Valid @RequestBody InternalMailSendRequest request) {
+        // 신뢰된 내부 입력을 application 계약으로 변환만 하고, 새 메일이 생성되므로 201로 응답한다.
         return created(
                 SendMailResponse.from(dispatchInternalMailUseCase.execute(request.toCommand())));
     }

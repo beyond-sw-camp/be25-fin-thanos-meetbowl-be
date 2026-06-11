@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/** 사용자가 백업 자료에 표시한 북마크 애그리거트다. (소유자, 백업) 단위로 존재하며 소유자·백업 ID·북마크 시각을 필수로 검증한다. */
 public class PersonalWorkspaceBackupBookmark {
 
     private final UUID id;

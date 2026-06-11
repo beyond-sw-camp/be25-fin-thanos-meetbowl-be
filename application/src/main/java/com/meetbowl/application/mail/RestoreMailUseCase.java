@@ -10,6 +10,11 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
 
+/**
+ * 휴지통에 있는 내 메일을 받은/보낸 메일함으로 복구한다.
+ *
+ * <p>휴지통이 아닌 항목을 복구 요청하면 충돌로 거절해, 상태 전이가 휴지통→복구 순서로만 일어나도록 보장한다.
+ */
 @Service
 public class RestoreMailUseCase {
 

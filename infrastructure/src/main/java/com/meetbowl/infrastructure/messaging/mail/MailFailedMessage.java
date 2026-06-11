@@ -16,6 +16,7 @@ public record MailFailedMessage(
         Instant failedAt,
         boolean retryable) {
 
+    // 도메인 이벤트를 외부 계약 필드로만 옮긴다. 도메인 모델을 메시지 계약으로 직접 노출하지 않기 위한 경계다.
     static MailFailedMessage from(MailFailedEvent event) {
         return new MailFailedMessage(
                 event.mailId(),

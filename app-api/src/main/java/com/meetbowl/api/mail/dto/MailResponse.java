@@ -7,6 +7,12 @@ import java.util.UUID;
 import com.meetbowl.application.mail.MailDetailResult;
 import com.meetbowl.application.mail.MailSummaryResult;
 
+/**
+ * 메일 응답 DTO 모음이다.
+ *
+ * <p>목록용 {@link Summary}와 상세용 {@link Detail}을 한 네임스페이스로 묶는다. 목록은 본문을 빼 가볍게, 상세는 본문과 메일함 상태까지 담아 무겁게
+ * 구성해 화면 용도에 맞춘다.
+ */
 public final class MailResponse {
 
     private MailResponse() {}

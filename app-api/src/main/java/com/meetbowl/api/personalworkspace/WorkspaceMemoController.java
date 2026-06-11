@@ -32,6 +32,11 @@ import com.meetbowl.application.personalworkspace.memo.UpdateMemoCommand;
 import com.meetbowl.application.personalworkspace.memo.UpdateMemoUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
+/**
+ * 개인 워크스페이스 메모 API Controller다.
+ *
+ * <p>개인 메모 작성/수정/삭제와 목록 조회를 제공한다. 메모는 사용자 본인 소유 자료이므로 모든 동작을 현재 사용자 기준으로만 수행한다.
+ */
 @RequireUserOrAdmin
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/workspace/memos")

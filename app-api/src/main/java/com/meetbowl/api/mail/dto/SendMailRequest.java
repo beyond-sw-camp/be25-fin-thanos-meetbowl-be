@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Size;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+/** 사용자 메일 발송 요청 본문이다. 제목/본문 길이와 본문 유형을 검증하고, 관련 리소스는 유형·ID를 함께 지정하도록 강제한다. */
 public record SendMailRequest(
         @NotEmpty(message = "수신자는 한 명 이상이어야 합니다.") List<@NotNull UUID> recipientUserIds,
         @NotBlank(message = "메일 제목은 필수입니다.") @Size(max = 200, message = "메일 제목은 200자를 초과할 수 없습니다.")

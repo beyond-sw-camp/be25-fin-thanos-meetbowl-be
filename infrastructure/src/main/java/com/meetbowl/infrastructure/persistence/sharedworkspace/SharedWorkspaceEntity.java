@@ -14,6 +14,7 @@ import com.meetbowl.domain.sharedworkspace.SharedWorkspace;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceVisibility;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/** {@link SharedWorkspace} 애그리거트를 저장하는 영속 엔티티다. 도메인↔엔티티 변환을 이 경계 안에 두고, 소유자·조직 조회용 인덱스를 둔다. */
 @Entity
 @Table(
         name = "shared_workspaces",

@@ -12,6 +12,10 @@ import com.meetbowl.domain.sharedworkspace.DocumentVersion;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link SharedWorkspaceFile} 메타데이터를 저장하는 영속 엔티티다. 파일 원본은 Object Storage에 두고 여기엔 메타데이터와 현재 버전만
+ * 매핑한다.
+ */
 @Entity
 @Table(
         name = "shared_workspace_files",

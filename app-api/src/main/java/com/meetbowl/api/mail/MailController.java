@@ -51,6 +51,12 @@ import com.meetbowl.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
+/**
+ * 사용자 메일 API Controller다.
+ *
+ * <p>발송, 받은/보낸/휴지통 조회, 상세, 읽음 변경, 휴지통 이동·복구·영구삭제, 검색, 선택 백업을 제공한다. 공지 발송은 관리자만 가능하다. 인증/권한 검증은
+ * 어노테이션과 SecurityConfig가 맡고, 사용자 식별자는 본문이 아닌 @CurrentUser에서만 채워 임의 사용자 사칭을 막는다.
+ */
 @Validated
 @RestController
 @RequireUserOrAdmin

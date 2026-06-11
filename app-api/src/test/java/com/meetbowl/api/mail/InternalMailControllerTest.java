@@ -27,6 +27,12 @@ import com.meetbowl.application.mail.DispatchInternalMailCommand;
 import com.meetbowl.application.mail.DispatchInternalMailUseCase;
 import com.meetbowl.application.mail.SendMailResult;
 
+/**
+ * 시스템 내부 메일 발송 엔드포인트의 라우팅과 요청 검증을 확인한다.
+ *
+ * <p>정상 요청이 UseCase 결과(메일 ID·발송 상태)를 201로 반환하는지, 필수 본문 값이 비면 공통 검증 실패 응답으로 거절하는지를 본다.
+ * 권한(@RequireSystem) 자체는 SecurityConfig 통합 검증 영역이라 이 슬라이스에서는 필터를 끄고 컨트롤러 계약만 본다.
+ */
 @WebMvcTest(controllers = InternalMailController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})

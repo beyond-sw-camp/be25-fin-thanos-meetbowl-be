@@ -8,7 +8,9 @@ package com.meetbowl.domain.mail;
  */
 public interface MailDeliveryEventPort {
 
+    // 메일과 메일함 항목 저장이 끝나 발송이 확정된 뒤에만 호출한다.
     void publishSent(MailSentEvent event);
 
+    // 검증을 통과한 요청이 저장 단계에서 실패했을 때 호출해 재처리 판단 근거를 남긴다.
     void publishFailed(MailFailedEvent event);
 }

@@ -21,6 +21,12 @@ import com.meetbowl.domain.mail.RelatedResourceType;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 
+/**
+ * 사용자가 같은 조직 구성원에게 보내는 일반 메일(NORMAL) 발송을 처리한다.
+ *
+ * <p>발신자/수신자가 같은 조직의 활성 사용자인지 매 발송마다 검증하고, 발신자의 보낸함과 수신자의 받은함 항목을 같은 트랜잭션에서 만든다. 같은 멱등성 키의 동일 요청은
+ * 기존 결과를 돌려주고, 내용이 다르면 충돌로 거절해 재시도 호출이 중복 발송을 만들지 않게 한다.
+ */
 @Service
 public class SendMailUseCase {
 

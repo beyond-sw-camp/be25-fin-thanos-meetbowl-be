@@ -26,6 +26,7 @@ public record InternalMailSendRequest(
         UUID relatedResourceId,
         @NotNull UUID idempotencyKey) {
 
+    // API 요청 DTO를 UseCase 입력으로 그대로 넘기지 않도록, application 계약으로 변환하는 경계다.
     public DispatchInternalMailCommand toCommand() {
         return new DispatchInternalMailCommand(
                 organizationId,

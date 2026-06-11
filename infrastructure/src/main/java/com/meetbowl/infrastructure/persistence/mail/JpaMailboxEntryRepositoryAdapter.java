@@ -12,6 +12,12 @@ import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
 import com.meetbowl.domain.mail.MailboxType;
 
+/**
+ * 사용자별 메일함 항목의 {@link MailboxEntryRepositoryPort}를 JPA로 구현한다.
+ *
+ * <p>받은/보낸/휴지통 조회는 모두 영구 삭제 항목을 제외하고, 받은·보낸 목록은 휴지통 항목까지 제외한다. 이 제외 조건을 쿼리 메서드 이름에 담아 목록·검색이 같은 가시성
+ * 규칙을 따르게 한다. 정렬은 최신 항목 우선이며, offset/limit를 페이지 번호로 환산해 위임한다.
+ */
 @Repository
 public class JpaMailboxEntryRepositoryAdapter implements MailboxEntryRepositoryPort {
 

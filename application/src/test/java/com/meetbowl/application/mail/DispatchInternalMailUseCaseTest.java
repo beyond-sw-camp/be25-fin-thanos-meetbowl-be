@@ -34,6 +34,12 @@ import com.meetbowl.domain.mail.MailboxType;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 
+/**
+ * 시스템 내부 메일 발송 UseCase가 SYSTEM 메일을 저장하고 발송 결과 이벤트를 올바르게 발행하는지 검증한다.
+ *
+ * <p>발송 성공 시 mail.sent 1회만 발행하고 발신자 SENT·수신자 INBOX 항목을 만드는지, 저장 장애 시 mail.failed로 알리고 거절하는지, 멱등
+ * 재요청은 결과 이벤트를 다시 내지 않는지를 핵심 계약으로 확인한다.
+ */
 class DispatchInternalMailUseCaseTest {
 
     private final Instant now = Instant.parse("2099-01-01T00:00:00Z");

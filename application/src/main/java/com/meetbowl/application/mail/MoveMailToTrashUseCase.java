@@ -13,6 +13,11 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
 
+/**
+ * 현재 사용자의 메일함 항목을 휴지통으로 이동한다.
+ *
+ * <p>공용 메일이나 다른 수신자의 상태는 건드리지 않고 내 메일함 항목만 옮긴다. 이미 휴지통에 있는 항목을 다시 요청하면 충돌로 거절해 중복 처리를 막는다.
+ */
 @Service
 public class MoveMailToTrashUseCase {
 
