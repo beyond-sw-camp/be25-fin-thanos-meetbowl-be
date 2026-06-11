@@ -9,10 +9,8 @@ dependencies {
     implementation 'tools.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework:spring-context'
-    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'com.nimbusds:nimbus-jose-jwt:10.0.1'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-    runtimeOnly 'org.flywaydb:flyway-mysql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'

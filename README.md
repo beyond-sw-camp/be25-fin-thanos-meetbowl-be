@@ -23,7 +23,7 @@ common          공통 응답, 예외, Event Envelope, 시간/ID 유틸
 
 ## Profiles
 
-기본 profile은 `local`이다. Flyway는 아직 사용하지 않고, 초기 개발 단계에서는 JPA `ddl-auto`를 profile별로 분리한다.
+기본 profile은 `local`이다. 배포 전까지 데이터베이스 스키마는 JPA `ddl-auto`를 profile별로 분리해 관리한다.
 
 ```text
 local: ddl-auto=update
