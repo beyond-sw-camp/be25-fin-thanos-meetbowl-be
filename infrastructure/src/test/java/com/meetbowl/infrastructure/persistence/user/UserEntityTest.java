@@ -22,7 +22,7 @@ class UserEntityTest {
                         userId,
                         "user01",
                         "passwordHash",
-                        "홍길동",
+                        "Test User",
                         "user01@example.com",
                         UserRole.ADMIN,
                         UserStatus.ACTIVE,
@@ -42,5 +42,6 @@ class UserEntityTest {
         assertEquals(UserRole.ADMIN, converted.role());
         assertEquals(UserStatus.ACTIVE, converted.status());
         assertEquals("passwordHash", converted.passwordHash());
+        assertEquals(true, converted.initialPasswordChangeRequired());
     }
 }

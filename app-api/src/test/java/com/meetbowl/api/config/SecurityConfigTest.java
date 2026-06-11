@@ -60,7 +60,7 @@ class SecurityConfigTest {
     }
 
     @Test
-    void guestJoinEndpointIsPublic() throws Exception {
+    void publicEndpointsAreAccessible() throws Exception {
         mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
     }
 
