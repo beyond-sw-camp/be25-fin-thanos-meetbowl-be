@@ -42,6 +42,7 @@ public class ResetUserPasswordUseCase {
     }
 
     public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
+        // Admin reset must generate a one-time temporary password and persist only its hash.
         return Objects.requireNonNull(
                 transactionOperations.execute(
                         status -> {
@@ -66,6 +67,7 @@ public class ResetUserPasswordUseCase {
 
     private void logAudit(
             ResetUserPasswordCommand command, AuditResult result, String failureReason) {
+        // Audit log keeps the admin action trace without exposing the raw password.
         AdminAuditLog log =
                 new AdminAuditLog(
                         UUID.randomUUID(),
@@ -85,6 +87,7 @@ public class ResetUserPasswordUseCase {
     }
 
     private String generateTemporaryPassword(User user) {
+        // Avoid generating a value that is effectively identical to the current password.
         for (int attempt = 0; attempt < 10; attempt++) {
             String temporaryPassword = generateRandomPassword();
             if (!passwordEncoder.matches(temporaryPassword, user.passwordHash())) {
@@ -93,10 +96,11 @@ public class ResetUserPasswordUseCase {
         }
 
         throw new BusinessException(
-                ErrorCode.COMMON_INTERNAL_ERROR, "임시 비밀번호를 생성할 수 없습니다.");
+                ErrorCode.COMMON_INTERNAL_ERROR, "?꾩떆 鍮꾨?踰덊샇瑜??앹꽦?????놁뒿?덈떎.");
     }
 
     private String generateRandomPassword() {
+        // Build a human-friendly temporary password from an allowed character set.
         StringBuilder builder = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
         for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
             int randomIndex = secureRandom.nextInt(TEMPORARY_PASSWORD_ALPHABET.length);

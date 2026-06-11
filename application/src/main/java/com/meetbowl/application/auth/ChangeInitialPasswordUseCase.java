@@ -40,6 +40,7 @@ public class ChangeInitialPasswordUseCase {
     }
 
     public IssuedTokens execute(ChangeInitialPasswordCommand command) {
+        // Enforce the initial-password change flow as one atomic unit.
         validateNewPassword(command.newPassword());
         User changedUser =
                 Objects.requireNonNull(
@@ -49,17 +50,18 @@ public class ChangeInitialPasswordUseCase {
     }
 
     private User changePassword(ChangeInitialPasswordCommand command) {
+        // Only users that still require an initial password change can enter here.
         User user =
                 userRepositoryPort
                         .findById(command.userId())
                         .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (!user.initialPasswordChangeRequired()) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 계정이 아닙니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂??怨꾩젙???꾨떃?덈떎.");
         }
         if (passwordEncoder.matches(command.newPassword(), user.passwordHash())) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "새 비밀번호는 기존 비밀번호와 달라야 합니다.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "??鍮꾨?踰덊샇??湲곗〈 鍮꾨?踰덊샇? ?щ씪???⑸땲??");
         }
 
         User changedUser =
@@ -68,15 +70,17 @@ public class ChangeInitialPasswordUseCase {
     }
 
     private void validateNewPassword(String newPassword) {
+        // Use the same password policy as the regular password-change endpoint.
         if (newPassword == null
                 || newPassword.length() < MINIMUM_PASSWORD_LENGTH
                 || newPassword.length() > MAXIMUM_PASSWORD_LENGTH) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "새 비밀번호는 8자 이상 100자 이하여야 합니다.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "??鍮꾨?踰덊샇??8???댁긽 100???댄븯?ъ빞 ?⑸땲??");
         }
     }
 
     private void revokeAccessToken(String accessTokenId, Instant accessTokenExpiresAt) {
+        // The restricted access token should stop working immediately after the change.
         Duration remaining = Duration.between(Instant.now(), accessTokenExpiresAt);
         if (!remaining.isNegative() && !remaining.isZero()) {
             tokenStateRepositoryPort.revokeAccessToken(accessTokenId, remaining);
