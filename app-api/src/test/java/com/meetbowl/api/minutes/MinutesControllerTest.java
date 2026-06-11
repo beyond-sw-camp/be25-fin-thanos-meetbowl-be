@@ -20,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.meetbowl.api.common.GlobalExceptionHandler;
@@ -27,7 +28,9 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.AuthenticatedUserAttributes;
 import com.meetbowl.api.common.auth.AuthenticatedUserRole;
 import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
+import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
+import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.application.minutes.ApproveMinutesCommand;
 import com.meetbowl.application.minutes.ApproveMinutesUseCase;
 import com.meetbowl.application.minutes.MinutesResult;
@@ -54,6 +57,8 @@ class MinutesControllerTest {
     private static final Instant APPROVED_AT = Instant.parse("2099-01-01T01:00:00Z");
 
     @Autowired private MockMvc mockMvc;
+    @MockitoBean private AccessTokenValidationService accessTokenValidationService;
+    @MockitoBean private GlobalPermissionChecker globalPermissionChecker;
     @Autowired private ReviseMinutesUseCase reviseMinutesUseCase;
     @Autowired private ApproveMinutesUseCase approveMinutesUseCase;
 

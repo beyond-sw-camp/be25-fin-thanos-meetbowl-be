@@ -7,7 +7,8 @@ public interface PostLikeRepositoryPort {
 
     PostLike save(PostLike postLike);
 
-    boolean existsByPostIdAndUserId(UUID postId, UUID userId); // 사용자가 이 게시글에 이미 좋아요를 눌렀는지 true/false 확인
+    boolean existsByPostIdAndUserId(
+            UUID postId, UUID userId); // 사용자가 이 게시글에 이미 좋아요를 눌렀는지 true/false 확인
 
     /** 좋아요 취소(토글). */
     void deleteByPostIdAndUserId(UUID postId, UUID userId);

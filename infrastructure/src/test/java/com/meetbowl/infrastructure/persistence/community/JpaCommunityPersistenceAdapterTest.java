@@ -116,11 +116,10 @@ class JpaCommunityPersistenceAdapterTest {
         UUID userId = UUID.randomUUID();
         commentLikeRepositoryPort.save(CommentLike.create(commentId, userId));
 
-        assertThat(commentLikeRepositoryPort.existsByCommentIdAndUserId(commentId, userId)).isTrue();
+        assertThat(commentLikeRepositoryPort.existsByCommentIdAndUserId(commentId, userId))
+                .isTrue();
         assertThatThrownBy(
-                        () ->
-                                commentLikeRepositoryPort.save(
-                                        CommentLike.create(commentId, userId)))
+                        () -> commentLikeRepositoryPort.save(CommentLike.create(commentId, userId)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -134,7 +133,8 @@ class JpaCommunityPersistenceAdapterTest {
         assertThat(found.displayName()).isEqualTo("익명1");
 
         // 같은 사용자에 익명 매핑 중복 → 유니크 제약 위반
-        assertThatThrownBy(() -> communityAliasRepositoryPort.save(CommunityAlias.create(userId, 2)))
+        assertThatThrownBy(
+                        () -> communityAliasRepositoryPort.save(CommunityAlias.create(userId, 2)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

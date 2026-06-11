@@ -1,17 +1,14 @@
 package com.meetbowl.domain.community;
 
+import java.util.UUID;
+
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
-import java.util.UUID;
-
 /**
- * 익명 커뮤니티 게시글 도메인 모델이다(FR-119, FR-122).
- * 유저의 실제 아이디는 디비에 보관
- * 유저1이 글 작성  →  DB: authorUserId = 유저1의_UUID   (숨김)
- *  화면: 익명1(노출)
- *   - 화면에 보일 익명1, 익명2… 는 이 authorUserId로 CommunityAlias(매핑 테이블)를 조회해서 붙입니다.
- *   - Post는 진짜 ID만 들고, "익명 몇 번"인지는 CommunityAlias가 따로 책임 → 역할 분리
+ * 익명 커뮤니티 게시글 도메인 모델이다(FR-119, FR-122). 유저의 실제 아이디는 디비에 보관 유저1이 글 작성 → DB: authorUserId = 유저1의_UUID
+ * (숨김) 화면: 익명1(노출) - 화면에 보일 익명1, 익명2… 는 이 authorUserId로 CommunityAlias(매핑 테이블)를 조회해서 붙입니다. - Post는
+ * 진짜 ID만 들고, "익명 몇 번"인지는 CommunityAlias가 따로 책임 → 역할 분리
  *
  * <p>작성자는 {@code authorUserId}(실제 사용자)로 저장하되 화면에는 노출하지 않는다(수정/삭제 권한 확인용). 화면에 보이는 익명 표시명은 {@link
  * CommunityAlias}(사용자별 전역 고정 번호)를 조회해 붙인다. 좋아요/댓글 수와 인기글(Hot) 여부는 별도 집계/조회로 계산하며 이 모델이 소유하지 않는다.
@@ -94,7 +91,7 @@ public class Post {
 
     public boolean isAuthoredBy(UUID userId) {
         return authorUserId.equals(userId);
-    }  // 숨긴 진짜 ID와 비교
+    } // 숨긴 진짜 ID와 비교
 
     public UUID id() {
         return id;

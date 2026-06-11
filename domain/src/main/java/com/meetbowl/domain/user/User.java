@@ -167,6 +167,28 @@ public class User {
                 updatedAt);
     }
 
+    public User resetPasswordByAdmin(String newPasswordHash) {
+        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
+
+        return new User(
+                id,
+                loginId,
+                newPasswordHash,
+                name,
+                email,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                true,
+                activeFrom,
+                activeUntil,
+                createdAt,
+                updatedAt);
+    }
+
     public UUID id() {
         return id;
     }
