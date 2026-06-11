@@ -40,10 +40,10 @@ public class AdminUserController extends BaseController {
             @PathVariable UUID userId,
             HttpServletRequest httpServletRequest) {
 
-        // Only Admins may trigger a password reset for another user.
+        // 다른 사용자의 비밀번호 초기화는 관리자만 수행할 수 있다.
         globalPermissionChecker.requireAdmin(admin);
 
-        // The use case returns the temporary password once, and only once.
+        // 유즈케이스는 임시 비밀번호를 한 번만 반환한다.
         ResetUserPasswordResult result =
                 resetUserPasswordUseCase.execute(
                         new ResetUserPasswordCommand(

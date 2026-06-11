@@ -42,7 +42,7 @@ public class ResetUserPasswordUseCase {
     }
 
     public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
-        // Admin reset must generate a one-time temporary password and persist only its hash.
+        // 관리자 초기화는 1회용 임시 비밀번호를 생성하고 해시만 저장한다.
         return Objects.requireNonNull(
                 transactionOperations.execute(
                         status -> {
@@ -67,7 +67,7 @@ public class ResetUserPasswordUseCase {
 
     private void logAudit(
             ResetUserPasswordCommand command, AuditResult result, String failureReason) {
-        // Audit log keeps the admin action trace without exposing the raw password.
+        // 감사 로그에는 관리자 작업 흔적만 남기고 원문 비밀번호는 남기지 않는다.
         AdminAuditLog log =
                 new AdminAuditLog(
                         UUID.randomUUID(),
@@ -87,7 +87,7 @@ public class ResetUserPasswordUseCase {
     }
 
     private String generateTemporaryPassword(User user) {
-        // Avoid generating a value that is effectively identical to the current password.
+        // 현재 비밀번호와 사실상 같은 값이 나오지 않도록 다시 생성한다.
         for (int attempt = 0; attempt < 10; attempt++) {
             String temporaryPassword = generateRandomPassword();
             if (!passwordEncoder.matches(temporaryPassword, user.passwordHash())) {
@@ -100,7 +100,7 @@ public class ResetUserPasswordUseCase {
     }
 
     private String generateRandomPassword() {
-        // Build a human-friendly temporary password from an allowed character set.
+        // 허용된 문자 집합으로 사람이 읽기 쉬운 임시 비밀번호를 만든다.
         StringBuilder builder = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
         for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
             int randomIndex = secureRandom.nextInt(TEMPORARY_PASSWORD_ALPHABET.length);

@@ -143,7 +143,7 @@ public class User {
     }
 
     public User completeInitialPasswordChange(String newPasswordHash) {
-        // Clear the initial-password flag once the user sets a real password.
+        // 사용자가 실제 비밀번호로 변경하면 초기 비밀번호 플래그를 해제한다.
         validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
         if (!initialPasswordChangeRequired) {
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂??怨꾩젙???꾨떃?덈떎.");
@@ -169,7 +169,7 @@ public class User {
     }
 
     public User resetPasswordByAdmin(String newPasswordHash) {
-        // Admin resets should force the next login to go through the initial-password flow.
+        // 관리자 초기화 후에는 다음 로그인에서 초기 비밀번호 변경 흐름으로 진입해야 한다.
         validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
 
         return new User(

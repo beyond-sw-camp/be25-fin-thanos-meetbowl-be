@@ -53,7 +53,7 @@ public class AuthController extends BaseController {
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        // Login response must expose whether the user still needs the initial-password flow.
+        // 로그인 응답에는 초기 비밀번호 변경 필요 여부를 함께 내려준다.
         LoginResult result =
                 loginUseCase.execute(new LoginCommand(request.loginId(), request.password()));
 
@@ -101,7 +101,7 @@ public class AuthController extends BaseController {
     public ApiResponse<TokenResponse> changeInitialPassword(
             @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody ChangeInitialPasswordRequest request) {
-        // This endpoint finishes the restricted login flow and issues normal tokens.
+        // 이 엔드포인트는 제한 로그인 흐름을 끝내고 정상 토큰을 발급한다.
         IssuedTokens tokens =
                 changeInitialPasswordUseCase.execute(
                         new ChangeInitialPasswordCommand(
