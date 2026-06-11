@@ -37,6 +37,17 @@ public enum ErrorCode {
     MAIL_FORBIDDEN_ACCESS("MAIL_FORBIDDEN_ACCESS", "메일 접근 권한이 없습니다.", 403),
     MAIL_IDEMPOTENCY_CONFLICT("MAIL_IDEMPOTENCY_CONFLICT", "동일한 멱등성 키로 다른 메일을 요청할 수 없습니다.", 409),
 
+    // Shared Workspace
+    SHARED_WORKSPACE_NOT_FOUND("SHARED_WORKSPACE_NOT_FOUND", "공유 워크스페이스를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_FORBIDDEN("SHARED_WORKSPACE_FORBIDDEN", "공유 워크스페이스 접근 권한이 없습니다.", 403),
+    SHARED_WORKSPACE_MEMBER_NOT_FOUND(
+            "SHARED_WORKSPACE_MEMBER_NOT_FOUND", "공유 워크스페이스 멤버를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_MEMBER_RESIGNED(
+            "SHARED_WORKSPACE_MEMBER_RESIGNED", "퇴사한 사용자는 공유 워크스페이스에 초대할 수 없습니다.", 409),
+    SHARED_WORKSPACE_FILE_NOT_FOUND("SHARED_WORKSPACE_FILE_NOT_FOUND", "공유 자료를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_FILE_VERSION_NOT_FOUND(
+            "SHARED_WORKSPACE_FILE_VERSION_NOT_FOUND", "공유 자료 버전을 찾을 수 없습니다.", 404),
+
     // File
     FILE_INVALID_EXTENSION("FILE_INVALID_EXTENSION", "허용되지 않는 파일 형식입니다.", 415),
     FILE_SIZE_EXCEEDED("FILE_SIZE_EXCEEDED", "파일 크기 제한을 초과했습니다.", 413),
