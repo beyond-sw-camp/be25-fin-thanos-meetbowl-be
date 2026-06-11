@@ -41,7 +41,11 @@ class ChatbotAiClientAdapterTest {
 
     private ChatRequestContext sampleContext() {
         return new ChatRequestContext(
-                "지난 회의 배포 일정 알려줘", ChatConversationContext.empty(), UUID.randomUUID(), Set.of());
+                "지난 회의 배포 일정 알려줘",
+                ChatConversationContext.empty(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Set.of());
     }
 
     @Test

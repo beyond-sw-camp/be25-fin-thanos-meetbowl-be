@@ -253,5 +253,12 @@ final class SharedWorkspaceFakes {
                     .filter(user -> user.loginId().equals(loginId))
                     .findFirst();
         }
+
+        @Override
+        public java.util.List<User> findAllByAffiliateId(UUID affiliateId) {
+            return store.values().stream()
+                    .filter(user -> affiliateId.equals(user.affiliateId()))
+                    .toList();
+        }
     }
 }

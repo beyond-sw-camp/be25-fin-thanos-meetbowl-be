@@ -3,6 +3,7 @@ package com.meetbowl.infrastructure.client;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -22,6 +23,9 @@ public class AiServerClientConfig {
             @Value("${meetbowl.security.internal-token}") String internalToken) {
         return RestClient.builder()
                 .baseUrl(baseUrl)
+                // Uvicorn 내부 API와 통신할 때 JDK HttpClient의 h2c upgrade/chunked 조합을 피하고
+                // 예측 가능한 HTTP/1.1 요청 본문을 전송한다.
+                .requestFactory(new SimpleClientHttpRequestFactory())
                 .defaultHeader(INTERNAL_TOKEN_HEADER, internalToken)
                 .build();
     }

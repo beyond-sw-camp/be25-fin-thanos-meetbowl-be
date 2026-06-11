@@ -16,6 +16,7 @@ public record AiChatRequest(
         UUID requestId,
         UUID correlationId,
         UUID userId,
+        UUID organizationId,
         String question,
         List<Message> messageHistory,
         List<UUID> sharedWorkspaceIds) {
@@ -31,6 +32,7 @@ public record AiChatRequest(
                 requestId,
                 correlationId,
                 context.userId(),
+                context.organizationId(),
                 context.question(),
                 messages,
                 List.copyOf(context.sharedWorkspaceIds()));

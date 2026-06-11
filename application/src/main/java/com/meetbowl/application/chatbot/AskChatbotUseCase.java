@@ -52,7 +52,11 @@ public class AskChatbotUseCase {
         ChatConversationContext conversation = new ChatConversationContext(messages);
         ChatRequestContext requestContext =
                 new ChatRequestContext(
-                        command.question(), conversation, command.userId(), sharedWorkspaceIds);
+                        command.question(),
+                        conversation,
+                        command.userId(),
+                        command.organizationId(),
+                        sharedWorkspaceIds);
 
         ChatAnswer answer = chatbotAiPort.ask(requestContext);
         return ChatAnswerResult.from(answer);

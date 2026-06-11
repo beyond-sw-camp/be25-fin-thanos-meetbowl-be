@@ -2,24 +2,41 @@ package com.meetbowl.infrastructure.chatbot;
 
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
 import com.meetbowl.domain.chatbot.ChatSharedWorkspaceAccessPort;
+import com.meetbowl.domain.sharedworkspace.SharedWorkspaceMemberRepositoryPort;
+import com.meetbowl.domain.sharedworkspace.SharedWorkspaceRepositoryPort;
 
 /**
  * 공유 워크스페이스 접근 권한 조회의 기본 구현이다.
  *
- * <p>현재 레포에는 공유 워크스페이스 멤버십 영속 계층이 아직 없어 빈 집합을 반환한다. 빈 집합은 "공유 자료 검색 없음"을 뜻하므로, 권한이 확인되지 않은 자료가 챗봇
- * 답변 근거로 새어 나가지 않는 안전한 기본값이다. 개인 자료 검색은 AI 서버가 인증 userId만으로 수행하므로 영향받지 않는다.
- *
- * <p>sharedworkspace 도메인이 추가되면 이 adapter를 사용자 멤버십 조회 구현으로 교체한다. 그래야 워크스페이스 권한 상실이 다음 질문부터 즉시 반영된다.
+ * <p>활성 멤버십을 질문마다 다시 조회하고, 삭제되지 않았으며 인증 사용자의 조직에 속한 워크스페이스만 AI 검색 범위로 전달한다. 제거된 멤버십이나 다른 조직의 워크스페이스
+ * ID가 과거 요청 문맥에서 재사용되지 않게 하는 권한 경계다.
  */
 @Component
 public class DefaultChatSharedWorkspaceAccessAdapter implements ChatSharedWorkspaceAccessPort {
 
+    private final SharedWorkspaceMemberRepositoryPort memberRepositoryPort;
+    private final SharedWorkspaceRepositoryPort workspaceRepositoryPort;
+
+    public DefaultChatSharedWorkspaceAccessAdapter(
+            SharedWorkspaceMemberRepositoryPort memberRepositoryPort,
+            SharedWorkspaceRepositoryPort workspaceRepositoryPort) {
+        this.memberRepositoryPort = memberRepositoryPort;
+        this.workspaceRepositoryPort = workspaceRepositoryPort;
+    }
+
     @Override
     public Set<UUID> findAccessibleSharedWorkspaceIds(UUID userId, UUID organizationId) {
-        return Set.of();
+        return memberRepositoryPort.findActiveByUserId(userId).stream()
+                .map(member -> workspaceRepositoryPort.findById(member.workspaceId()))
+                .flatMap(java.util.Optional::stream)
+                .filter(workspace -> !workspace.isDeleted())
+                .filter(workspace -> workspace.organizationId().equals(organizationId))
+                .map(workspace -> workspace.id())
+                .collect(Collectors.toUnmodifiableSet());
     }
 }

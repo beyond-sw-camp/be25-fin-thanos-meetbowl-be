@@ -319,8 +319,35 @@ DELETION_SCHEDULED
 
 ### 11.1 구현 범위
 
-현재 사용자 API는 발송, 받은/보낸/휴지통 목록, 상세 조회, 읽음 상태 변경, 휴지통 이동, 복구, 영구 삭제를 제공한다.
-검색, 백업, 첨부파일 업로드/다운로드와 시스템 내부 발송 API는 Object Storage 및 RabbitMQ Adapter 계약과 함께 후속 구현한다.
+현재 사용자 API는 발송, 받은/보낸/휴지통 목록, 상세 조회, 읽음 상태 변경, 휴지통 이동, 복구, 영구 삭제, 선택 메일 백업, 메일 검색, 공지 메일 발송을 제공한다.
+첨부파일 업로드/다운로드와 시스템 내부 발송 API는 Object Storage 및 RabbitMQ Adapter 계약과 함께 후속 구현한다.
+
+#### 메일 검색
+
+`GET /api/v1/mails/search?q={keyword}&page=1&size=20`
+
+- `q`는 필수이며 공백만 입력하면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 현재 사용자가 소유한 메일함 항목 중 제목 또는 본문에 키워드를 포함한 항목을 대소문자 구분 없이 검색한다.
+- 휴지통과 영구 삭제 항목은 검색 대상에서 제외한다.
+- 응답은 받은/보낸 메일함 목록과 동일한 페이지 형식을 사용한다.
+
+#### 공지 메일 발송
+
+`POST /api/v1/mails/announcements` (Admin)
+
+```json
+{
+  "subject": "전사 공지",
+  "body": "공지 내용",
+  "bodyType": "TEXT",
+  "idempotencyKey": "uuid"
+}
+```
+
+- 수신자는 요청 본문으로 받지 않고, 발신 관리자와 같은 조직(affiliate)의 활성 사용자로 서버가 계산한다.
+- 발신자 본인과 시스템 계정은 수신자에서 제외한다. 수신 가능 사용자가 없으면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 메일 유형은 `ANNOUNCEMENT`로 고정하고, 일반 메일과 동일하게 발송 즉시 `SENT` 상태로 저장한다.
+- 같은 `idempotencyKey`로 내용이 동일하면 기존 발송 결과를 반환하고, 다르면 `MAIL_IDEMPOTENCY_CONFLICT`를 반환한다.
 
 ### 11.2 메일 발송
 
@@ -379,6 +406,20 @@ DELETION_SCHEDULED
 - `POST /api/v1/mails/{mailId}/restore`는 현재 사용자의 휴지통 항목만 복구한다.
 - `DELETE /api/v1/mails/{mailId}/permanent`는 휴지통에 있는 현재 사용자의 항목만 영구 삭제 표시한다.
 - 다른 사용자의 메일함 상태나 공용 메일 본문은 변경하지 않는다.
+
+### 11.5 선택 메일 백업
+
+`POST /api/v1/mails/backup`
+
+```json
+{
+  "mailIds": ["uuid"]
+}
+```
+
+- 현재 사용자가 소유한 받은/보낸 메일만 개인 워크스페이스 백업으로 등록한다.
+- 같은 메일을 다시 요청하면 기존 백업을 반환해 멱등하게 처리한다.
+- 생성 결과는 `GET /api/v1/workspace/backups`에서 `sourceType: MAIL`로 조회된다.
 
 ---
 

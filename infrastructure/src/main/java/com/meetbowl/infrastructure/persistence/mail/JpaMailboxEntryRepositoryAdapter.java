@@ -80,6 +80,19 @@ public class JpaMailboxEntryRepositoryAdapter implements MailboxEntryRepositoryP
                 ownerUserId);
     }
 
+    @Override
+    public List<MailboxEntry> searchPageByOwnerUserId(
+            UUID ownerUserId, String keyword, int offset, int limit) {
+        return repository.searchByOwnerUserId(ownerUserId, keyword, page(offset, limit)).stream()
+                .map(MailboxEntryEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countSearchByOwnerUserId(UUID ownerUserId, String keyword) {
+        return repository.countSearchByOwnerUserId(ownerUserId, keyword);
+    }
+
     private PageRequest page(int offset, int limit) {
         return PageRequest.of(offset / limit, limit, LATEST_FIRST);
     }

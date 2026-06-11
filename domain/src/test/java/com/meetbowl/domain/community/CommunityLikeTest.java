@@ -17,8 +17,7 @@ class CommunityLikeTest {
     void postLikeRejectsNullPost() {
         BusinessException exception =
                 assertThrows(
-                        BusinessException.class,
-                        () -> PostLike.create(null, UUID.randomUUID()));
+                        BusinessException.class, () -> PostLike.create(null, UUID.randomUUID()));
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 
@@ -26,8 +25,7 @@ class CommunityLikeTest {
     void postLikeRejectsNullUser() {
         BusinessException exception =
                 assertThrows(
-                        BusinessException.class,
-                        () -> PostLike.create(UUID.randomUUID(), null));
+                        BusinessException.class, () -> PostLike.create(UUID.randomUUID(), null));
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 
@@ -35,8 +33,7 @@ class CommunityLikeTest {
     void commentLikeRejectsNullComment() {
         BusinessException exception =
                 assertThrows(
-                        BusinessException.class,
-                        () -> CommentLike.create(null, UUID.randomUUID()));
+                        BusinessException.class, () -> CommentLike.create(null, UUID.randomUUID()));
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 
@@ -44,8 +41,7 @@ class CommunityLikeTest {
     void commentLikeRejectsNullUser() {
         BusinessException exception =
                 assertThrows(
-                        BusinessException.class,
-                        () -> CommentLike.create(UUID.randomUUID(), null));
+                        BusinessException.class, () -> CommentLike.create(UUID.randomUUID(), null));
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 }

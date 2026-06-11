@@ -23,8 +23,7 @@ class CommunityAliasTest {
     void rejectsNonPositiveAliasNo() {
         BusinessException exception =
                 assertThrows(
-                        BusinessException.class,
-                        () -> CommunityAlias.create(UUID.randomUUID(), 0));
+                        BusinessException.class, () -> CommunityAlias.create(UUID.randomUUID(), 0));
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
 }

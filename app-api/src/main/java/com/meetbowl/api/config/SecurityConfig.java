@@ -115,10 +115,12 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder(@Value("${meetbowl.security.jwt.secret}") String jwtSecret) {
         if (jwtSecret == null || jwtSecret.isBlank()) {
-            throw new IllegalArgumentException("JWT secret key (meetbowl.security.jwt.secret) must not be null or blank.");
+            throw new IllegalArgumentException(
+                    "JWT secret key (meetbowl.security.jwt.secret) must not be null or blank.");
         }
         if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
-            throw new IllegalArgumentException("JWT secret key (meetbowl.security.jwt.secret) must be at least 32 bytes (256 bits) long.");
+            throw new IllegalArgumentException(
+                    "JWT secret key (meetbowl.security.jwt.secret) must be at least 32 bytes (256 bits) long.");
         }
         SecretKeySpec secretKey =
                 new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -130,10 +132,12 @@ public class SecurityConfig {
             @Value("${meetbowl.security.internal-token}") String internalToken,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint) {
         if (internalToken == null || internalToken.isBlank()) {
-            throw new IllegalArgumentException("Internal token (meetbowl.security.internal-token) must not be null or blank.");
+            throw new IllegalArgumentException(
+                    "Internal token (meetbowl.security.internal-token) must not be null or blank.");
         }
         if (internalToken.getBytes(StandardCharsets.UTF_8).length < 32) {
-            throw new IllegalArgumentException("Internal token (meetbowl.security.internal-token) must be at least 32 bytes (256 bits) long.");
+            throw new IllegalArgumentException(
+                    "Internal token (meetbowl.security.internal-token) must be at least 32 bytes (256 bits) long.");
         }
         return new InternalTokenAuthenticationFilter(internalToken, apiAuthenticationEntryPoint);
     }

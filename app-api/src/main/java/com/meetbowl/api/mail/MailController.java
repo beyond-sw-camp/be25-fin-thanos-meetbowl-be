@@ -1,5 +1,6 @@
 package com.meetbowl.api.mail;
 
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
@@ -23,18 +24,26 @@ import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
+import com.meetbowl.api.common.auth.RequireAdmin;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
+import com.meetbowl.api.mail.dto.BackupMailResponse;
+import com.meetbowl.api.mail.dto.BackupMailsRequest;
 import com.meetbowl.api.mail.dto.ChangeMailReadRequest;
 import com.meetbowl.api.mail.dto.MailPageResponse;
 import com.meetbowl.api.mail.dto.MailResponse;
+import com.meetbowl.api.mail.dto.SendAnnouncementRequest;
 import com.meetbowl.api.mail.dto.SendMailRequest;
 import com.meetbowl.api.mail.dto.SendMailResponse;
+import com.meetbowl.application.mail.BackupMailsUseCase;
 import com.meetbowl.application.mail.ChangeMailReadStatusUseCase;
 import com.meetbowl.application.mail.GetMailDetailUseCase;
 import com.meetbowl.application.mail.ListMailUseCase;
 import com.meetbowl.application.mail.MoveMailToTrashUseCase;
 import com.meetbowl.application.mail.PermanentlyDeleteMailUseCase;
 import com.meetbowl.application.mail.RestoreMailUseCase;
+import com.meetbowl.application.mail.SearchMailUseCase;
+import com.meetbowl.application.mail.SendAnnouncementCommand;
+import com.meetbowl.application.mail.SendAnnouncementUseCase;
 import com.meetbowl.application.mail.SendMailCommand;
 import com.meetbowl.application.mail.SendMailUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -56,6 +65,9 @@ public class MailController extends BaseController {
     private final MoveMailToTrashUseCase moveMailToTrashUseCase;
     private final RestoreMailUseCase restoreMailUseCase;
     private final PermanentlyDeleteMailUseCase permanentlyDeleteMailUseCase;
+    private final BackupMailsUseCase backupMailsUseCase;
+    private final SearchMailUseCase searchMailUseCase;
+    private final SendAnnouncementUseCase sendAnnouncementUseCase;
 
     public MailController(
             SendMailUseCase sendMailUseCase,
@@ -64,7 +76,10 @@ public class MailController extends BaseController {
             ChangeMailReadStatusUseCase changeMailReadStatusUseCase,
             MoveMailToTrashUseCase moveMailToTrashUseCase,
             RestoreMailUseCase restoreMailUseCase,
-            PermanentlyDeleteMailUseCase permanentlyDeleteMailUseCase) {
+            PermanentlyDeleteMailUseCase permanentlyDeleteMailUseCase,
+            BackupMailsUseCase backupMailsUseCase,
+            SearchMailUseCase searchMailUseCase,
+            SendAnnouncementUseCase sendAnnouncementUseCase) {
         this.sendMailUseCase = sendMailUseCase;
         this.listMailUseCase = listMailUseCase;
         this.getMailDetailUseCase = getMailDetailUseCase;
@@ -72,6 +87,9 @@ public class MailController extends BaseController {
         this.moveMailToTrashUseCase = moveMailToTrashUseCase;
         this.restoreMailUseCase = restoreMailUseCase;
         this.permanentlyDeleteMailUseCase = permanentlyDeleteMailUseCase;
+        this.backupMailsUseCase = backupMailsUseCase;
+        this.searchMailUseCase = searchMailUseCase;
+        this.sendAnnouncementUseCase = sendAnnouncementUseCase;
     }
 
     @PostMapping
@@ -98,6 +116,41 @@ public class MailController extends BaseController {
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ok(MailPageResponse.from(listMailUseCase.inbox(user.userId(), page, size)));
+    }
+
+    @PostMapping("/backup")
+    public ApiResponse<List<BackupMailResponse>> backup(
+            @Parameter(hidden = true) @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody BackupMailsRequest request) {
+        return ok(
+                backupMailsUseCase.execute(user.userId(), request.mailIds()).stream()
+                        .map(BackupMailResponse::from)
+                        .toList());
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<MailPageResponse> search(
+            @Parameter(hidden = true) @CurrentUser AuthenticatedUser user,
+            @RequestParam String q,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ok(MailPageResponse.from(searchMailUseCase.execute(user.userId(), q, page, size)));
+    }
+
+    @RequireAdmin
+    @PostMapping("/announcements")
+    public ResponseEntity<ApiResponse<SendMailResponse>> announce(
+            @Parameter(hidden = true) @CurrentUser AuthenticatedUser user,
+            @Valid @RequestBody SendAnnouncementRequest request) {
+        SendAnnouncementCommand command =
+                new SendAnnouncementCommand(
+                        user.organizationId(),
+                        user.userId(),
+                        request.subject(),
+                        request.body(),
+                        request.bodyType(),
+                        request.idempotencyKey());
+        return created(SendMailResponse.from(sendAnnouncementUseCase.execute(command)));
     }
 
     @GetMapping("/sent")

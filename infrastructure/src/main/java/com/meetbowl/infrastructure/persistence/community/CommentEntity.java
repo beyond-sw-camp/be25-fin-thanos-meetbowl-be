@@ -11,8 +11,8 @@ import com.meetbowl.domain.community.Comment;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
- * 댓글 JPA Entity다. {@code community_comment} 테이블과 1:1로 매핑된다. 게시글/작성자는 raw UUID로 참조하고, post_id 인덱스로 게시글별
- * 댓글 조회를 지원한다.
+ * 댓글 JPA Entity다. {@code community_comment} 테이블과 1:1로 매핑된다. 게시글/작성자는 raw UUID로 참조하고, post_id 인덱스로
+ * 게시글별 댓글 조회를 지원한다.
  */
 @Entity
 @Table(
