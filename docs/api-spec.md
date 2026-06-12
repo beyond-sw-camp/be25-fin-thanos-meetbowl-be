@@ -170,7 +170,6 @@ X-Internal-Token: {internalToken}
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
 | GET | `/users/me` | 내 정보 조회 | User/Admin |
-| GET | `/users/me/menus` | 로그인 사용자 role 기준 메뉴 목록 조회 | User/Admin |
 | PATCH | `/users/me` | 내 프로필 수정 | User/Admin |
 | GET | `/users` | 회원 목록 조회 | Admin |
 | GET | `/users/{userId}` | 회원 상세 조회 | Admin |

@@ -27,7 +27,7 @@ import com.meetbowl.api.common.security.ApiAccessDeniedHandler;
 import com.meetbowl.api.common.security.ApiAuthenticationEntryPoint;
 import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 
-/** JWT 기반 인증을 전역으로 적용한다. Controller는 인증 처리 대신 @CurrentUser로 검증된 사용자만 전달받는다. */
+/** JWT 기반 인증을 전역으로 적용한다. Controller에는 인증된 사용자만 @CurrentUser로 전달된다. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -56,8 +56,6 @@ public class SecurityConfig {
 
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
         "/api/v1/users/me",
-        // /users/** 기본 규칙보다 먼저 선언해서 메뉴 조회가 ADMIN 전용 규칙에 가려지지 않게 한다.
-        "/api/v1/users/me/menus",
         "/api/v1/users/me/settings",
         "/api/v1/users/search",
         "/api/v1/users/recipients/search",

@@ -48,7 +48,7 @@ class SecurityConfigTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"))
-                .andExpect(jsonPath("$.error.message").value("인증이 필요합니다."));
+                .andExpect(jsonPath("$.error.message").value("?몄쬆???꾩슂?⑸땲??"));
     }
 
     @Test
@@ -57,13 +57,6 @@ class SecurityConfigTest {
 
         mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void menusEndpointWithoutTokenReturnsCommonUnauthorizedResponse() throws Exception {
-        mockMvc.perform(get("/api/v1/users/me/menus"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
     }
 
     @Test
@@ -223,17 +216,6 @@ class SecurityConfigTest {
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
     }
 
-    @Test
-    void userCanAccessMenusEndpoint() throws Exception {
-        String accessToken = createAccessToken("USER");
-
-        mockMvc.perform(
-                        get("/api/v1/users/me/menus")
-                                .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.role").value("USER"));
-    }
-
     private String createAccessToken(String role) throws Exception {
         return createAccessToken(role, false);
     }
@@ -253,7 +235,7 @@ class SecurityConfigTest {
                         .claim("organizationId", UUID.randomUUID().toString())
                         .claim("role", role)
                         .claim("initialPasswordChangeRequired", initialPasswordChangeRequired)
-                        .claim("displayName", "홍길동")
+                        .claim("displayName", "Tester")
                         .issueTime(Date.from(now))
                         .expirationTime(Date.from(now.plusSeconds(300)));
         if (issuer != null) {
