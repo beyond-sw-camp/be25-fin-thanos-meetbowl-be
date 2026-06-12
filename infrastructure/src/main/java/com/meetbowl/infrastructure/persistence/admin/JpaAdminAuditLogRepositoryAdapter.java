@@ -109,6 +109,8 @@ public class JpaAdminAuditLogRepositoryAdapter implements AdminAuditLogRepositor
             jakarta.persistence.criteria.CriteriaBuilder builder) {
         String actionType = condition.actionType();
         String targetType = condition.targetType();
+        // USER_UPDATE처럼 targetType prefix가 붙은 actionType은 같은 targetType 안에서만 찾는다.
+        // actionName=UPDATE만 조건으로 걸면 TEAM_UPDATE 같은 다른 대상 로그가 섞일 수 있다.
         if (targetType != null && actionType.startsWith(targetType + "_")) {
             String strippedActionName = actionType.substring(targetType.length() + 1);
             return builder.or(

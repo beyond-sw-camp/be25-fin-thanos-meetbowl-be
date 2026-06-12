@@ -66,6 +66,8 @@ public class AdminAuditLogController extends BaseController {
                         adminAuditLogQueryUseCase.search(
                                 new AdminAuditLogSearchCommand(
                                         actorUserId,
+                                        // 기존 요청 호환을 위해 actorLoginId를 받지만, 실제 저장 값은 표시
+                                        // 이름(actorName)이다.
                                         actorName != null ? actorName : actorLoginId,
                                         actionType,
                                         targetType,

@@ -111,6 +111,7 @@ public class ResetUserPasswordUseCase {
 
     private String passwordResetSnapshot() {
         try {
+            // 감사 로그에는 임시 비밀번호나 해시를 남기지 않고, 초기 비밀번호 변경 필요 여부만 기록한다.
             return objectMapper.writeValueAsString(new PasswordResetAuditSnapshot(true));
         } catch (JsonProcessingException exception) {
             throw new BusinessException(
