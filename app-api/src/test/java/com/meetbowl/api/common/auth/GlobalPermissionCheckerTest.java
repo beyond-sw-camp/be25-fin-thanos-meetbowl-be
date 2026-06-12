@@ -33,8 +33,8 @@ class GlobalPermissionCheckerTest {
     }
 
     @Test
-    void requireUserOrAdminRejectsGuest() {
-        AuthenticatedUser guest = user(AuthenticatedUserRole.GUEST);
+    void requireUserOrAdminRejectsSystem() {
+        AuthenticatedUser guest = user(AuthenticatedUserRole.SYSTEM);
 
         BusinessException exception =
                 assertThrows(
