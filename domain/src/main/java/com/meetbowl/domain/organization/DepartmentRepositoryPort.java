@@ -11,5 +11,11 @@ public interface DepartmentRepositoryPort {
 
     Optional<Department> findById(UUID departmentId);
 
+    List<Department> findAll();
+
     List<Department> findAllByIds(Collection<UUID> departmentIds);
+
+    boolean existsByAffiliateIdAndName(UUID affiliateId, String name);
+
+    boolean existsByAffiliateIdAndNameAndIdNot(UUID affiliateId, String name, UUID departmentId);
 }

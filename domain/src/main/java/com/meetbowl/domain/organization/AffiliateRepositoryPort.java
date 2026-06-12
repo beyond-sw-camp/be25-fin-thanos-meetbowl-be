@@ -11,5 +11,15 @@ public interface AffiliateRepositoryPort {
 
     Optional<Affiliate> findById(UUID organizationId);
 
+    List<Affiliate> findAll();
+
     List<Affiliate> findAllByIds(Collection<UUID> organizationIds);
+
+    boolean existsByName(String name);
+
+    boolean existsByCode(String code);
+
+    boolean existsByNameAndIdNot(String name, UUID affiliateId);
+
+    boolean existsByCodeAndIdNot(String code, UUID affiliateId);
 }

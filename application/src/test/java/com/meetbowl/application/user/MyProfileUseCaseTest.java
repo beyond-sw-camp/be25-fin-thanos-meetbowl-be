@@ -229,6 +229,41 @@ class MyProfileUseCaseTest {
         public List<Affiliate> findAllByIds(Collection<UUID> affiliateIds) {
             return affiliateIds.stream().map(affiliates::get).toList();
         }
+
+        @Override
+        public List<Affiliate> findAll() {
+            return List.copyOf(affiliates.values());
+        }
+
+        @Override
+        public boolean existsByName(String name) {
+            return affiliates.values().stream()
+                    .anyMatch(affiliate -> affiliate.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByCode(String code) {
+            return affiliates.values().stream()
+                    .anyMatch(affiliate -> affiliate.code().equalsIgnoreCase(code));
+        }
+
+        @Override
+        public boolean existsByNameAndIdNot(String name, UUID affiliateId) {
+            return affiliates.values().stream()
+                    .anyMatch(
+                            affiliate ->
+                                    !affiliate.id().equals(affiliateId)
+                                            && affiliate.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByCodeAndIdNot(String code, UUID affiliateId) {
+            return affiliates.values().stream()
+                    .anyMatch(
+                            affiliate ->
+                                    !affiliate.id().equals(affiliateId)
+                                            && affiliate.code().equalsIgnoreCase(code));
+        }
     }
 
     private static final class FakeDepartmentRepository implements DepartmentRepositoryPort {
@@ -248,6 +283,31 @@ class MyProfileUseCaseTest {
         @Override
         public List<Department> findAllByIds(Collection<UUID> departmentIds) {
             return departmentIds.stream().map(departments::get).toList();
+        }
+
+        @Override
+        public List<Department> findAll() {
+            return List.copyOf(departments.values());
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
+            return departments.values().stream()
+                    .anyMatch(
+                            department ->
+                                    department.affiliateId().equals(affiliateId)
+                                            && department.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID departmentId) {
+            return departments.values().stream()
+                    .anyMatch(
+                            department ->
+                                    !department.id().equals(departmentId)
+                                            && department.affiliateId().equals(affiliateId)
+                                            && department.name().equalsIgnoreCase(name));
         }
     }
 
@@ -269,6 +329,31 @@ class MyProfileUseCaseTest {
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).toList();
         }
+
+        @Override
+        public List<Team> findAll() {
+            return List.copyOf(teams.values());
+        }
+
+        @Override
+        public boolean existsByDepartmentIdAndName(UUID departmentId, String name) {
+            return teams.values().stream()
+                    .anyMatch(
+                            team ->
+                                    team.departmentId().equals(departmentId)
+                                            && team.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByDepartmentIdAndNameAndIdNot(
+                UUID departmentId, String name, UUID teamId) {
+            return teams.values().stream()
+                    .anyMatch(
+                            team ->
+                                    !team.id().equals(teamId)
+                                            && team.departmentId().equals(departmentId)
+                                            && team.name().equalsIgnoreCase(name));
+        }
     }
 
     private static final class FakePositionRepository implements PositionRepositoryPort {
@@ -288,6 +373,41 @@ class MyProfileUseCaseTest {
         @Override
         public List<Position> findAllByIds(Collection<UUID> positionIds) {
             return positionIds.stream().map(positions::get).toList();
+        }
+
+        @Override
+        public List<Position> findAll() {
+            return List.copyOf(positions.values());
+        }
+
+        @Override
+        public boolean existsByName(String name) {
+            return positions.values().stream()
+                    .anyMatch(position -> position.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByCode(String code) {
+            return positions.values().stream()
+                    .anyMatch(position -> position.code().equalsIgnoreCase(code));
+        }
+
+        @Override
+        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+            return positions.values().stream()
+                    .anyMatch(
+                            position ->
+                                    !position.id().equals(positionId)
+                                            && position.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByCodeAndIdNot(String code, UUID positionId) {
+            return positions.values().stream()
+                    .anyMatch(
+                            position ->
+                                    !position.id().equals(positionId)
+                                            && position.code().equalsIgnoreCase(code));
         }
     }
 }

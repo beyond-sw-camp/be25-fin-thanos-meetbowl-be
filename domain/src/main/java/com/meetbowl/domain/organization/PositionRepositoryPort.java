@@ -11,5 +11,15 @@ public interface PositionRepositoryPort {
 
     Optional<Position> findById(UUID positionId);
 
+    List<Position> findAll();
+
     List<Position> findAllByIds(Collection<UUID> positionIds);
+
+    boolean existsByName(String name);
+
+    boolean existsByCode(String code);
+
+    boolean existsByNameAndIdNot(String name, UUID positionId);
+
+    boolean existsByCodeAndIdNot(String code, UUID positionId);
 }

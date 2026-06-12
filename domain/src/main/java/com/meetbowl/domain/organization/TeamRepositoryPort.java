@@ -11,5 +11,11 @@ public interface TeamRepositoryPort {
 
     Optional<Team> findById(UUID teamId);
 
+    List<Team> findAll();
+
     List<Team> findAllByIds(Collection<UUID> teamIds);
+
+    boolean existsByDepartmentIdAndName(UUID departmentId, String name);
+
+    boolean existsByDepartmentIdAndNameAndIdNot(UUID departmentId, String name, UUID teamId);
 }
