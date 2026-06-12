@@ -6,6 +6,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 파일의 한 버전 이력 항목 애그리거트다.
+ *
+ * <p>각 버전은 의미적 버전(DocumentVersion)과 업로더, 그 시점의 파일 메타데이터·변경 메모를 보존한다. 새 버전이 올라와도 이전 버전 항목을 지우지 않아 변경
+ * 이력이 남는다.
+ */
 public class SharedWorkspaceFileVersion {
 
     private static final int MAX_FILE_NAME_LENGTH = 255;

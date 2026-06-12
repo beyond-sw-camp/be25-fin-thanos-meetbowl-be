@@ -6,6 +6,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 개인 드라이브 파일 메타데이터 애그리거트다.
+ *
+ * <p>파일 원본은 Object Storage에 저장하고 여기서는 파일명·크기·Content-Type과 저장 경로(storageKey)만 다룬다. 삭제는 행을 지우지 않고 삭제
+ * 시각을 남기는 soft delete로 처리한다.
+ */
 public class PersonalWorkspaceDriveFile {
 
     private static final int MAX_FILE_NAME_LENGTH = 255;

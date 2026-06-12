@@ -116,6 +116,45 @@ public class Mail {
                 List.of());
     }
 
+    /**
+     * 시스템 내부 발송용 초안을 미리 정해진 식별자로 생성한다.
+     *
+     * <p>내부 발송은 요청 즉시 호출자에게 메일 ID를 돌려주고, 발송 성공/실패 이벤트(`mail.sent`/`mail.failed`)에도 같은 ID를 실어야 한다.
+     * 그래서 영속 계층이 ID를 채우기 전에 발급된 ID로 애그리거트를 만든다. 유형은 사용자 발송(NORMAL)·공지(ANNOUNCEMENT)와 구분되는 {@link
+     * MailType#SYSTEM}으로 고정한다.
+     */
+    public static Mail createSystemDraft(
+            UUID id,
+            UUID organizationId,
+            UUID senderUserId,
+            List<UUID> recipientUserIds,
+            String subject,
+            String body,
+            MailBodyType bodyType,
+            RelatedResourceType relatedResourceType,
+            UUID relatedResourceId,
+            UUID idempotencyKey) {
+        return new Mail(
+                requireNonNull(id, "시스템 메일 ID는 필수입니다."),
+                organizationId,
+                senderUserId,
+                recipientUserIds,
+                subject,
+                body,
+                MailType.SYSTEM,
+                bodyType,
+                relatedResourceType,
+                relatedResourceId,
+                idempotencyKey,
+                MailDeliveryStatus.DRAFT,
+                null,
+                null,
+                null,
+                null,
+                0,
+                List.of());
+    }
+
     public static Mail of(
             UUID id,
             UUID organizationId,

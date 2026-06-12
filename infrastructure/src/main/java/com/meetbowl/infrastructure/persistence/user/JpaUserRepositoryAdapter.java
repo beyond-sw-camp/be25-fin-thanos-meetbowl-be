@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.user;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,5 +59,9 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
         return new Paged<>(
                 result.getContent().stream().map(UserEntity::toDomain).toList(),
                 result.getTotalElements());
+    public List<User> findAllByAffiliateId(UUID affiliateId) {
+        return springDataUserRepository.findByAffiliateId(affiliateId).stream()
+                .map(UserEntity::toDomain)
+                .toList();
     }
 }

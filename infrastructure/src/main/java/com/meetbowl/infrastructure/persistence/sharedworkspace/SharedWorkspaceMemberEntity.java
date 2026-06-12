@@ -16,6 +16,10 @@ import com.meetbowl.domain.sharedworkspace.SharedWorkspaceMemberRole;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceMemberStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link SharedWorkspaceMember} 멤버십을 저장하는 영속 엔티티다. (워크스페이스, 사용자) 유니크 제약으로 한 사용자의 중복 멤버 행을 막아 재초대를
+ * 재활성화로 처리한다.
+ */
 @Entity
 @Table(
         name = "shared_workspace_members",

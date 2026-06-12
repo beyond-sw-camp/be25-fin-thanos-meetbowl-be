@@ -5,6 +5,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 워크스페이스 애그리거트들이 공통으로 쓰는 입력 검증 헬퍼다.
+ *
+ * <p>필수/선택 텍스트 길이와 식별자 존재 검증을 한곳에 모아, 워크스페이스·파일·버전이 같은 규칙을 제각각 구현해 어긋나는 것을 막는다. 선택값은 빈 문자열을 null로
+ * 정규화해 "값 없음"을 일관되게 다룬다.
+ */
 final class SharedWorkspaceValidators {
 
     private SharedWorkspaceValidators() {}

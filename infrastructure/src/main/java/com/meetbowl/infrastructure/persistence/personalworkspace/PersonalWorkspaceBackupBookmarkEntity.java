@@ -11,6 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackupBookmark;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/** {@link PersonalWorkspaceBackupBookmark}를 저장하는 영속 엔티티다. (소유자, 백업) 유니크 제약으로 같은 백업의 중복 북마크를 막는다. */
 @Entity
 @Table(
         name = "personal_workspace_backup_bookmarks",

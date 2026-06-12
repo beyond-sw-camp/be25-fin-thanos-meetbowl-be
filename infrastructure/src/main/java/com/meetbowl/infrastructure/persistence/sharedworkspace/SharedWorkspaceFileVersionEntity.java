@@ -13,6 +13,10 @@ import com.meetbowl.domain.sharedworkspace.DocumentVersion;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileVersion;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link SharedWorkspaceFileVersion} 이력을 저장하는 영속 엔티티다. (파일, major.minor.patch) 유니크 제약으로 같은 버전 중복
+ * 등록을 막는다.
+ */
 @Entity
 @Table(
         name = "shared_workspace_file_versions",
