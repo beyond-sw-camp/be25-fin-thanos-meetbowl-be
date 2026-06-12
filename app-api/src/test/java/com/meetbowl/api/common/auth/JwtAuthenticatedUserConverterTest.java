@@ -3,6 +3,7 @@ package com.meetbowl.api.common.auth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -29,7 +30,7 @@ class JwtAuthenticatedUserConverterTest {
     void convertsJwtClaimsToAuthenticatedUserDetails() {
         UUID userId = UUID.randomUUID();
         UUID organizationId = UUID.randomUUID();
-        given(validationService.isRevoked("token-id")).willReturn(false);
+        given(validationService.isRevoked(any(), any(), any())).willReturn(false);
         Jwt jwt =
                 jwtBuilder(userId)
                         .claim("organizationId", organizationId.toString())
@@ -58,8 +59,22 @@ class JwtAuthenticatedUserConverterTest {
 
     @Test
     void revokedAccessTokenFailsJwtAuthentication() {
-        given(validationService.isRevoked("token-id")).willReturn(true);
+        given(validationService.isRevoked(any(), any(), any())).willReturn(true);
         Jwt jwt = jwtBuilder(UUID.randomUUID()).claim("role", "USER").build();
+
+        assertThrows(BadJwtException.class, () -> converter.convert(jwt));
+    }
+
+    @Test
+    void tokenWithoutIssuedAtFailsJwtAuthentication() {
+        Jwt jwt =
+                Jwt.withTokenValue("token")
+                        .headers(headers -> headers.putAll(Map.of("alg", "HS256")))
+                        .expiresAt(Instant.now().plusSeconds(300))
+                        .claim("jti", "token-id")
+                        .claim("role", "USER")
+                        .subject(UUID.randomUUID().toString())
+                        .build();
 
         assertThrows(BadJwtException.class, () -> converter.convert(jwt));
     }

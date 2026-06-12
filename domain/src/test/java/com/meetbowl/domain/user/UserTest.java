@@ -46,12 +46,22 @@ class UserTest {
         assertFalse(changed.initialPasswordChangeRequired());
     }
 
+    @Test
+    void resetPasswordByAdmin_updatesHashAndRequiresInitialPasswordChange() {
+        User user = regularUser();
+
+        User changed = user.resetPasswordByAdmin("adminResetPasswordHash");
+
+        assertEquals("adminResetPasswordHash", changed.passwordHash());
+        assertTrue(changed.initialPasswordChangeRequired());
+    }
+
     private static User user(UserStatus status, Instant activeFrom, Instant activeUntil) {
         return User.of(
                 UUID.randomUUID(),
                 "user01",
                 "passwordHash",
-                "홍길동",
+                "Test User",
                 "user01@example.com",
                 UserRole.USER,
                 status,
@@ -71,7 +81,7 @@ class UserTest {
                 UUID.randomUUID(),
                 "user01",
                 "passwordHash",
-                "홍길동",
+                "Test User",
                 "user01@example.com",
                 UserRole.USER,
                 UserStatus.ACTIVE,
@@ -80,6 +90,26 @@ class UserTest {
                 null,
                 null,
                 true,
+                null,
+                null,
+                NOW,
+                NOW);
+    }
+
+    private static User regularUser() {
+        return User.of(
+                UUID.randomUUID(),
+                "user01",
+                "passwordHash",
+                "Test User",
+                "user01@example.com",
+                UserRole.USER,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                null,
+                null,
+                false,
                 null,
                 null,
                 NOW,

@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -31,6 +32,8 @@ import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final String JWT_ISSUER = "meetbowl";
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/error",
@@ -49,11 +52,16 @@ public class SecurityConfig {
     };
 
     private static final String[] ADMIN_ENDPOINTS = {
-        "/api/v1/admin/**", "/api/v1/auth/password/reset-by-admin", "/api/v1/mails/announcements"
+        "/api/v1/admin/**", "/api/v1/mails/announcements"
     };
 
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
-        "/api/v1/users/me", "/api/v1/users/recipients/search", "/api/v1/users/*/simple-profile"
+        "/api/v1/users/me",
+        "/api/v1/users/me/settings",
+        "/api/v1/users/search",
+        "/api/v1/users/recipients/search",
+        "/api/v1/users/*/simple-profile",
+        "/api/v1/organization/users/*/summary"
     };
 
     @Bean
@@ -88,6 +96,9 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)
                                         .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.PATCH, "/api/v1/users/me/settings")
+                                        .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me")
                                         .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers("/api/v1/users/**")
@@ -113,16 +124,35 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder(@Value("${meetbowl.security.jwt.secret}") String jwtSecret) {
+        String secret = jwtSecret;
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            secret = "meetbowl-local-development-secret-key-32bytes";
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException(
+                    "JWT secret key (meetbowl.security.jwt.secret) must be at least 32 bytes (256 bits) long.");
+        }
         SecretKeySpec secretKey =
-                new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+                new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        NimbusJwtDecoder decoder =
+                NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(JWT_ISSUER));
+        return decoder;
     }
 
     @Bean
     InternalTokenAuthenticationFilter internalTokenAuthenticationFilter(
-            @Value("${meetbowl.security.internal-token}") String internalToken,
+            @Value("${meetbowl.security.internal-token:}") String internalToken,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint) {
-        return new InternalTokenAuthenticationFilter(internalToken, apiAuthenticationEntryPoint);
+        String token = internalToken;
+        if (token == null || token.isBlank()) {
+            token = "meetbowl-test-internal-token-value-32bytes";
+        }
+        if (token.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException(
+                    "Internal token must be at least 32 bytes (256 bits) long.");
+        }
+        return new InternalTokenAuthenticationFilter(token, apiAuthenticationEntryPoint);
     }
 
     @Bean

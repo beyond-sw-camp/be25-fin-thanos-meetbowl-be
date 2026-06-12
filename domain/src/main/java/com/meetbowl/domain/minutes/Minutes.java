@@ -17,7 +17,6 @@ public class Minutes {
     private final String summary;
     private final String model;
     private final String promptVersion;
-    private final UUID approvedByUserId;
     private final Instant approvedAt;
     private final Instant sharedAt;
     private final Instant deletionScheduledAt;
@@ -31,7 +30,6 @@ public class Minutes {
             String summary,
             String model,
             String promptVersion,
-            UUID approvedByUserId,
             Instant approvedAt,
             Instant sharedAt,
             Instant deletionScheduledAt) {
@@ -50,7 +48,6 @@ public class Minutes {
         this.summary = summary;
         this.model = model == null ? "" : model;
         this.promptVersion = promptVersion == null ? "" : promptVersion;
-        this.approvedByUserId = approvedByUserId;
         this.approvedAt = approvedAt;
         this.sharedAt = sharedAt;
         this.deletionScheduledAt = deletionScheduledAt;
@@ -75,7 +72,6 @@ public class Minutes {
                 promptVersion,
                 null,
                 null,
-                null,
                 null);
     }
 
@@ -89,7 +85,6 @@ public class Minutes {
             String summary,
             String model,
             String promptVersion,
-            UUID approvedByUserId,
             Instant approvedAt,
             Instant sharedAt,
             Instant deletionScheduledAt) {
@@ -102,7 +97,6 @@ public class Minutes {
                 summary,
                 model,
                 promptVersion,
-                approvedByUserId,
                 approvedAt,
                 sharedAt,
                 deletionScheduledAt);
@@ -110,14 +104,14 @@ public class Minutes {
 
     public Minutes requestReview() {
         ensureNotApproved();
-        return withStatus(
-                MinutesStatus.IN_REVIEW,
-                approvedByUserId,
-                approvedAt,
-                sharedAt,
-                deletionScheduledAt);
+        return withStatus(MinutesStatus.IN_REVIEW, approvedAt, sharedAt, deletionScheduledAt);
     }
 
+    /**
+     * 지정 검토자가 내용을 수정하면 검토 작업이 시작된 것으로 보고 IN_REVIEW로 전환한다.
+     *
+     * <p>수정과 상태 전이를 분리하지 않아 DRAFT 상태에 검토자 수정본이 남는 불완전한 상태를 허용하지 않는다.
+     */
     public Minutes revise(String revisedSummary, UUID reviewerUserId) {
         ensureReviewer(reviewerUserId);
         ensureNotApproved();
@@ -130,7 +124,6 @@ public class Minutes {
                 revisedSummary,
                 model,
                 promptVersion,
-                approvedByUserId,
                 approvedAt,
                 sharedAt,
                 deletionScheduledAt);
@@ -139,21 +132,23 @@ public class Minutes {
     public Minutes approve(UUID reviewerUserId, Instant approvedAt) {
         ensureReviewer(reviewerUserId);
         ensureNotApproved();
+
+        // 현재 계약에는 대리 승인자가 없으므로 reviewerUserId가 승인 수행자 역할도 함께 담당한다.
+        // 별도 approvedByUserId를 저장하지 않고 승인 사실과 시각만 상태에 반영한다.
         return withStatus(
                 MinutesStatus.APPROVED,
-                reviewerUserId,
                 requireInstant(approvedAt, "회의록 승인 시각은 필수입니다."),
                 sharedAt,
                 deletionScheduledAt);
     }
 
     public Minutes markShared(Instant sharedAt) {
+        // 공유는 승인 이후의 후속 처리이므로 검토 중 상태에서는 직접 진입할 수 없다.
         if (status != MinutesStatus.APPROVED && status != MinutesStatus.SHARED) {
             throw new BusinessException(ErrorCode.MINUTES_REVIEW_REQUIRED, "승인 전 회의록은 공유할 수 없습니다.");
         }
         return withStatus(
                 MinutesStatus.SHARED,
-                approvedByUserId,
                 approvedAt,
                 requireInstant(sharedAt, "회의록 공유 시각은 필수입니다."),
                 deletionScheduledAt);
@@ -162,7 +157,6 @@ public class Minutes {
     public Minutes scheduleDeletion(Instant deletionScheduledAt) {
         return withStatus(
                 MinutesStatus.DELETION_SCHEDULED,
-                approvedByUserId,
                 approvedAt,
                 sharedAt,
                 requireInstant(deletionScheduledAt, "회의록 삭제 예정 시각은 필수입니다."));
@@ -170,7 +164,6 @@ public class Minutes {
 
     private Minutes withStatus(
             MinutesStatus nextStatus,
-            UUID nextApprovedByUserId,
             Instant nextApprovedAt,
             Instant nextSharedAt,
             Instant nextDeletionScheduledAt) {
@@ -183,7 +176,6 @@ public class Minutes {
                 summary,
                 model,
                 promptVersion,
-                nextApprovedByUserId,
                 nextApprovedAt,
                 nextSharedAt,
                 nextDeletionScheduledAt);
@@ -255,10 +247,6 @@ public class Minutes {
 
     public String promptVersion() {
         return promptVersion;
-    }
-
-    public UUID approvedByUserId() {
-        return approvedByUserId;
     }
 
     public Instant approvedAt() {

@@ -1,7 +1,5 @@
 package com.meetbowl.api.auth;
 
-import java.util.Objects;
-
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +13,7 @@ import com.meetbowl.api.auth.dto.LoginResponse;
 import com.meetbowl.api.auth.dto.LogoutRequest;
 import com.meetbowl.api.auth.dto.RefreshTokenRequest;
 import com.meetbowl.api.auth.dto.TokenResponse;
+import com.meetbowl.api.common.ApiHeaders;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
@@ -30,6 +29,9 @@ import com.meetbowl.application.auth.LogoutUseCase;
 import com.meetbowl.application.auth.RefreshTokenCommand;
 import com.meetbowl.application.auth.RefreshTokenUseCase;
 import com.meetbowl.common.response.ApiResponse;
+
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/auth")
@@ -53,6 +55,7 @@ public class AuthController extends BaseController {
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        // 로그인 응답에는 초기 비밀번호 변경 필요 여부를 함께 내려준다.
         LoginResult result =
                 loginUseCase.execute(new LoginCommand(request.loginId(), request.password()));
 
@@ -68,8 +71,8 @@ public class AuthController extends BaseController {
                                 result.user().loginId(),
                                 result.user().name(),
                                 result.user().email(),
-                                Objects.toString(result.user().role(), null),
-                                Objects.toString(result.user().status(), null),
+                                result.user().role(),
+                                result.user().status(),
                                 result.user().affiliate(),
                                 result.user().department(),
                                 result.user().team(),
@@ -85,8 +88,10 @@ public class AuthController extends BaseController {
     }
 
     @PostMapping("/logout")
+    @SecurityRequirement(name = ApiHeaders.AUTHORIZATION)
     public ApiResponse<Void> logout(
-            @CurrentUser AuthenticatedUser currentUser, @Valid @RequestBody LogoutRequest request) {
+            @Parameter(hidden = true) @CurrentUser AuthenticatedUser currentUser,
+            @Valid @RequestBody LogoutRequest request) {
         logoutUseCase.execute(
                 new LogoutCommand(
                         currentUser.userId(),
@@ -97,9 +102,11 @@ public class AuthController extends BaseController {
     }
 
     @PostMapping("/password/change-initial")
+    @SecurityRequirement(name = ApiHeaders.AUTHORIZATION)
     public ApiResponse<TokenResponse> changeInitialPassword(
-            @CurrentUser AuthenticatedUser currentUser,
+            @Parameter(hidden = true) @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody ChangeInitialPasswordRequest request) {
+        // 이 엔드포인트는 제한 로그인 흐름을 끝내고 정상 토큰을 발급한다.
         IssuedTokens tokens =
                 changeInitialPasswordUseCase.execute(
                         new ChangeInitialPasswordCommand(

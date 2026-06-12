@@ -28,11 +28,26 @@ public enum ErrorCode {
             "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
 
     // Minutes
+    MINUTES_NOT_FOUND("MINUTES_NOT_FOUND", "회의록을 찾을 수 없습니다.", 404),
     MINUTES_REVIEW_REQUIRED("MINUTES_REVIEW_REQUIRED", "회의록 검토자 승인이 필요합니다.", 409),
     MINUTES_ALREADY_APPROVED("MINUTES_ALREADY_APPROVED", "이미 승인된 회의록입니다.", 409),
 
     // Mail
+    MAIL_NOT_FOUND("MAIL_NOT_FOUND", "메일을 찾을 수 없습니다.", 404),
     MAIL_FORBIDDEN_ACCESS("MAIL_FORBIDDEN_ACCESS", "메일 접근 권한이 없습니다.", 403),
+    MAIL_IDEMPOTENCY_CONFLICT("MAIL_IDEMPOTENCY_CONFLICT", "동일한 멱등성 키로 다른 메일을 요청할 수 없습니다.", 409),
+    MAIL_SEND_FAILED("MAIL_SEND_FAILED", "내부 메일 발송에 실패했습니다.", 500),
+
+    // Shared Workspace
+    SHARED_WORKSPACE_NOT_FOUND("SHARED_WORKSPACE_NOT_FOUND", "공유 워크스페이스를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_FORBIDDEN("SHARED_WORKSPACE_FORBIDDEN", "공유 워크스페이스 접근 권한이 없습니다.", 403),
+    SHARED_WORKSPACE_MEMBER_NOT_FOUND(
+            "SHARED_WORKSPACE_MEMBER_NOT_FOUND", "공유 워크스페이스 멤버를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_MEMBER_RESIGNED(
+            "SHARED_WORKSPACE_MEMBER_RESIGNED", "퇴사한 사용자는 공유 워크스페이스에 초대할 수 없습니다.", 409),
+    SHARED_WORKSPACE_FILE_NOT_FOUND("SHARED_WORKSPACE_FILE_NOT_FOUND", "공유 자료를 찾을 수 없습니다.", 404),
+    SHARED_WORKSPACE_FILE_VERSION_NOT_FOUND(
+            "SHARED_WORKSPACE_FILE_VERSION_NOT_FOUND", "공유 자료 버전을 찾을 수 없습니다.", 404),
 
     // File
     FILE_INVALID_EXTENSION("FILE_INVALID_EXTENSION", "허용되지 않는 파일 형식입니다.", 415),
@@ -41,6 +56,7 @@ public enum ErrorCode {
     // AI/STT integration
     AI_RAG_ACCESS_DENIED("AI_RAG_ACCESS_DENIED", "AI 자료 접근 권한이 없습니다.", 403),
     AI_RESPONSE_VALIDATION_FAILED("AI_RESPONSE_VALIDATION_FAILED", "AI 응답 값이 올바르지 않습니다.", 502),
+    AI_PROVIDER_UNAVAILABLE("AI_PROVIDER_UNAVAILABLE", "AI 서버를 사용할 수 없습니다.", 503),
 
     STT_SESSION_NOT_FOUND("STT_SESSION_NOT_FOUND", "STT 세션을 찾을 수 없습니다.", 404),
     STT_PROVIDER_UNAVAILABLE("STT_PROVIDER_UNAVAILABLE", "STT Provider를 사용할 수 없습니다.", 503),

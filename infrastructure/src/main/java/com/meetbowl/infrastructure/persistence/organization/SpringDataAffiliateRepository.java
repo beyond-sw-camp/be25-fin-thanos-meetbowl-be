@@ -4,4 +4,13 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface SpringDataAffiliateRepository extends JpaRepository<AffiliateEntity, UUID> {}
+public interface SpringDataAffiliateRepository extends JpaRepository<AffiliateEntity, UUID> {
+
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByCodeIgnoreCase(String code);
+
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
+
+    boolean existsByCodeIgnoreCaseAndIdNot(String code, UUID id);
+}

@@ -1,6 +1,9 @@
 package com.meetbowl.api.sampletask;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,11 +12,10 @@ import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
@@ -34,18 +36,16 @@ import com.meetbowl.application.sampletask.SampleTaskResult;
 @ActiveProfiles("sample")
 @WebMvcTest(controllers = SampleTaskController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import({
-    CurrentUserArgumentResolver.class,
-    GlobalExceptionHandler.class,
-    SampleTaskControllerTest.TestUseCaseConfig.class,
-    WebMvcConfig.class
-})
+@Import({CurrentUserArgumentResolver.class, GlobalExceptionHandler.class, WebMvcConfig.class})
 class SampleTaskControllerTest {
+
+    private static final UUID SAMPLE_TASK_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final Instant CREATED_AT = Instant.parse("2099-01-01T01:00:00Z");
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
-
-    @Autowired private CreateSampleTaskUseCase createSampleTaskUseCase;
+    @MockitoBean private CreateSampleTaskUseCase createSampleTaskUseCase;
 
     @Test
     void createSampleTask() throws Exception {
@@ -53,7 +53,12 @@ class SampleTaskControllerTest {
         UUID organizationId = UUID.randomUUID();
         AuthenticatedUser authenticatedUser =
                 new AuthenticatedUser(
-                        ownerUserId, organizationId, AuthenticatedUserRole.USER, "홍길동");
+                        ownerUserId, organizationId, AuthenticatedUserRole.USER, "Hong Gil Dong");
+
+        given(createSampleTaskUseCase.execute(any()))
+                .willReturn(
+                        new SampleTaskResult(
+                                SAMPLE_TASK_ID, ownerUserId, "Sample Task", CREATED_AT));
 
         mockMvc.perform(
                         post("/api/v1/sample-tasks")
@@ -63,50 +68,20 @@ class SampleTaskControllerTest {
                                 .content(
                                         """
                                 {
-                                  "title": "샘플 작업"
+                                  "title": "Sample Task"
                                 }
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(
-                        jsonPath("$.data.sampleTaskId")
-                                .value(TestCreateSampleTaskUseCase.SAMPLE_TASK_ID.toString()))
+                .andExpect(jsonPath("$.data.sampleTaskId").value(SAMPLE_TASK_ID.toString()))
                 .andExpect(jsonPath("$.data.ownerUserId").value(ownerUserId.toString()))
-                .andExpect(jsonPath("$.data.title").value("샘플 작업"))
+                .andExpect(jsonPath("$.data.title").value("Sample Task"))
                 .andExpect(jsonPath("$.data.createdAt").value("2099-01-01T01:00:00Z"));
 
-        CreateSampleTaskCommand command =
-                ((TestCreateSampleTaskUseCase) createSampleTaskUseCase).lastCommand;
-        assertEquals(ownerUserId, command.ownerUserId());
-        assertEquals("샘플 작업", command.title());
-    }
-
-    @TestConfiguration
-    static class TestUseCaseConfig {
-
-        @Bean
-        CreateSampleTaskUseCase createSampleTaskUseCase() {
-            return new TestCreateSampleTaskUseCase();
-        }
-    }
-
-    private static class TestCreateSampleTaskUseCase extends CreateSampleTaskUseCase {
-
-        private static final UUID SAMPLE_TASK_ID =
-                UUID.fromString("00000000-0000-0000-0000-000000000001");
-        private static final Instant CREATED_AT = Instant.parse("2099-01-01T01:00:00Z");
-
-        private CreateSampleTaskCommand lastCommand;
-
-        TestCreateSampleTaskUseCase() {
-            super(sampleTask -> sampleTask);
-        }
-
-        @Override
-        public SampleTaskResult execute(CreateSampleTaskCommand command) {
-            this.lastCommand = command;
-            return new SampleTaskResult(
-                    SAMPLE_TASK_ID, command.ownerUserId(), command.title(), CREATED_AT);
-        }
+        ArgumentCaptor<CreateSampleTaskCommand> commandCaptor =
+                ArgumentCaptor.forClass(CreateSampleTaskCommand.class);
+        verify(createSampleTaskUseCase).execute(commandCaptor.capture());
+        assertEquals(ownerUserId, commandCaptor.getValue().ownerUserId());
+        assertEquals("Sample Task", commandCaptor.getValue().title());
     }
 }
