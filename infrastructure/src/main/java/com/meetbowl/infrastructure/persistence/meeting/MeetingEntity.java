@@ -23,7 +23,8 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
         name = "meeting",
         indexes = {
             @Index(name = "idx_meeting_host", columnList = "host_user_id"),
-            @Index(name = "idx_meeting_room", columnList = "meeting_room_id")
+            // 회의실 시간대 겹침 조회(중복 예약 검사)용 복합 인덱스. 회의실 + 예정 시작 시각 범위로 스캔한다.
+            @Index(name = "idx_meeting_room_scheduled", columnList = "meeting_room_id, scheduled_at")
         })
 public class MeetingEntity extends BaseEntity {
 
@@ -31,9 +32,13 @@ public class MeetingEntity extends BaseEntity {
     @Column(nullable = false, length = 200)
     private String title;
 
-    /** 예정 시각(UTC). */
+    /** 예정 시작 시각(UTC). */
     @Column(nullable = false)
     private Instant scheduledAt;
+
+    /** 예정 종료 시각(UTC). 회의실 시간대 겹침 판정의 종료 경계. */
+    @Column(nullable = false)
+    private Instant scheduledEndAt;
 
     /** 주최자(FK). */
     @Column(nullable = false, columnDefinition = "BINARY(16)")
@@ -62,20 +67,27 @@ public class MeetingEntity extends BaseEntity {
     /** 실제 종료 시각(UTC, nullable). */
     @Column private Instant endedAt;
 
+    /** 회의 내용/안건(nullable). 길어질 수 있어 TEXT로 저장한다. */
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     protected MeetingEntity() {}
 
     private MeetingEntity(
             String title,
             Instant scheduledAt,
+            Instant scheduledEndAt,
             UUID hostUserId,
             UUID meetingRoomId,
             String provider,
             String providerRoomId,
             MeetingStatus status,
             Instant startedAt,
-            Instant endedAt) {
+            Instant endedAt,
+            String description) {
         this.title = title;
         this.scheduledAt = scheduledAt;
+        this.scheduledEndAt = scheduledEndAt;
         this.hostUserId = hostUserId;
         this.meetingRoomId = meetingRoomId;
         this.provider = provider;
@@ -83,6 +95,7 @@ public class MeetingEntity extends BaseEntity {
         this.status = status;
         this.startedAt = startedAt;
         this.endedAt = endedAt;
+        this.description = description;
     }
 
     static MeetingEntity from(Meeting meeting) {
@@ -90,13 +103,15 @@ public class MeetingEntity extends BaseEntity {
                 new MeetingEntity(
                         meeting.title(),
                         meeting.scheduledAt(),
+                        meeting.scheduledEndAt(),
                         meeting.hostUserId(),
                         meeting.meetingRoomId(),
                         meeting.provider(),
                         meeting.providerRoomId(),
                         meeting.status(),
                         meeting.startedAt(),
-                        meeting.endedAt());
+                        meeting.endedAt(),
+                        meeting.description());
         entity.setId(meeting.id());
         return entity;
     }
@@ -106,12 +121,14 @@ public class MeetingEntity extends BaseEntity {
                 getId(),
                 title,
                 scheduledAt,
+                scheduledEndAt,
                 hostUserId,
                 meetingRoomId,
                 provider,
                 providerRoomId,
                 status,
                 startedAt,
-                endedAt);
+                endedAt,
+                description);
     }
 }
