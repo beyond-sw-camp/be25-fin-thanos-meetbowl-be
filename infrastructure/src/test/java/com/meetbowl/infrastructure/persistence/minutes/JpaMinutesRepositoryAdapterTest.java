@@ -49,6 +49,7 @@ class JpaMinutesRepositoryAdapterTest {
         assertThat(found.id()).isEqualTo(saved.id());
         assertThat(found.meetingId()).isEqualTo(meetingId);
         assertThat(found.status()).isEqualTo(MinutesStatus.DRAFT);
+        assertThat(found.content()).isEqualTo("회의록 본문");
     }
 
     @Test
@@ -84,6 +85,7 @@ class JpaMinutesRepositoryAdapterTest {
                 UUID.randomUUID(),
                 reviewerUserId,
                 "회의 요약",
+                "회의록 본문",
                 "llm-model-name",
                 "minutes-v1");
     }

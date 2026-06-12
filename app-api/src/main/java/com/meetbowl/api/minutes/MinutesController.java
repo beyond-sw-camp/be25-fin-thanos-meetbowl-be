@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import jakarta.validation.Valid;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,7 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.application.minutes.ApproveMinutesCommand;
 import com.meetbowl.application.minutes.ApproveMinutesUseCase;
+import com.meetbowl.application.minutes.GetMinutesUseCase;
 import com.meetbowl.application.minutes.ReviseMinutesCommand;
 import com.meetbowl.application.minutes.ReviseMinutesUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -26,14 +28,23 @@ import com.meetbowl.common.response.ApiResponse;
 @RequestMapping(ApiPaths.API_V1 + "/meetings/{meetingId}/minutes")
 public class MinutesController extends BaseController {
 
+    private final GetMinutesUseCase getMinutesUseCase;
     private final ReviseMinutesUseCase reviseMinutesUseCase;
     private final ApproveMinutesUseCase approveMinutesUseCase;
 
     public MinutesController(
+            GetMinutesUseCase getMinutesUseCase,
             ReviseMinutesUseCase reviseMinutesUseCase,
             ApproveMinutesUseCase approveMinutesUseCase) {
+        this.getMinutesUseCase = getMinutesUseCase;
         this.reviseMinutesUseCase = reviseMinutesUseCase;
         this.approveMinutesUseCase = approveMinutesUseCase;
+    }
+
+    @GetMapping
+    public ApiResponse<MinutesResponse> get(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID meetingId) {
+        return ok(MinutesResponse.from(getMinutesUseCase.get(meetingId, user.organizationId())));
     }
 
     @PatchMapping
@@ -49,7 +60,8 @@ public class MinutesController extends BaseController {
                                         meetingId,
                                         user.userId(),
                                         user.organizationId(),
-                                        request.summary()))));
+                                        request.summary(),
+                                        request.content()))));
     }
 
     @PostMapping("/approve")

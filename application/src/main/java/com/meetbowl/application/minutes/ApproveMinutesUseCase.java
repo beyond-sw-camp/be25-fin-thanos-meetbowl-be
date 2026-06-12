@@ -12,6 +12,7 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
+import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 
@@ -23,7 +24,9 @@ public class ApproveMinutesUseCase {
     private static final String TEMPORARY_MINUTES_TITLE = "회의록";
 
     private final MinutesRepositoryPort minutesRepositoryPort;
+    private final MeetingMinutesAccessScopePort meetingMinutesAccessScopePort;
     private final DocumentIndexRequestedEventPort documentIndexRequestedEventPort;
+    private final MinutesContentTextExtractor minutesContentTextExtractor;
     private final Clock clock;
 
     /**
@@ -33,10 +36,14 @@ public class ApproveMinutesUseCase {
      */
     public ApproveMinutesUseCase(
             MinutesRepositoryPort minutesRepositoryPort,
+            MeetingMinutesAccessScopePort meetingMinutesAccessScopePort,
             DocumentIndexRequestedEventPort documentIndexRequestedEventPort,
+            MinutesContentTextExtractor minutesContentTextExtractor,
             Clock clock) {
         this.minutesRepositoryPort = minutesRepositoryPort;
+        this.meetingMinutesAccessScopePort = meetingMinutesAccessScopePort;
         this.documentIndexRequestedEventPort = documentIndexRequestedEventPort;
+        this.minutesContentTextExtractor = minutesContentTextExtractor;
         this.clock = clock;
     }
 
@@ -52,8 +59,18 @@ public class ApproveMinutesUseCase {
         Minutes approved = minutes.approve(command.actorUserId(), Instant.now(clock));
         Minutes saved = minutesRepositoryPort.save(approved);
 
-        // 현재 회의/참석자 테이블이 없으므로 제목은 임시값을 쓰고, 접근 범위는 검토자 본인으로 제한한다.
-        // 향후 회의 메타데이터와 참여자 조회 Port가 생기면 실제 제목과 열람 가능 사용자 범위로 확장한다.
+        // 회의록 검색 결과가 실제 열람 가능 사용자에게만 노출되도록 참석자 기준 접근 범위를 함께 색인한다.
+        // 참석자 데이터가 불완전해도 지정 검토자는 승인한 회의록을 계속 열람할 수 있어야 한다.
+        List<UUID> readableUserIds =
+                meetingMinutesAccessScopePort.findReadableUserIds(saved.meetingId());
+        if (!readableUserIds.contains(saved.reviewerUserId())) {
+            readableUserIds =
+                    java.util.stream.Stream.concat(
+                                    readableUserIds.stream(),
+                                    java.util.stream.Stream.of(saved.reviewerUserId()))
+                            .distinct()
+                            .toList();
+        }
         documentIndexRequestedEventPort.publish(
                 new DocumentIndexRequestedEvent(
                         saved.id(),
@@ -61,8 +78,10 @@ public class ApproveMinutesUseCase {
                         saved.organizationId(),
                         saved.reviewerUserId(),
                         TEMPORARY_MINUTES_TITLE,
-                        saved.summary(),
-                        List.of(saved.reviewerUserId()),
+                        minutesContentTextExtractor.extract(saved.content()),
+                        new DocumentIndexRequestedEvent.Metadata(
+                                saved.meetingId(), saved.approvedAt(), null, null, null),
+                        readableUserIds,
                         List.of(),
                         List.of()));
         return MinutesResult.from(saved);

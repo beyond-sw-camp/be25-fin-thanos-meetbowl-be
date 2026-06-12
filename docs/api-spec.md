@@ -274,7 +274,7 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 |---|---|---|---|
 | POST | `/meetings/{meetingId}/minutes/generate` | AI 회의록 초안 생성 요청 | Host/Admin |
 | GET | `/meetings/{meetingId}/minutes` | 회의록 조회 | Participant/Admin |
-| PATCH | `/meetings/{meetingId}/minutes` | 회의록 검토 및 수정 | Reviewer |
+| PATCH | `/meetings/{meetingId}/minutes` | 회의록 요약/본문 검토 및 수정 | Reviewer |
 | POST | `/meetings/{meetingId}/minutes/approve` | 회의록 승인 및 AI 색인 요청 | Reviewer |
 | POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
 | POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
@@ -299,6 +299,7 @@ DELETION_SCHEDULED
 `POST /meetings/{meetingId}/minutes/approve` 성공 시 `meetbowl-be`는 승인된 회의록 본문을 담은 RabbitMQ
 `document.index.requested` 이벤트를 발행한다. 회의·참석자 테이블이 구현되기 전에는 임시 제목 `회의록`을 사용하고,
 `accessScope.userIds`에는 지정 검토자만 포함해 권한 없는 AI 검색 노출을 방지한다.
+문서 타입 분리를 위해 회의록 이벤트에는 `metadata.meetingId`, `metadata.approvedAt`를 함께 담는다.
 
 ---
 
