@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +17,7 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
+import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -68,6 +71,7 @@ class MinutesUseCaseTest {
         ApproveMinutesUseCase useCase =
                 new ApproveMinutesUseCase(
                         fixture.repository,
+                        fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
                         fixture.clock);
@@ -91,6 +95,7 @@ class MinutesUseCaseTest {
         ApproveMinutesUseCase useCase =
                 new ApproveMinutesUseCase(
                         fixture.repository,
+                        fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
                         fixture.clock);
@@ -114,9 +119,32 @@ class MinutesUseCaseTest {
                 fixture.meetingId, fixture.eventPublisher.publishedEvent.metadata().meetingId());
         assertEquals(fixture.now, fixture.eventPublisher.publishedEvent.metadata().approvedAt());
         assertEquals(
-                fixture.reviewerUserId, fixture.eventPublisher.publishedEvent.userIds().getFirst());
+                List.of(fixture.hostUserId, fixture.participantUserId, fixture.reviewerUserId),
+                fixture.eventPublisher.publishedEvent.userIds());
         assertEquals(0, fixture.eventPublisher.publishedEvent.departmentIds().size());
         assertEquals(0, fixture.eventPublisher.publishedEvent.sharedWorkspaceIds().size());
+    }
+
+    @Test
+    void declinedAttendeeIsExcludedAndMissingReviewerIsIncludedWhenApprovingMinutes() {
+        Fixture fixture = new Fixture();
+        fixture.attendeeRepository.attendees =
+                new ArrayList<>(List.of(fixture.hostUserId));
+        ApproveMinutesUseCase useCase =
+                new ApproveMinutesUseCase(
+                        fixture.repository,
+                        fixture.attendeeRepository,
+                        fixture.eventPublisher,
+                        fixture.textExtractor,
+                        fixture.clock);
+
+        useCase.execute(
+                new ApproveMinutesCommand(
+                        fixture.meetingId, fixture.reviewerUserId, fixture.organizationId));
+
+        assertEquals(
+                List.of(fixture.hostUserId, fixture.reviewerUserId),
+                fixture.eventPublisher.publishedEvent.userIds());
     }
 
     @Test
@@ -224,12 +252,18 @@ class MinutesUseCaseTest {
         private final UUID meetingId = UUID.randomUUID();
         private final UUID organizationId = UUID.randomUUID();
         private final UUID reviewerUserId = UUID.randomUUID();
+        private final UUID hostUserId = UUID.randomUUID();
+        private final UUID participantUserId = UUID.randomUUID();
         private final Instant now = Instant.parse("2099-01-01T01:00:00Z");
         private final Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         private final MinutesContentTextExtractor textExtractor =
                 new MinutesContentTextExtractor(new com.fasterxml.jackson.databind.ObjectMapper());
         private final FakeDocumentIndexRequestedEventPort eventPublisher =
                 new FakeDocumentIndexRequestedEventPort();
+        private final FakeMeetingAttendeeRepository attendeeRepository =
+                new FakeMeetingAttendeeRepository(
+                        new ArrayList<>(
+                                List.of(hostUserId, participantUserId, reviewerUserId)));
         private final FakeMinutesRepository repository =
                 new FakeMinutesRepository(
                         Minutes.of(
@@ -245,6 +279,20 @@ class MinutesUseCaseTest {
                                 null,
                                 null,
                                 null));
+    }
+
+    private static class FakeMeetingAttendeeRepository implements MeetingMinutesAccessScopePort {
+
+        private List<UUID> attendees;
+
+        private FakeMeetingAttendeeRepository(List<UUID> attendees) {
+            this.attendees = attendees;
+        }
+
+        @Override
+        public List<UUID> findReadableUserIds(UUID meetingId) {
+            return List.copyOf(attendees);
+        }
     }
 
     private static class FakeDocumentIndexRequestedEventPort
