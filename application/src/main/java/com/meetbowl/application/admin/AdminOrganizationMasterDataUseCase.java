@@ -23,6 +23,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 @Service
 public class AdminOrganizationMasterDataUseCase {
 
+    // 관리자 화면에서는 수동 정렬값을 우선하고, 값이 같으면 이름/ID 순으로 안정적으로 보여준다.
     private static final Comparator<Affiliate> AFFILIATE_SORT =
             Comparator.comparing(Affiliate::sortOrder, Comparator.nullsLast(Integer::compareTo))
                     .thenComparing(Affiliate::name, String.CASE_INSENSITIVE_ORDER)
@@ -71,6 +72,7 @@ public class AdminOrganizationMasterDataUseCase {
     public AffiliateResult createAffiliate(CreateAffiliateCommand command) {
         String name = requiredText(command.name(), "Affiliate name is required.");
         String code = requiredText(command.code(), "Affiliate code is required.");
+        // 계열사는 전역 기준정보이므로 이름/코드 모두 전체 범위에서 중복을 막는다.
         ensureAffiliateUnique(name, code, null);
         return toAffiliateResult(
                 affiliateRepositoryPort.save(
@@ -129,7 +131,9 @@ public class AdminOrganizationMasterDataUseCase {
     public DepartmentResult createDepartment(CreateDepartmentCommand command) {
         String name = requiredText(command.name(), "Department name is required.");
         String code = requiredText(command.code(), "Department code is required.");
+        // 부서는 Affiliate 하위 기준정보이므로 상위 Affiliate가 실제로 존재해야 한다.
         loadAffiliate(command.affiliateId());
+        // 같은 Affiliate 안에서는 동일한 부서명을 허용하지 않는다.
         ensureDepartmentNameUnique(command.affiliateId(), name, null);
         return toDepartmentResult(
                 departmentRepositoryPort.save(
@@ -195,7 +199,9 @@ public class AdminOrganizationMasterDataUseCase {
     public TeamResult createTeam(CreateTeamCommand command) {
         String name = requiredText(command.name(), "Team name is required.");
         String code = requiredText(command.code(), "Team code is required.");
+        // 팀은 Department에 소속되므로 상위 Department 존재 여부를 먼저 확인한다.
         loadDepartment(command.departmentId());
+        // 같은 Department 안에서는 동일한 팀명을 허용하지 않는다.
         ensureTeamNameUnique(command.departmentId(), name, null);
         return toTeamResult(
                 teamRepositoryPort.save(
@@ -258,6 +264,7 @@ public class AdminOrganizationMasterDataUseCase {
     public PositionResult createPosition(CreatePositionCommand command) {
         String name = requiredText(command.name(), "Position name is required.");
         String code = requiredText(command.code(), "Position code is required.");
+        // 직급은 독립 기준정보이므로 이름/코드를 전역으로 유니크하게 관리한다.
         ensurePositionUnique(name, code, null);
         return toPositionResult(
                 positionRepositoryPort.save(
@@ -369,6 +376,7 @@ public class AdminOrganizationMasterDataUseCase {
             throw new BusinessException(
                     ErrorCode.COMMON_INVALID_REQUEST, "Affiliate ID is required.");
         }
+        // 생성/수정 요청에서 상위 조직 ID를 넘겼을 때 조용히 null 처리하지 않고 즉시 실패시킨다.
         return affiliateRepositoryPort
                 .findById(affiliateId)
                 .orElseThrow(

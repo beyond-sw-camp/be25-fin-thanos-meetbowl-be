@@ -11,6 +11,7 @@ public interface PositionRepositoryPort {
 
     Optional<Position> findById(UUID positionId);
 
+    // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
     List<Position> findAll();
 
     List<Position> findAllByIds(Collection<UUID> positionIds);
@@ -19,6 +20,7 @@ public interface PositionRepositoryPort {
 
     boolean existsByCode(String code);
 
+    // 수정 시에는 자기 자신을 제외하고 중복 여부를 판단해야 한다.
     boolean existsByNameAndIdNot(String name, UUID positionId);
 
     boolean existsByCodeAndIdNot(String code, UUID positionId);

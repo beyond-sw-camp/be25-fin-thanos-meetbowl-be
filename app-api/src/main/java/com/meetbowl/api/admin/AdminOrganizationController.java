@@ -39,6 +39,7 @@ import com.meetbowl.common.response.ApiResponse;
 @RequestMapping(ApiPaths.API_V1 + "/admin/organizations")
 public class AdminOrganizationController extends BaseController {
 
+    // UUID 형식만 경로 변수로 허용해 잘못된 ID 문자열이 컨트롤러까지 들어오는 것을 줄인다.
     private static final String AFFILIATE_ID_PATH = "/affiliates/{affiliateId:[0-9a-fA-F-]{36}}";
     private static final String DEPARTMENT_ID_PATH = "/departments/{departmentId:[0-9a-fA-F-]{36}}";
     private static final String TEAM_ID_PATH = "/teams/{teamId:[0-9a-fA-F-]{36}}";
@@ -57,6 +58,7 @@ public class AdminOrganizationController extends BaseController {
     @GetMapping("/affiliates")
     public ApiResponse<AdminAffiliateListResponse> getAffiliates(
             @CurrentUser AuthenticatedUser admin) {
+        // 조직 기준정보 관리 API는 전부 관리자 전용이다.
         requireAdmin(admin);
         return ok(AdminAffiliateListResponse.from(useCase.getAffiliates()));
     }
@@ -262,6 +264,7 @@ public class AdminOrganizationController extends BaseController {
     }
 
     private void requireAdmin(AuthenticatedUser admin) {
+        // 기존 관리자 권한 정책과 동일한 진입점으로 맞춰 403 처리 기준을 통일한다.
         globalPermissionChecker.requireAdmin(admin);
     }
 }
