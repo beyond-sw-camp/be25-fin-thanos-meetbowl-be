@@ -9,6 +9,11 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackup;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackupRepositoryPort;
 
+/**
+ * 개인 백업 자료의 {@link PersonalWorkspaceBackupRepositoryPort}를 JPA로 구현한다.
+ *
+ * <p>목록·검색을 소유자 ID로 한정하고 최신 백업순으로 돌려준다. 검색은 제목을 대소문자 구분 없이 매칭한다.
+ */
 @Repository
 public class JpaPersonalWorkspaceBackupRepositoryAdapter
         implements PersonalWorkspaceBackupRepositoryPort {

@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/** 동료 일정 구독 애그리거트다. 구독자와 대상 사용자를 잇고, 자기 자신 구독을 금지하는 규칙을 생성 시점에 강제한다. */
 public class PersonalWorkspaceCalendarSubscription {
 
     private final UUID id;

@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemo;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/** {@link PersonalWorkspaceMemo} 애그리거트를 관계형 스키마에 저장하기 위한 영속 엔티티다. 도메인↔엔티티 변환을 이 경계 안에 둔다. */
 @Entity
 @Table(name = "personal_workspace_memos")
 public class PersonalWorkspaceMemoEntity extends BaseEntity {

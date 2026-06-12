@@ -6,6 +6,11 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 받은/보낸/휴지통 메일의 보관 기간과 자동 삭제 여부를 정의하는 조직 정책이다.
+ *
+ * <p>각 보관 기간은 1일 이상이어야 하며, 수정자/수정 시각을 필수로 남겨 누가 언제 정책을 바꿨는지 추적할 수 있게 한다.
+ */
 public record MailRetentionPolicy(
         UUID id,
         int inboxRetentionDays,

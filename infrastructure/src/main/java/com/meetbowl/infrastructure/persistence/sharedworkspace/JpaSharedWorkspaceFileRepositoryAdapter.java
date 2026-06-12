@@ -9,6 +9,12 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
 
+/**
+ * 공유 워크스페이스 파일 메타데이터의 {@link SharedWorkspaceFileRepositoryPort}를 JPA로 구현한다.
+ *
+ * <p>새 버전 추가처럼 동시성 충돌이 가능한 흐름을 위해 잠금 조회({@code findByIdForUpdate})를 별도로 제공한다. 목록은 삭제되지 않은 파일만 최신
+ * 업로드순으로 돌려준다.
+ */
 @Repository
 public class JpaSharedWorkspaceFileRepositoryAdapter implements SharedWorkspaceFileRepositoryPort {
 

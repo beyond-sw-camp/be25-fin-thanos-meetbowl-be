@@ -10,6 +10,10 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceDriveFile;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link PersonalWorkspaceDriveFile} 메타데이터를 저장하는 영속 엔티티다. 파일 원본은 Object Storage에 두고 여기엔 메타데이터만
+ * 매핑한다.
+ */
 @Entity
 @Table(name = "personal_workspace_drive_files")
 public class PersonalWorkspaceDriveFileEntity extends BaseEntity {

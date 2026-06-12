@@ -6,6 +6,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 워크스페이스 파일 애그리거트다.
+ *
+ * <p>파일 원본은 Object Storage에 두고 여기엔 파일명·크기·Content-Type과 저장 경로 같은 메타데이터만 둔다. 현재 버전 정보를 함께 들고 있으며,
+ * 삭제는 soft delete로 처리한다.
+ */
 public class SharedWorkspaceFile {
 
     private static final int MAX_FILE_NAME_LENGTH = 255;

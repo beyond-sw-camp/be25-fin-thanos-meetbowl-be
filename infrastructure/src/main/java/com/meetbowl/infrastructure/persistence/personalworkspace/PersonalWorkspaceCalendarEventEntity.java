@@ -14,6 +14,10 @@ import com.meetbowl.domain.personalworkspace.CalendarEventSource;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEvent;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link PersonalWorkspaceCalendarEvent}를 저장하는 영속 엔티티다. (소유자, 출처, 출처 ID) 유니크 제약으로 같은 회의 파생 일정의 중복
+ * 생성을 막는다.
+ */
 @Entity
 @Table(
         name = "personal_workspace_calendar_events",
