@@ -1,7 +1,5 @@
 package com.meetbowl.api.auth;
 
-import java.util.Objects;
-
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -73,8 +71,8 @@ public class AuthController extends BaseController {
                                 result.user().loginId(),
                                 result.user().name(),
                                 result.user().email(),
-                                Objects.toString(result.user().role(), null),
-                                Objects.toString(result.user().status(), null),
+                                result.user().role(),
+                                result.user().status(),
                                 result.user().affiliate(),
                                 result.user().department(),
                                 result.user().team(),

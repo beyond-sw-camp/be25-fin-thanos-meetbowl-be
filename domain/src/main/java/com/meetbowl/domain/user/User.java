@@ -77,16 +77,16 @@ public class User {
             Instant activeUntil,
             Instant createdAt,
             Instant updatedAt) {
-        validateRequired(loginId, "濡쒓렇??ID???꾩닔?낅땲??");
-        validateRequired(passwordHash, "鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
-        validateRequired(name, "?ъ슜???대쫫? ?꾩닔?낅땲??");
-        validateRequired(email, "?대찓?쇱? ?꾩닔?낅땲??");
+        validateRequired(loginId, "로그인 ID는 필수입니다.");
+        validateRequired(passwordHash, "비밀번호 해시는 필수입니다.");
+        validateRequired(name, "사용자 이름은 필수입니다.");
+        validateRequired(email, "이메일은 필수입니다.");
         if (role == null || status == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "?ъ슜????븷怨??곹깭???꾩닔?낅땲??");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 권한과 상태는 필수입니다.");
         }
         if (activeFrom != null && activeUntil != null && activeFrom.isAfter(activeUntil)) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "?쒖꽦 ?쒖옉?쇱? 醫낅즺?쇰낫???댄썑?????놁뒿?덈떎.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "활성 시작일은 종료일보다 이후일 수 없습니다.");
         }
         return new User(
                 id,
@@ -115,7 +115,7 @@ public class User {
 
     public boolean isWithinActivePeriod(Instant now) {
         if (now == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "湲곗? ?쒓컖? ?꾩닔?낅땲??");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "기준 시간은 필수입니다.");
         }
         boolean afterStart = activeFrom == null || !now.isBefore(activeFrom);
         boolean beforeEnd = activeUntil == null || !now.isAfter(activeUntil);
@@ -143,10 +143,9 @@ public class User {
     }
 
     public User completeInitialPasswordChange(String newPasswordHash) {
-        // 사용자가 실제 비밀번호로 변경하면 초기 비밀번호 플래그를 해제한다.
-        validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
+        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
         if (!initialPasswordChangeRequired) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂??怨꾩젙???꾨떃?덈떎.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 상태가 아닙니다.");
         }
 
         return new User(
@@ -169,8 +168,7 @@ public class User {
     }
 
     public User resetPasswordByAdmin(String newPasswordHash) {
-        // 관리자 초기화 후에는 다음 로그인에서 초기 비밀번호 변경 흐름으로 진입해야 한다.
-        validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
+        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
 
         return new User(
                 id,
@@ -185,6 +183,69 @@ public class User {
                 positionId,
                 teamId,
                 true,
+                activeFrom,
+                activeUntil,
+                createdAt,
+                updatedAt);
+    }
+
+    public User updateAdminProfile(
+            String name,
+            String email,
+            UUID affiliateId,
+            UUID departmentId,
+            UUID positionId,
+            UUID teamId,
+            UserRole role,
+            Instant activeFrom,
+            Instant activeUntil) {
+        validateRequired(name, "사용자 이름은 필수입니다.");
+        validateRequired(email, "이메일은 필수입니다.");
+        if (role == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 권한은 필수입니다.");
+        }
+        if (activeFrom != null && activeUntil != null && activeFrom.isAfter(activeUntil)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "활성 시작일은 종료일보다 이후일 수 없습니다.");
+        }
+
+        return new User(
+                id,
+                loginId,
+                passwordHash,
+                name,
+                email,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                initialPasswordChangeRequired,
+                activeFrom,
+                activeUntil,
+                createdAt,
+                updatedAt);
+    }
+
+    public User changeStatus(UserStatus newStatus) {
+        if (newStatus == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 상태는 필수입니다.");
+        }
+
+        return new User(
+                id,
+                loginId,
+                passwordHash,
+                name,
+                email,
+                role,
+                newStatus,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
                 createdAt,

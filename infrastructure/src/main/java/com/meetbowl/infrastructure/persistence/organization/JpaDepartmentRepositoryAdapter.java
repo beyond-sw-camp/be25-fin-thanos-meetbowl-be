@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.persistence.organization;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,5 +26,12 @@ public class JpaDepartmentRepositoryAdapter implements DepartmentRepositoryPort 
     @Override
     public Optional<Department> findById(UUID departmentId) {
         return repository.findById(departmentId).map(DepartmentEntity::toDomain);
+    }
+
+    @Override
+    public List<Department> findAllByIds(Collection<UUID> departmentIds) {
+        return repository.findAllById(departmentIds).stream()
+                .map(DepartmentEntity::toDomain)
+                .toList();
     }
 }

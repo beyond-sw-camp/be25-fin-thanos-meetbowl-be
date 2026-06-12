@@ -4,8 +4,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
+import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 
@@ -34,6 +37,28 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        return springDataUserRepository.findByEmail(email).map(UserEntity::toDomain);
+    }
+
+    @Override
+    public boolean existsByLoginId(String loginId) {
+        return springDataUserRepository.existsByLoginId(loginId);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return springDataUserRepository.existsByEmail(email);
+    }
+
+    @Override
+    public Paged<User> findPage(String keyword, int page, int size) {
+        PageRequest pageRequest =
+                PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var result = springDataUserRepository.searchByKeyword(keyword, pageRequest);
+        return new Paged<>(
+                result.getContent().stream().map(UserEntity::toDomain).toList(),
+                result.getTotalElements());
     public List<User> findAllByAffiliateId(UUID affiliateId) {
         return springDataUserRepository.findByAffiliateId(affiliateId).stream()
                 .map(UserEntity::toDomain)

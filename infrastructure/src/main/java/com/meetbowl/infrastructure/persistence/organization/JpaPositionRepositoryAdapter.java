@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.persistence.organization;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -24,5 +26,10 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     @Override
     public Optional<Position> findById(UUID positionId) {
         return repository.findById(positionId).map(PositionEntity::toDomain);
+    }
+
+    @Override
+    public List<Position> findAllByIds(Collection<UUID> positionIds) {
+        return repository.findAllById(positionIds).stream().map(PositionEntity::toDomain).toList();
     }
 }

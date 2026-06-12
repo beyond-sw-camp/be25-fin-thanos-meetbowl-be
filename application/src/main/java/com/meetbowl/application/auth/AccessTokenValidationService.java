@@ -1,5 +1,8 @@
 package com.meetbowl.application.auth;
 
+import java.time.Instant;
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 
 import com.meetbowl.domain.auth.TokenStateRepositoryPort;
@@ -13,7 +16,8 @@ public class AccessTokenValidationService {
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
     }
 
-    public boolean isRevoked(String tokenId) {
-        return tokenStateRepositoryPort.isAccessTokenRevoked(tokenId);
+    public boolean isRevoked(String tokenId, UUID userId, Instant issuedAt) {
+        return tokenStateRepositoryPort.isAccessTokenRevoked(tokenId)
+                || tokenStateRepositoryPort.isUserSessionRevoked(userId, issuedAt);
     }
 }

@@ -63,7 +63,10 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
         String tokenId = requireTokenId(jwt.getId());
         boolean initialPasswordChangeRequired =
                 Boolean.TRUE.equals(jwt.getClaimAsBoolean(INITIAL_PASSWORD_CHANGE_REQUIRED_CLAIM));
-        if (accessTokenValidationService.isRevoked(tokenId)) {
+        if (jwt.getIssuedAt() == null) {
+            throw new BadJwtException("iat claim is required.");
+        }
+        if (accessTokenValidationService.isRevoked(tokenId, userId, jwt.getIssuedAt())) {
             throw new BadJwtException("Access Token is revoked.");
         }
 

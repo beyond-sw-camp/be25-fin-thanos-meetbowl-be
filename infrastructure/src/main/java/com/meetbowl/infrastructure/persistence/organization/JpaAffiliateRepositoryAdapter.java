@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.persistence.organization;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,5 +30,12 @@ public class JpaAffiliateRepositoryAdapter implements AffiliateRepositoryPort {
         return springDataOrganizationRepository
                 .findById(organizationId)
                 .map(AffiliateEntity::toDomain);
+    }
+
+    @Override
+    public List<Affiliate> findAllByIds(Collection<UUID> organizationIds) {
+        return springDataOrganizationRepository.findAllById(organizationIds).stream()
+                .map(AffiliateEntity::toDomain)
+                .toList();
     }
 }
