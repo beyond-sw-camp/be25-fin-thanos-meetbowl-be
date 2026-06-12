@@ -231,7 +231,7 @@ X-Internal-Token: {internalToken}
 | GET | `/meetings/{meetingId}` | 회의 상세 조회 | Participant/Admin |
 | PATCH | `/meetings/{meetingId}` | 회의 일정, 회의실, 참석자, 검토자 수정 | Host/Admin |
 | DELETE | `/meetings/{meetingId}` | 회의 취소 | Host/Admin |
-| POST | `/meetings/{meetingId}/join` | 회의 참여 정보 조회 | Participant/Guest |
+| POST | `/meetings/{meetingId}/join` | LiveKit 회의 참여 정보 조회 | Participant/Guest |
 | POST | `/meetings/{meetingId}/invite-link` | 회의 초대 코드/URL 생성 | Host |
 | POST | `/meetings/guest-join` | 게스트 초대 코드로 회의 참여 | Public |
 
@@ -240,6 +240,43 @@ X-Internal-Token: {internalToken}
 회의 일정 수정 시 기존 참석자와 새 참석자에게 알림을 발송한다.
 
 Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
+
+### POST `/meetings/{meetingId}/join`
+
+프론트엔드는 이 API를 통해서만 LiveKit join info/token을 발급받는다.
+
+- 브라우저는 LiveKit API Secret을 보유하지 않는다.
+- 응답 `livekitUrl`, `token`, `roomName`을 그대로 사용해 `room.connect()`를 호출한다.
+- 인증 사용자가 있으면 서버가 `user-{userId}` 규칙으로 participant identity를 결정한다.
+- 인증 연동 전 개발 화면에서는 요청 `participantIdentity`를 fallback 값으로 사용할 수 있다.
+
+요청 예시:
+
+```json
+{
+  "displayName": "이지연",
+  "participantIdentity": "u-user"
+}
+```
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "roomName": "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "livekitUrl": "http://localhost:7880",
+    "participantIdentity": "u-user",
+    "participantName": "이지연",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "issuedAt": "2026-06-12T01:00:00Z",
+    "expiresAt": "2026-06-12T02:00:00Z"
+  },
+  "message": null
+}
+```
 
 ---
 
@@ -251,6 +288,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 |---|---|---|---|
 | GET | `/meetings/{meetingId}/transcripts` | 회의 STT 원문 조회 | Participant/Admin |
 | POST | `/internal/meetings/{meetingId}/transcripts/final` | STT Final Transcript 저장 | Internal |
+| POST | `/internal/meetings/{meetingId}/end` | STT/시스템 기준 회의 종료 처리 | Internal |
 
 Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본 경로는 RabbitMQ 이벤트 소비다.
 
@@ -258,6 +296,54 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 - 녹음 파일 메타데이터 저장: `recording.completed`
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
+
+### GET `/meetings/{meetingId}/transcripts`
+
+한 회의의 최종 STT 원문을 sequence 순서대로 조회한다.
+
+- `segments`는 발화 단위 리스트다.
+- `fullText`는 같은 회의의 `sourceText`를 순서대로 이어 붙인 전체 원문이다.
+- 중간 `STREAMING`은 저장되지 않고 `FINALIZED`만 내려간다.
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "fullText": "첫 문장\n둘째 문장",
+    "segments": [
+      {
+        "segmentId": "segment-1",
+        "sequence": 1,
+        "language": "KO",
+        "sourceText": "첫 문장",
+        "startedAtMs": 0,
+        "endedAtMs": 500
+      },
+      {
+        "segmentId": "segment-2",
+        "sequence": 2,
+        "language": "KO",
+        "sourceText": "둘째 문장",
+        "startedAtMs": 600,
+        "endedAtMs": 1000
+      }
+    ]
+  },
+  "message": null
+}
+```
+
+### POST `/internal/meetings/{meetingId}/end`
+
+STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료 상태로 정리할 때 사용한다.
+
+- 내부 토큰 인증이 필요하다.
+- 회의 상태를 먼저 `ENDED`로 정리한다.
+- 이후 `meeting.ended`를 RabbitMQ로 발행해 AI 회의록 생성 같은 후속 처리를 시작한다.
+- 이미 종료된 회의는 멱등하게 처리하고 이벤트를 다시 발행하지 않는다.
 
 ---
 

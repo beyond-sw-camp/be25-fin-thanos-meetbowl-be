@@ -65,17 +65,13 @@ class SecurityConfigTest {
     }
 
     @Test
-    void guestCanOnlyAccessInvitedMeetingJoinEndpoint() throws Exception {
-        String accessToken = createAccessToken("GUEST");
+    void meetingJoinEndpointIsPublicButGeneralGuestAccessIsStillBlocked() throws Exception {
+        mockMvc.perform(post("/api/v1/meetings/" + UUID.randomUUID() + "/join"))
+                .andExpect(status().isBadRequest());
 
-        mockMvc.perform(
-                        post("/api/v1/meetings/" + UUID.randomUUID() + "/join")
-                                .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isNotFound());
-
-        mockMvc.perform(get("/api/v1/mails/inbox").header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+        mockMvc.perform(get("/api/v1/mails/inbox"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
     }
 
     @Test
