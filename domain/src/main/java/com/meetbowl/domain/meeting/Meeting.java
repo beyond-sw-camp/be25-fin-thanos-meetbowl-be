@@ -166,6 +166,37 @@ public class Meeting {
                 endedAt);
     }
 
+    /**
+     * 외부 실시간 세션 종료를 기준으로 회의를 종료 상태로 정리한다.
+     *
+     * <p>현재 Meetbowl은 STT/LiveKit 세션 종료가 회의 종료의 사실상 기준이 될 수 있다. 아직 `IN_PROGRESS`로 명시 전환되지 않은 회의라도 실제
+     * 미디어 세션이 종료되면 `ENDED`로 정리할 수 있어야 하므로, `SCHEDULED`와 `IN_PROGRESS` 모두 이 경로를 허용한다.
+     */
+    public Meeting completeFromExternalSession(Instant endedAt) {
+        if (status == MeetingStatus.ENDED) {
+            return this;
+        }
+        if (status == MeetingStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "취소된 회의는 종료 처리할 수 없습니다.");
+        }
+        Instant resolvedStartedAt =
+                startedAt != null
+                        ? startedAt
+                        // 아직 startedAt이 없으면 종료 직전 시점을 시작값으로 보정해 시간 역전을 막는다.
+                        : endedAt.minusMillis(1);
+        return of(
+                id,
+                title,
+                scheduledAt,
+                hostUserId,
+                meetingRoomId,
+                provider,
+                providerRoomId,
+                MeetingStatus.ENDED,
+                resolvedStartedAt,
+                endedAt);
+    }
+
     /** 회의 취소. 이미 종료/취소된 회의는 다시 취소할 수 없다. */
     public Meeting cancel() {
         if (status == MeetingStatus.ENDED || status == MeetingStatus.CANCELLED) {
