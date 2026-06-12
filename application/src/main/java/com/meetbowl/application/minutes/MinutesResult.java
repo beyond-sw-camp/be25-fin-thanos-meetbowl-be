@@ -13,6 +13,7 @@ public record MinutesResult(
         UUID reviewerUserId,
         String status,
         String summary,
+        String content,
         Instant approvedAt) {
 
     /** API 계층이 domain enum에 직접 의존하지 않도록 상태를 외부 계약 문자열로 변환한다. */
@@ -24,6 +25,7 @@ public record MinutesResult(
                 minutes.reviewerUserId(),
                 minutes.status().name(),
                 minutes.summary(),
+                minutes.content(),
                 minutes.approvedAt());
     }
 }

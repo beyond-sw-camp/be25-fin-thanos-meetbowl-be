@@ -26,6 +26,7 @@ class MinutesTest {
                         organizationId,
                         reviewerUserId,
                         "회의 요약",
+                        "회의록 본문",
                         "llm-model-name",
                         "minutes-v1");
 
@@ -35,6 +36,7 @@ class MinutesTest {
         assertEquals(reviewerUserId, minutes.reviewerUserId());
         assertEquals(MinutesStatus.DRAFT, minutes.status());
         assertEquals("회의 요약", minutes.summary());
+        assertEquals("회의록 본문", minutes.content());
         assertEquals("llm-model-name", minutes.model());
         assertEquals("minutes-v1", minutes.promptVersion());
     }
@@ -50,6 +52,7 @@ class MinutesTest {
                                         UUID.randomUUID(),
                                         UUID.randomUUID(),
                                         " ",
+                                        "회의록 본문",
                                         "model",
                                         "minutes-v1"));
 
@@ -77,7 +80,7 @@ class MinutesTest {
         BusinessException exception =
                 assertThrows(
                         BusinessException.class,
-                        () -> minutes.revise("수정된 회의 요약", UUID.randomUUID()));
+                        () -> minutes.revise("수정된 회의 요약", "수정된 회의록 본문", UUID.randomUUID()));
 
         assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
     }
@@ -85,10 +88,13 @@ class MinutesTest {
     @Test
     void reviseMinutesMovesToInReview() {
         UUID reviewerUserId = UUID.randomUUID();
-        Minutes revised = draftMinutes(reviewerUserId).revise("수정된 회의 요약", reviewerUserId);
+        Minutes revised =
+                draftMinutes(reviewerUserId)
+                        .revise("수정된 회의 요약", "수정된 회의록 본문", reviewerUserId);
 
         assertEquals(MinutesStatus.IN_REVIEW, revised.status());
         assertEquals("수정된 회의 요약", revised.summary());
+        assertEquals("수정된 회의록 본문", revised.content());
     }
 
     @Test
@@ -101,7 +107,7 @@ class MinutesTest {
         BusinessException exception =
                 assertThrows(
                         BusinessException.class,
-                        () -> approved.revise("수정된 회의 요약", reviewerUserId));
+                        () -> approved.revise("수정된 회의 요약", "수정된 회의록 본문", reviewerUserId));
 
         assertEquals(ErrorCode.MINUTES_ALREADY_APPROVED, exception.errorCode());
     }
@@ -172,6 +178,7 @@ class MinutesTest {
                 UUID.randomUUID(),
                 reviewerUserId,
                 "회의 요약",
+                "회의록 본문",
                 "model",
                 "minutes-v1");
     }

@@ -10,7 +10,7 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 
-/** 지정 검토자가 승인 전 회의록 요약을 수정하고 검토 중 상태로 전환하는 UseCase다. */
+/** 지정 검토자가 승인 전 회의록 요약과 본문을 수정하고 검토 중 상태로 전환하는 UseCase다. */
 @Service
 public class ReviseMinutesUseCase {
 
@@ -29,7 +29,7 @@ public class ReviseMinutesUseCase {
         MinutesAccessValidator.ensureSameOrganization(minutes, command.actorOrganizationId());
 
         // 수정과 IN_REVIEW 상태 전이를 한 트랜잭션에서 저장해 수정 내용만 반영되는 상태를 방지한다.
-        Minutes revised = minutes.revise(command.summary(), command.actorUserId());
+        Minutes revised = minutes.revise(command.summary(), command.content(), command.actorUserId());
         return MinutesResult.from(minutesRepositoryPort.save(revised));
     }
 

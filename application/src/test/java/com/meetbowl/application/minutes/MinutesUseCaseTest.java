@@ -33,10 +33,12 @@ class MinutesUseCaseTest {
                                 fixture.meetingId,
                                 fixture.reviewerUserId,
                                 fixture.organizationId,
-                                "수정된 회의 요약"));
+                                "수정된 회의 요약",
+                                "수정된 회의록 본문"));
 
         assertEquals("IN_REVIEW", result.status());
         assertEquals("수정된 회의 요약", result.summary());
+        assertEquals("수정된 회의록 본문", result.content());
         assertEquals(MinutesStatus.IN_REVIEW, fixture.repository.minutes.status());
     }
 
@@ -54,7 +56,8 @@ class MinutesUseCaseTest {
                                                 fixture.meetingId,
                                                 UUID.randomUUID(),
                                                 fixture.organizationId,
-                                                "수정된 회의 요약")));
+                                                "수정된 회의 요약",
+                                                "수정된 회의록 본문")));
 
         assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
     }
@@ -64,7 +67,10 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         ApproveMinutesUseCase useCase =
                 new ApproveMinutesUseCase(
-                        fixture.repository, fixture.eventPublisher, fixture.clock);
+                        fixture.repository,
+                        fixture.eventPublisher,
+                        fixture.textExtractor,
+                        fixture.clock);
 
         BusinessException exception =
                 assertThrows(
@@ -84,7 +90,10 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         ApproveMinutesUseCase useCase =
                 new ApproveMinutesUseCase(
-                        fixture.repository, fixture.eventPublisher, fixture.clock);
+                        fixture.repository,
+                        fixture.eventPublisher,
+                        fixture.textExtractor,
+                        fixture.clock);
 
         MinutesResult result =
                 useCase.execute(
@@ -100,7 +109,10 @@ class MinutesUseCaseTest {
                 fixture.organizationId, fixture.eventPublisher.publishedEvent.organizationId());
         assertEquals(fixture.reviewerUserId, fixture.eventPublisher.publishedEvent.ownerUserId());
         assertEquals("회의록", fixture.eventPublisher.publishedEvent.title());
-        assertEquals("회의 요약", fixture.eventPublisher.publishedEvent.content());
+        assertEquals("회의록 본문", fixture.eventPublisher.publishedEvent.content());
+        assertEquals(
+                fixture.meetingId, fixture.eventPublisher.publishedEvent.metadata().meetingId());
+        assertEquals(fixture.now, fixture.eventPublisher.publishedEvent.metadata().approvedAt());
         assertEquals(
                 fixture.reviewerUserId, fixture.eventPublisher.publishedEvent.userIds().getFirst());
         assertEquals(0, fixture.eventPublisher.publishedEvent.departmentIds().size());
@@ -122,9 +134,89 @@ class MinutesUseCaseTest {
                                                 fixture.meetingId,
                                                 fixture.reviewerUserId,
                                                 fixture.organizationId,
-                                                "수정된 회의 요약")));
+                                                "수정된 회의 요약",
+                                                "수정된 회의록 본문")));
 
         assertEquals(ErrorCode.MINUTES_NOT_FOUND, exception.errorCode());
+    }
+
+    @Test
+    void getMinutesReturnsStoredDraft() {
+        Fixture fixture = new Fixture();
+        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository);
+
+        MinutesResult result = useCase.get(fixture.meetingId, fixture.organizationId);
+
+        assertEquals("DRAFT", result.status());
+        assertEquals("회의 요약", result.summary());
+        assertEquals("회의록 본문", result.content());
+    }
+
+    @Test
+    void syncGeneratedMinutesCreatesDraftWhenMissing() {
+        Fixture fixture = new Fixture();
+        fixture.repository.minutes = null;
+        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+
+        MinutesResult result =
+                useCase.execute(
+                        new SyncGeneratedMinutesCommand(
+                                fixture.meetingId,
+                                fixture.organizationId,
+                                fixture.reviewerUserId,
+                                "AI 요약",
+                                "{\"type\":\"doc\"}",
+                                "model",
+                                "minutes-v1"));
+
+        assertEquals("DRAFT", result.status());
+        assertEquals("AI 요약", fixture.repository.minutes.summary());
+        assertEquals("{\"type\":\"doc\"}", fixture.repository.minutes.content());
+    }
+
+    @Test
+    void syncGeneratedMinutesReplacesUnapprovedDraft() {
+        Fixture fixture = new Fixture();
+        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+
+        MinutesResult result =
+                useCase.execute(
+                        new SyncGeneratedMinutesCommand(
+                                fixture.meetingId,
+                                fixture.organizationId,
+                                fixture.reviewerUserId,
+                                "재생성 요약",
+                                "{\"type\":\"doc\",\"content\":[]}",
+                                "model-v2",
+                                "minutes-v2"));
+
+        assertEquals("DRAFT", result.status());
+        assertEquals("재생성 요약", fixture.repository.minutes.summary());
+        assertEquals(MinutesStatus.DRAFT, fixture.repository.minutes.status());
+    }
+
+    @Test
+    void syncGeneratedMinutesRejectsApprovedMinutes() {
+        Fixture fixture = new Fixture();
+        fixture.repository.minutes =
+                fixture.repository.minutes.approve(fixture.reviewerUserId, fixture.now);
+        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new SyncGeneratedMinutesCommand(
+                                                fixture.meetingId,
+                                                fixture.organizationId,
+                                                fixture.reviewerUserId,
+                                                "재생성 요약",
+                                                "{\"type\":\"doc\"}",
+                                                "model-v2",
+                                                "minutes-v2")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
     }
 
     private static class Fixture {
@@ -134,6 +226,8 @@ class MinutesUseCaseTest {
         private final UUID reviewerUserId = UUID.randomUUID();
         private final Instant now = Instant.parse("2099-01-01T01:00:00Z");
         private final Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        private final MinutesContentTextExtractor textExtractor =
+                new MinutesContentTextExtractor(new com.fasterxml.jackson.databind.ObjectMapper());
         private final FakeDocumentIndexRequestedEventPort eventPublisher =
                 new FakeDocumentIndexRequestedEventPort();
         private final FakeMinutesRepository repository =
@@ -145,6 +239,7 @@ class MinutesUseCaseTest {
                                 reviewerUserId,
                                 MinutesStatus.DRAFT,
                                 "회의 요약",
+                                "회의록 본문",
                                 "model",
                                 "minutes-v1",
                                 null,

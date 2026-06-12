@@ -24,6 +24,7 @@ public class ApproveMinutesUseCase {
 
     private final MinutesRepositoryPort minutesRepositoryPort;
     private final DocumentIndexRequestedEventPort documentIndexRequestedEventPort;
+    private final MinutesContentTextExtractor minutesContentTextExtractor;
     private final Clock clock;
 
     /**
@@ -34,9 +35,11 @@ public class ApproveMinutesUseCase {
     public ApproveMinutesUseCase(
             MinutesRepositoryPort minutesRepositoryPort,
             DocumentIndexRequestedEventPort documentIndexRequestedEventPort,
+            MinutesContentTextExtractor minutesContentTextExtractor,
             Clock clock) {
         this.minutesRepositoryPort = minutesRepositoryPort;
         this.documentIndexRequestedEventPort = documentIndexRequestedEventPort;
+        this.minutesContentTextExtractor = minutesContentTextExtractor;
         this.clock = clock;
     }
 
@@ -61,7 +64,13 @@ public class ApproveMinutesUseCase {
                         saved.organizationId(),
                         saved.reviewerUserId(),
                         TEMPORARY_MINUTES_TITLE,
-                        saved.summary(),
+                        minutesContentTextExtractor.extract(saved.content()),
+                        new DocumentIndexRequestedEvent.Metadata(
+                                saved.meetingId(),
+                                saved.approvedAt(),
+                                null,
+                                null,
+                                null),
                         List.of(saved.reviewerUserId()),
                         List.of(),
                         List.of()));
