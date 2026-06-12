@@ -35,10 +35,7 @@ import com.meetbowl.application.admin.ResetUserPasswordResult;
 import com.meetbowl.application.admin.ResetUserPasswordUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
-/**
- * 관리자 회원 계정 관리 API 컨트롤러
- * 회원 생성, 조회, 수정, 상태 관리, 비밀번호 초기화 기능을 제공합니다.
- */
+/** 관리자 회원 계정 관리 API 컨트롤러 회원 생성, 조회, 수정, 상태 관리, 비밀번호 초기화 기능을 제공합니다. */
 @Validated
 @RestController
 @RequestMapping(ApiPaths.API_V1 + "/admin/users")
@@ -53,6 +50,7 @@ public class AdminUserController extends BaseController {
 
     /**
      * AdminUserController 생성자
+     *
      * @param adminUserManagementUseCase 관리자 회원 관리 유스케이스
      * @param resetUserPasswordUseCase 비밀번호 초기화 유스케이스
      * @param globalPermissionChecker 전역 권한 검사기
@@ -67,8 +65,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 계정 생성 API
-     * 새로운 회원 계정을 생성하고 임시 비밀번호를 발급합니다.
+     * 관리자 회원 계정 생성 API 새로운 회원 계정을 생성하고 임시 비밀번호를 발급합니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param request 회원 생성 요청 데이터
      * @param httpServletRequest HTTP 요청 정보 (IP, User-Agent 추출용)
@@ -102,8 +100,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 목록 조회 API
-     * 키워드 검색과 페이지네이션을 지원합니다.
+     * 관리자 회원 목록 조회 API 키워드 검색과 페이지네이션을 지원합니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param page 페이지 번호 (기본값: 1)
      * @param size 페이지 크기 (기본값: 20, 최대: 100)
@@ -125,8 +123,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 상세 조회 API
-     * 특정 회원의 상세 정보를 조회합니다.
+     * 관리자 회원 상세 조회 API 특정 회원의 상세 정보를 조회합니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param userId 조회할 회원 ID
      * @return 회원 상세 정보
@@ -139,8 +137,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 정보 수정 API
-     * 회원의 기본 정보(이름, 이메일, 역할, 소속 등)를 수정합니다.
+     * 관리자 회원 정보 수정 API 회원의 기본 정보(이름, 이메일, 역할, 소속 등)를 수정합니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param userId 수정할 회원 ID
      * @param request 회원 수정 요청 데이터
@@ -175,9 +173,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 상태 수정 API
-     * 회원의 상태(ACTIVE, INACTIVE 등)를 변경합니다.
-     * 상태 변경 시 해당 회원의 모든 세션이 만료됩니다.
+     * 관리자 회원 상태 수정 API 회원의 상태(ACTIVE, INACTIVE 등)를 변경합니다. 상태 변경 시 해당 회원의 모든 세션이 만료됩니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param userId 상태를 변경할 회원 ID
      * @param request 상태 수정 요청 데이터
@@ -204,9 +201,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 회원 비밀번호 초기화 API
-     * 회원의 비밀번호를 임시 비밀번호로 초기화합니다.
-     * 초기화 후 해당 회원의 모든 세션이 만료됩니다.
+     * 관리자 회원 비밀번호 초기화 API 회원의 비밀번호를 임시 비밀번호로 초기화합니다. 초기화 후 해당 회원의 모든 세션이 만료됩니다.
+     *
      * @param admin 현재 로그인한 관리자 정보
      * @param userId 비밀번호를 초기화할 회원 ID
      * @param httpServletRequest HTTP 요청 정보 (IP, User-Agent 추출용)
@@ -232,8 +228,8 @@ public class AdminUserController extends BaseController {
     }
 
     /**
-     * 관리자 권한 검사
-     * 현재 사용자가 관리자 권한을 가지고 있는지 확인합니다.
+     * 관리자 권한 검사 현재 사용자가 관리자 권한을 가지고 있는지 확인합니다.
+     *
      * @param admin 현재 로그인한 사용자 정보
      */
     private void requireAdmin(AuthenticatedUser admin) {

@@ -59,6 +59,9 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
         return new Paged<>(
                 result.getContent().stream().map(UserEntity::toDomain).toList(),
                 result.getTotalElements());
+    }
+
+    @Override
     public List<User> findAllByAffiliateId(UUID affiliateId) {
         return springDataUserRepository.findByAffiliateId(affiliateId).stream()
                 .map(UserEntity::toDomain)

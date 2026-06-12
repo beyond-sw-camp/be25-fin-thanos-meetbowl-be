@@ -36,11 +36,7 @@ import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 
-/**
- * 관리자 회원 관리 유스케이스
- * 회원 생성, 조회, 수정, 상태 관리 기능을 제공합니다.
- * 모든 관리 작업은 감사 로그(Audit Log)에 기록됩니다.
- */
+/** 관리자 회원 관리 유스케이스 회원 생성, 조회, 수정, 상태 관리 기능을 제공합니다. 모든 관리 작업은 감사 로그(Audit Log)에 기록됩니다. */
 @Service
 public class AdminUserManagementUseCase {
 
@@ -57,6 +53,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * AdminUserManagementUseCase 생성자
+     *
      * @param userRepositoryPort 사용자 리포지토리
      * @param affiliateRepositoryPort 소속사 리포지토리
      * @param departmentRepositoryPort 부서 리포지토리
@@ -68,7 +65,6 @@ public class AdminUserManagementUseCase {
      * @param tokenStateRepositoryPort 토큰 상태 리포지토리
      * @param objectMapper JSON 매핑용 ObjectMapper
      */
-
     public AdminUserManagementUseCase(
             UserRepositoryPort userRepositoryPort,
             AffiliateRepositoryPort affiliateRepositoryPort,
@@ -93,8 +89,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 생성
-     * 새로운 회원 계정을 생성하고 임시 비밀번호를 발급합니다.
+     * 회원 생성 새로운 회원 계정을 생성하고 임시 비밀번호를 발급합니다.
+     *
      * @param command 회원 생성 명령
      * @return 생성된 회원 ID, 임시 비밀번호, 회원 요약 정보
      */
@@ -148,8 +144,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 목록 검색
-     * 키워드로 회원을 검색하고 페이지네이션된 결과를 반환합니다.
+     * 회원 목록 검색 키워드로 회원을 검색하고 페이지네이션된 결과를 반환합니다.
+     *
      * @param command 검색 명령 (키워드, 페이지, 크기)
      * @return 검색 결과와 페이지 정보
      */
@@ -169,8 +165,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 상세 조회
-     * 특정 회원의 상세 정보를 조회합니다.
+     * 회원 상세 조회 특정 회원의 상세 정보를 조회합니다.
+     *
      * @param userId 조회할 회원 ID
      * @return 회원 요약 정보
      */
@@ -180,8 +176,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 정보 수정
-     * 회원의 기본 정보를 수정합니다.
+     * 회원 정보 수정 회원의 기본 정보를 수정합니다.
+     *
      * @param command 회원 수정 명령
      * @return 수정된 회원 요약 정보
      */
@@ -226,8 +222,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 상태 변경
-     * 회원의 상태를 변경하고 모든 세션을 만료시킵니다.
+     * 회원 상태 변경 회원의 상태를 변경하고 모든 세션을 만료시킵니다.
+     *
      * @param command 상태 변경 명령
      * @return 상태가 변경된 회원 요약 정보
      */
@@ -253,8 +249,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 조회 또는 예외 발생
-     * 존재하지 않는 회원인 경우 예외를 발생시킵니다.
+     * 회원 조회 또는 예외 발생 존재하지 않는 회원인 경우 예외를 발생시킵니다.
+     *
      * @param userId 조회할 회원 ID
      * @return 회원 엔티티
      */
@@ -266,6 +262,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 로그인 ID 유효성 검사
+     *
      * @param loginId 로그인 ID
      */
     private void validateLoginId(String loginId) {
@@ -276,6 +273,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 이메일 유효성 검사
+     *
      * @param email 이메일
      */
     private void validateEmail(String email) {
@@ -285,9 +283,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 역할 파싱
-     * 문자열 역할을 UserRole enum으로 변환합니다.
-     * SYSTEM 역할은 허용되지 않습니다.
+     * 역할 파싱 문자열 역할을 UserRole enum으로 변환합니다. SYSTEM 역할은 허용되지 않습니다.
+     *
      * @param role 역할 문자열
      * @return UserRole enum
      */
@@ -308,8 +305,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 상태 파싱
-     * 문자열 상태를 UserStatus enum으로 변환합니다.
+     * 상태 파싱 문자열 상태를 UserStatus enum으로 변환합니다.
+     *
      * @param status 상태 문자열
      * @return UserStatus enum
      */
@@ -327,8 +324,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 관리 가능한 상태 파싱
-     * LOCKED 상태는 관리자가 직접 설정할 수 없습니다.
+     * 관리 가능한 상태 파싱 LOCKED 상태는 관리자가 직접 설정할 수 없습니다.
+     *
      * @param status 상태 문자열
      * @return UserStatus enum
      */
@@ -344,6 +341,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 로그인 ID 중복 확인
+     *
      * @param loginId 로그인 ID
      */
     private void ensureLoginIdIsUnique(String loginId) {
@@ -353,8 +351,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 이메일 중복 확인
-     * 자기 자신의 이메일인 경우 중복으로 간주하지 않습니다.
+     * 이메일 중복 확인 자기 자신의 이메일인 경우 중복으로 간주하지 않습니다.
+     *
      * @param email 이메일
      * @param currentUserId 현재 사용자 ID (수정 시 사용)
      */
@@ -372,8 +370,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 관리 가능한 사용자 확인
-     * SYSTEM 역할 사용자는 관리할 수 없습니다.
+     * 관리 가능한 사용자 확인 SYSTEM 역할 사용자는 관리할 수 없습니다.
+     *
      * @param user 사용자 엔티티
      */
     private void ensureManagedUser(User user) {
@@ -385,9 +383,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 조직 참조 유효성 검사
-     * 소속사, 부서, 팀, 직급의 존재 여부와 관계를 검증합니다.
-     * 부서는 소속사에 속해야 하며, 팀은 부서에 속해야 합니다.
+     * 조직 참조 유효성 검사 소속사, 부서, 팀, 직급의 존재 여부와 관계를 검증합니다. 부서는 소속사에 속해야 하며, 팀은 부서에 속해야 합니다.
+     *
      * @param affiliateId 소속사 ID
      * @param departmentId 부서 ID
      * @param teamId 팀 ID
@@ -420,6 +417,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 소속사 로드
+     *
      * @param affiliateId 소속사 ID
      * @return 소속사 엔티티
      */
@@ -434,6 +432,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 부서 로드
+     *
      * @param departmentId 부서 ID
      * @return 부서 엔티티
      */
@@ -448,6 +447,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 팀 로드
+     *
      * @param teamId 팀 ID
      * @return 팀 엔티티
      */
@@ -460,6 +460,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 직급 로드
+     *
      * @param positionId 직급 ID
      * @return 직급 엔티티
      */
@@ -473,8 +474,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 요약 정보 생성
-     * 사용자 엔티티를 응답용 요약 정보로 변환합니다.
+     * 회원 요약 정보 생성 사용자 엔티티를 응답용 요약 정보로 변환합니다.
+     *
      * @param user 사용자 엔티티
      * @return 회원 요약 정보
      */
@@ -502,8 +503,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 회원 요약 정보 생성 (이름 조회 캐시 사용)
-     * 목록 조회 시 성능 최적화를 위해 미리 로드된 이름 맵을 사용합니다.
+     * 회원 요약 정보 생성 (이름 조회 캐시 사용) 목록 조회 시 성능 최적화를 위해 미리 로드된 이름 맵을 사용합니다.
+     *
      * @param user 사용자 엔티티
      * @param lookups 이름 조회 캐시
      * @return 회원 요약 정보
@@ -532,8 +533,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 이름 조회 캐시 로드
-     * 여러 사용자의 조직 이름을 일괄 조회하여 캐시합니다.
+     * 이름 조회 캐시 로드 여러 사용자의 조직 이름을 일괄 조회하여 캐시합니다.
+     *
      * @param users 사용자 목록
      * @return 이름 조회 캐시
      */
@@ -559,8 +560,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 이름 맵 생성
-     * 엔티티 목록에서 ID와 이름의 맵을 생성합니다.
+     * 이름 맵 생성 엔티티 목록에서 ID와 이름의 맵을 생성합니다.
+     *
      * @param items 엔티티 목록
      * @param idExtractor ID 추출 함수
      * @param nameExtractor 이름 추출 함수
@@ -572,8 +573,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * ID 추출
-     * 사용자 목록에서 특정 필드의 ID들을 추출합니다.
+     * ID 추출 사용자 목록에서 특정 필드의 ID들을 추출합니다.
+     *
      * @param users 사용자 목록
      * @param idExtractor ID 추출 함수
      * @return ID 집합
@@ -587,6 +588,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 소속사 이름 확인
+     *
      * @param affiliateId 소속사 ID
      * @return 소속사 이름
      */
@@ -598,6 +600,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 부서 이름 확인
+     *
      * @param departmentId 부서 ID
      * @return 부서 이름
      */
@@ -612,6 +615,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 팀 이름 확인
+     *
      * @param teamId 팀 ID
      * @return 팀 이름
      */
@@ -623,6 +627,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 직급 이름 확인
+     *
      * @param positionId 직급 ID
      * @return 직급 이름
      */
@@ -634,6 +639,7 @@ public class AdminUserManagementUseCase {
 
     /**
      * 전체 페이지 수 계산
+     *
      * @param totalElements 전체 요소 수
      * @param size 페이지 크기
      * @return 전체 페이지 수
@@ -646,8 +652,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 감사 스냅샷 생성
-     * 회원 요약 정보를 JSON 문자열로 직렬화합니다.
+     * 감사 스냅샷 생성 회원 요약 정보를 JSON 문자열로 직렬화합니다.
+     *
      * @param summary 회원 요약 정보
      * @return JSON 문자열
      */
@@ -674,8 +680,8 @@ public class AdminUserManagementUseCase {
     }
 
     /**
-     * 감사 로그 저장
-     * 관리자 작업 내용을 감사 로그에 기록합니다.
+     * 감사 로그 저장 관리자 작업 내용을 감사 로그에 기록합니다.
+     *
      * @param adminId 관리자 ID
      * @param adminName 관리자 이름
      * @param ipAddress IP 주소
@@ -711,9 +717,7 @@ public class AdminUserManagementUseCase {
                         Instant.now()));
     }
 
-    /**
-     * 회원 생성 명령
-     */
+    /** 회원 생성 명령 */
     public record CreateCommand(
             String loginId,
             String name,
@@ -731,14 +735,10 @@ public class AdminUserManagementUseCase {
             String ipAddress,
             String userAgent) {}
 
-    /**
-     * 회원 검색 명령
-     */
+    /** 회원 검색 명령 */
     public record SearchCommand(String keyword, int page, int size) {}
 
-    /**
-     * 회원 수정 명령
-     */
+    /** 회원 수정 명령 */
     public record UpdateCommand(
             UUID userId,
             String name,
@@ -755,9 +755,7 @@ public class AdminUserManagementUseCase {
             String ipAddress,
             String userAgent) {}
 
-    /**
-     * 회원 상태 변경 명령
-     */
+    /** 회원 상태 변경 명령 */
     public record UpdateStatusCommand(
             UUID userId,
             String status,
@@ -766,20 +764,14 @@ public class AdminUserManagementUseCase {
             String ipAddress,
             String userAgent) {}
 
-    /**
-     * 회원 생성 결과
-     */
+    /** 회원 생성 결과 */
     public record CreateResult(UUID userId, String temporaryPassword, UserSummary user) {}
 
-    /**
-     * 회원 목록 검색 결과
-     */
+    /** 회원 목록 검색 결과 */
     public record PageResult(
             List<UserSummary> items, long totalElements, int page, int size, long totalPages) {}
 
-    /**
-     * 회원 요약 정보
-     */
+    /** 회원 요약 정보 */
     public record UserSummary(
             UUID userId,
             String loginId,
@@ -801,19 +793,14 @@ public class AdminUserManagementUseCase {
             Instant updatedAt,
             boolean initialPasswordChangeRequired) {}
 
-    /**
-     * 이름 조회 캐시
-     * 목록 조회 시 성능 최적화를 위해 사용
-     */
+    /** 이름 조회 캐시 목록 조회 시 성능 최적화를 위해 사용 */
     private record NameLookups(
             Map<UUID, String> affiliateNames,
             Map<UUID, String> departmentNames,
             Map<UUID, String> teamNames,
             Map<UUID, String> positionNames) {}
 
-    /**
-     * 감사 로그용 스냅샷
-     */
+    /** 감사 로그용 스냅샷 */
     private record AuditSnapshot(
             UUID userId,
             String loginId,

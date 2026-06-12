@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspace;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
@@ -252,6 +253,26 @@ final class SharedWorkspaceFakes {
             return store.values().stream()
                     .filter(user -> user.loginId().equals(loginId))
                     .findFirst();
+        }
+
+        @Override
+        public Optional<User> findByEmail(String email) {
+            return store.values().stream().filter(user -> user.email().equals(email)).findFirst();
+        }
+
+        @Override
+        public boolean existsByLoginId(String loginId) {
+            return findByLoginId(loginId).isPresent();
+        }
+
+        @Override
+        public boolean existsByEmail(String email) {
+            return findByEmail(email).isPresent();
+        }
+
+        @Override
+        public Paged<User> findPage(String keyword, int page, int size) {
+            return new Paged<>(List.copyOf(store.values()), store.size());
         }
 
         @Override
