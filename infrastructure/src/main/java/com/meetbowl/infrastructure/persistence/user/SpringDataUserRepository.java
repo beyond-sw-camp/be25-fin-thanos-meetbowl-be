@@ -30,5 +30,6 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 or lower(u.email) like lower(concat('%', :keyword, '%')))
             """)
     Page<UserEntity> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
     List<UserEntity> findByAffiliateId(UUID affiliateId);
 }

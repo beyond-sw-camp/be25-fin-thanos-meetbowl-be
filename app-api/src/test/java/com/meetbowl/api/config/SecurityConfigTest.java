@@ -88,7 +88,7 @@ class SecurityConfigTest {
         mockMvc.perform(
                         post("/api/v1/internal/mails/send")
                                 .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -7,9 +7,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-/**
- * 관리자 회원 수정 요청 DTO
- */
+/** 관리자 회원 수정 요청 DTO */
 public record AdminUserUpdateRequest(
         @NotBlank String name,
         @NotBlank @Email String email,

@@ -228,6 +228,29 @@ public class User {
                 updatedAt);
     }
 
+    public User updateMyProfile(String name, String email) {
+        validateRequired(name, "User name is required.");
+        validateRequired(email, "Email is required.");
+
+        return new User(
+                id,
+                loginId,
+                passwordHash,
+                name,
+                email,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                initialPasswordChangeRequired,
+                activeFrom,
+                activeUntil,
+                createdAt,
+                updatedAt);
+    }
+
     public User changeStatus(UserStatus newStatus) {
         if (newStatus == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 상태는 필수입니다.");

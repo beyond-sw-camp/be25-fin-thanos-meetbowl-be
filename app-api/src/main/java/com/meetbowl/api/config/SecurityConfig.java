@@ -55,7 +55,10 @@ public class SecurityConfig {
     };
 
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
-        "/api/v1/users/me", "/api/v1/users/recipients/search", "/api/v1/users/*/simple-profile"
+        "/api/v1/users/me",
+        "/api/v1/users/me/settings",
+        "/api/v1/users/recipients/search",
+        "/api/v1/users/*/simple-profile"
     };
 
     @Bean
@@ -91,6 +94,9 @@ public class SecurityConfig {
                                         .hasRole("USER")
                                         .requestMatchers(
                                                 HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)
+                                        .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.PATCH, "/api/v1/users/me/settings")
                                         .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me")
                                         .hasAnyRole("USER", "ADMIN")
