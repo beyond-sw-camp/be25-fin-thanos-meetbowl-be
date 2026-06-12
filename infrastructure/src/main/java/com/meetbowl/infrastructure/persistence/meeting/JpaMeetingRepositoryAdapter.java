@@ -70,6 +70,15 @@ public class JpaMeetingRepositoryAdapter implements MeetingRepositoryPort {
     }
 
     @Override
+    public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
+        return springDataMeetingRepository
+                .findRoomMeetingsOverlappingExcludingStatus(MeetingStatus.CANCELLED, from, to)
+                .stream()
+                .map(MeetingEntity::toDomain)
+                .toList();
+    }
+
+    @Override
     public void deleteById(UUID id) {
         springDataMeetingRepository.deleteById(id);
     }

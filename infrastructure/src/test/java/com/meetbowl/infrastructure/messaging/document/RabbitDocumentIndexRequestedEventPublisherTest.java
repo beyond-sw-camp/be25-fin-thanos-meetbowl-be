@@ -38,11 +38,7 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                         "회의록",
                         "색인할 회의록 본문",
                         new DocumentIndexRequestedEvent.Metadata(
-                                meetingId,
-                                approvedAt,
-                                null,
-                                null,
-                                null),
+                                meetingId, approvedAt, null, null, null),
                         List.of(reviewerUserId),
                         List.of(),
                         List.of()));

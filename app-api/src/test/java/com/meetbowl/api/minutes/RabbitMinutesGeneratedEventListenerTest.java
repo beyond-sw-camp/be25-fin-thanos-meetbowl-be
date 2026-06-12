@@ -1,7 +1,6 @@
-package com.meetbowl.infrastructure.messaging.minutes;
+package com.meetbowl.api.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
 import java.nio.charset.StandardCharsets;
@@ -24,7 +23,8 @@ class RabbitMinutesGeneratedEventListenerTest {
     @Test
     void consumeStoresGeneratedMinutesDraft() throws Exception {
         ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
-        SyncGeneratedMinutesUseCase useCase = org.mockito.Mockito.mock(SyncGeneratedMinutesUseCase.class);
+        SyncGeneratedMinutesUseCase useCase =
+                org.mockito.Mockito.mock(SyncGeneratedMinutesUseCase.class);
         RabbitMinutesGeneratedEventListener listener =
                 new RabbitMinutesGeneratedEventListener(objectMapper, useCase);
 
@@ -50,7 +50,8 @@ class RabbitMinutesGeneratedEventListenerTest {
                                 "llm-model-name",
                                 "minutes-v1"));
 
-        listener.consume(objectMapper.writeValueAsString(envelope).getBytes(StandardCharsets.UTF_8));
+        listener.consume(
+                objectMapper.writeValueAsString(envelope).getBytes(StandardCharsets.UTF_8));
 
         ArgumentCaptor<SyncGeneratedMinutesCommand> captor =
                 ArgumentCaptor.forClass(SyncGeneratedMinutesCommand.class);

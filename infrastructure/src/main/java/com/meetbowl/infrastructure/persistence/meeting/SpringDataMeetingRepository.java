@@ -43,4 +43,15 @@ public interface SpringDataMeetingRepository extends JpaRepository<MeetingEntity
             @Param("activeStatuses") List<MeetingStatus> activeStatuses,
             @Param("startAt") Instant startAt,
             @Param("endAt") Instant endAt);
+
+    @Query(
+            "select m from MeetingEntity m"
+                    + " where m.meetingRoomId is not null"
+                    + " and m.status <> :excludedStatus"
+                    + " and m.scheduledAt < :endAt"
+                    + " and m.scheduledEndAt > :startAt")
+    List<MeetingEntity> findRoomMeetingsOverlappingExcludingStatus(
+            @Param("excludedStatus") MeetingStatus excludedStatus,
+            @Param("startAt") Instant startAt,
+            @Param("endAt") Instant endAt);
 }
