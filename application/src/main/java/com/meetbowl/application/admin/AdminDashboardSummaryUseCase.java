@@ -49,6 +49,7 @@ public class AdminDashboardSummaryUseCase {
     @Transactional(readOnly = true)
     public AdminDashboardSummaryResult get() {
         Instant now = Instant.now(clock);
+        // 현재 회의실 상태는 "지금 이 순간" 기준으로만 판단하면 되므로 아주 짧은 조회 구간만 사용한다.
         Instant currentWindowEnd = now.plusSeconds(1);
         Instant todayStart = todayStart(now);
         Instant tomorrowStart = todayStart.plusSeconds(24L * 60L * 60L);
@@ -103,6 +104,7 @@ public class AdminDashboardSummaryUseCase {
 
     private int todayReservationCount(
             List<Meeting> meetings, Instant todayStart, Instant tomorrowStart) {
+        // "오늘 예약 수"는 오늘 시작한 예약 건수 기준이므로, 자정을 걸쳐 이어지는 어제 예약은 제외한다.
         return (int)
                 meetings.stream()
                         .filter(meeting -> !meeting.scheduledAt().isBefore(todayStart))
@@ -126,6 +128,7 @@ public class AdminDashboardSummaryUseCase {
 
     private List<AdminDashboardSummaryResult.TimeSlotUsageResult> timeSlotUsage(
             List<Meeting> meetings, Instant todayStart) {
+        // 프런트가 바로 그릴 수 있도록 오늘 24개 슬롯을 빠짐없이 내려준다.
         return IntStream.range(0, HOURS_PER_DAY)
                 .mapToObj(hour -> slotUsage(meetings, todayStart.plusSeconds(hour * 3600L)))
                 .toList();
@@ -134,6 +137,7 @@ public class AdminDashboardSummaryUseCase {
     private AdminDashboardSummaryResult.TimeSlotUsageResult slotUsage(
             List<Meeting> meetings, Instant slotStart) {
         Instant slotEnd = slotStart.plusSeconds(3600);
+        // 한 슬롯 안에 조금이라도 걸치면 해당 시간대 사용으로 본다.
         int reservationCount =
                 (int)
                         meetings.stream()
@@ -144,6 +148,7 @@ public class AdminDashboardSummaryUseCase {
 
     private List<AdminDashboardSummaryResult.SiteBuildingUsageResult> siteBuildingUsage(
             List<RoomStatusResult> roomStatuses) {
+        // 사용률은 현재 시점 상태 집계이므로 site/building 기준으로 먼저 묶은 뒤 계산한다.
         Map<SiteBuildingKey, List<RoomStatusResult>> grouped =
                 roomStatuses.stream()
                         .collect(
@@ -193,6 +198,7 @@ public class AdminDashboardSummaryUseCase {
     }
 
     private Instant todayStart(Instant now) {
+        // 서버 저장/집계 기준이 UTC이므로 대시보드 요약도 UTC 자정 경계를 그대로 사용한다.
         LocalDate today = now.atZone(ZoneOffset.UTC).toLocalDate();
         return today.atStartOfDay().toInstant(ZoneOffset.UTC);
     }

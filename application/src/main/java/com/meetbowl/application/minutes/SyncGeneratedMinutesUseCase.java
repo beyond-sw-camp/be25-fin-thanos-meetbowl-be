@@ -41,15 +41,13 @@ public class SyncGeneratedMinutesUseCase {
     private Minutes replaceDraft(Minutes existing, SyncGeneratedMinutesCommand command) {
         if (!existing.organizationId().equals(command.organizationId())) {
             throw new BusinessException(
-                    ErrorCode.COMMON_CONFLICT,
-                    "같은 회의 ID로 다른 조직의 회의록 초안을 저장할 수 없습니다.");
+                    ErrorCode.COMMON_CONFLICT, "같은 회의 ID로 다른 조직의 회의록 초안을 저장할 수 없습니다.");
         }
         if (existing.status() == MinutesStatus.APPROVED
                 || existing.status() == MinutesStatus.SHARED
                 || existing.status() == MinutesStatus.DELETION_SCHEDULED) {
             throw new BusinessException(
-                    ErrorCode.COMMON_CONFLICT,
-                    "이미 승인된 회의록은 AI 초안으로 덮어쓸 수 없습니다.");
+                    ErrorCode.COMMON_CONFLICT, "이미 승인된 회의록은 AI 초안으로 덮어쓸 수 없습니다.");
         }
         return Minutes.of(
                 existing.id(),

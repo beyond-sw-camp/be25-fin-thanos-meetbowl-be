@@ -89,8 +89,7 @@ class MinutesTest {
     void reviseMinutesMovesToInReview() {
         UUID reviewerUserId = UUID.randomUUID();
         Minutes revised =
-                draftMinutes(reviewerUserId)
-                        .revise("수정된 회의 요약", "수정된 회의록 본문", reviewerUserId);
+                draftMinutes(reviewerUserId).revise("수정된 회의 요약", "수정된 회의록 본문", reviewerUserId);
 
         assertEquals(MinutesStatus.IN_REVIEW, revised.status());
         assertEquals("수정된 회의 요약", revised.summary());

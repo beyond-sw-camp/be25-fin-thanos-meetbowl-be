@@ -29,8 +29,7 @@ class MinutesContentTextExtractorTest {
                 """;
 
         assertEquals(
-                "결정사항\n\n- 6월 1일 런칭\n- 프로덕트 우선 채용\n\n후속 조치는 별도 공유한다.",
-                extractor.extract(content));
+                "결정사항\n\n- 6월 1일 런칭\n- 프로덕트 우선 채용\n\n후속 조치는 별도 공유한다.", extractor.extract(content));
     }
 
     @Test
@@ -55,9 +54,7 @@ class MinutesContentTextExtractorTest {
                 }
                 """;
 
-        assertEquals(
-                "1. 첫 번째 항목\n2. 둘째 항목\n\n> 검토 메모\n> 다음 회의에 재논의",
-                extractor.extract(content));
+        assertEquals("1. 첫 번째 항목\n2. 둘째 항목\n\n> 검토 메모\n> 다음 회의에 재논의", extractor.extract(content));
     }
 
     @Test

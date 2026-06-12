@@ -29,6 +29,7 @@ public class AdminDashboardSummaryController extends BaseController {
 
     @GetMapping
     public ApiResponse<AdminDashboardSummaryResponse> get(@CurrentUser AuthenticatedUser admin) {
+        // 관리자 대시보드 요약은 감사 로그/정책/회의실 집계를 함께 노출하므로 ADMIN만 조회할 수 있다.
         requireAdmin(admin);
         return ok(AdminDashboardSummaryResponse.from(adminDashboardSummaryUseCase.get()));
     }

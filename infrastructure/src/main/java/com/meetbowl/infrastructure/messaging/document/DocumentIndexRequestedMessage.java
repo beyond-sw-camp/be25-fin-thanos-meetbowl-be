@@ -32,11 +32,7 @@ public record DocumentIndexRequestedMessage(
 
     /** sourceType만으로는 부족한 문서별 추가 식별자와 시점을 전달한다. */
     public record Metadata(
-            UUID meetingId,
-            Instant approvedAt,
-            UUID workspaceId,
-            UUID fileVersionId,
-            UUID mailId) {
+            UUID meetingId, Instant approvedAt, UUID workspaceId, UUID fileVersionId, UUID mailId) {
 
         static Metadata from(DocumentIndexRequestedEvent.Metadata metadata) {
             if (metadata == null) {

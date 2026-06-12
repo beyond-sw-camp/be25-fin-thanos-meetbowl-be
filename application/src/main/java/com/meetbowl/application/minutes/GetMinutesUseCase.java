@@ -28,8 +28,7 @@ public class GetMinutesUseCase {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                ErrorCode.MINUTES_NOT_FOUND,
-                                                "회의록을 찾을 수 없습니다."));
+                                                ErrorCode.MINUTES_NOT_FOUND, "회의록을 찾을 수 없습니다."));
         MinutesAccessValidator.ensureSameOrganization(minutes, actorOrganizationId);
         return MinutesResult.from(minutes);
     }

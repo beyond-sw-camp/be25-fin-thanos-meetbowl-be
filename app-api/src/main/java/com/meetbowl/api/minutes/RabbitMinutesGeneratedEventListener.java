@@ -32,6 +32,7 @@ public class RabbitMinutesGeneratedEventListener {
             throw new IllegalArgumentException("지원하지 않는 이벤트입니다: " + envelope.eventType());
         }
         MinutesGeneratedMessage payload = envelope.payload();
+        // 메시지 DTO를 바로 저장 계층에 넘기지 않고 application 명령으로 변환해 계층 경계를 유지한다.
         syncGeneratedMinutesUseCase.execute(
                 new SyncGeneratedMinutesCommand(
                         payload.meetingId(),

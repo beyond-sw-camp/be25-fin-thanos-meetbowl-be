@@ -128,8 +128,7 @@ class MinutesUseCaseTest {
     @Test
     void declinedAttendeeIsExcludedAndMissingReviewerIsIncludedWhenApprovingMinutes() {
         Fixture fixture = new Fixture();
-        fixture.attendeeRepository.attendees =
-                new ArrayList<>(List.of(fixture.hostUserId));
+        fixture.attendeeRepository.attendees = new ArrayList<>(List.of(fixture.hostUserId));
         ApproveMinutesUseCase useCase =
                 new ApproveMinutesUseCase(
                         fixture.repository,
@@ -262,8 +261,7 @@ class MinutesUseCaseTest {
                 new FakeDocumentIndexRequestedEventPort();
         private final FakeMeetingAttendeeRepository attendeeRepository =
                 new FakeMeetingAttendeeRepository(
-                        new ArrayList<>(
-                                List.of(hostUserId, participantUserId, reviewerUserId)));
+                        new ArrayList<>(List.of(hostUserId, participantUserId, reviewerUserId)));
         private final FakeMinutesRepository repository =
                 new FakeMinutesRepository(
                         Minutes.of(

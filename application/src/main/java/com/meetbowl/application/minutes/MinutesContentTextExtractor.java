@@ -119,8 +119,6 @@ public class MinutesContentTextExtractor {
     }
 
     private String normalize(String text) {
-        return text.replaceAll("[ \\t]+\\n", "\n")
-                .replaceAll("\\n{3,}", "\n\n")
-                .trim();
+        return text.replaceAll("[ \\t]+\\n", "\n").replaceAll("\\n{3,}", "\n\n").trim();
     }
 }
