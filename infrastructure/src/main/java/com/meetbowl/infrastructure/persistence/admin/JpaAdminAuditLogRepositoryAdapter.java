@@ -18,7 +18,13 @@ import com.meetbowl.domain.common.Paged;
 @Repository
 public class JpaAdminAuditLogRepositoryAdapter implements AdminAuditLogRepositoryPort {
     private static final String[] KNOWN_TARGET_TYPES = {
-        "USER", "AFFILIATE", "DEPARTMENT", "TEAM", "POSITION", "ORGANIZATION_EXCEL"
+        "USER",
+        "AFFILIATE",
+        "DEPARTMENT",
+        "TEAM",
+        "POSITION",
+        "ORGANIZATION_EXCEL",
+        "MAIL_RETENTION_POLICY"
     };
 
     private final SpringDataAdminAuditLogRepository repository;
