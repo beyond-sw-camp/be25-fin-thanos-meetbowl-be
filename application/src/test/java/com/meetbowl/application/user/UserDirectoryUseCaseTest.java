@@ -31,21 +31,21 @@ import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 
-class MyProfileUseCaseTest {
+class UserDirectoryUseCaseTest {
 
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-    private static final UUID OTHER_USER_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID USER2_ID = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID USER3_ID = UUID.fromString("00000000-0000-0000-0000-000000000003");
     private static final UUID AFFILIATE_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000003");
+            UUID.fromString("00000000-0000-0000-0000-000000000011");
     private static final UUID DEPARTMENT_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000004");
-    private static final UUID TEAM_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
-    private static final UUID POSITION_ID = UUID.fromString("00000000-0000-0000-0000-000000000006");
+            UUID.fromString("00000000-0000-0000-0000-000000000012");
+    private static final UUID TEAM_ID = UUID.fromString("00000000-0000-0000-0000-000000000013");
+    private static final UUID POSITION_ID = UUID.fromString("00000000-0000-0000-0000-000000000014");
     private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
 
     private FakeUserRepository userRepository;
-    private MyProfileUseCase useCase;
+    private UserDirectoryUseCase useCase;
 
     @BeforeEach
     void setUp() {
@@ -82,9 +82,21 @@ class MyProfileUseCaseTest {
         positionRepository.save(
                 new Position(POSITION_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
 
-        userRepository.save(createUser(USER_ID, "user01", "user01@example.com", UserRole.USER));
+        userRepository.save(
+                createUser(
+                        USER_ID, "hong", "Hong Gil Dong", "hong@example.com", UserStatus.ACTIVE));
+        userRepository.save(
+                createUser(USER2_ID, "kim", "Kim Tester", "kim@example.com", UserStatus.INACTIVE));
+        userRepository.save(
+                createUser(
+                        USER3_ID,
+                        "emailuser",
+                        "Lee User",
+                        "recipient@example.com",
+                        UserStatus.ACTIVE));
+
         useCase =
-                new MyProfileUseCase(
+                new UserDirectoryUseCase(
                         userRepository,
                         affiliateRepository,
                         departmentRepository,
@@ -93,13 +105,66 @@ class MyProfileUseCaseTest {
     }
 
     @Test
-    void getProfileSuccessIncludesOrganizationNames() {
-        MyProfileResult result = useCase.get(USER_ID);
+    void searchByNameSuccess() {
+        UserDirectoryUseCase.PageResult result =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                "Hong", null, null, null, null, null, 1, 20));
+
+        assertEquals(1, result.items().size());
+        assertEquals("Hong Gil Dong", result.items().get(0).name());
+    }
+
+    @Test
+    void searchByEmailSuccess() {
+        UserDirectoryUseCase.PageResult result =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                "recipient@example.com", null, null, null, null, null, 1, 20));
+
+        assertEquals(1, result.items().size());
+        assertEquals("recipient@example.com", result.items().get(0).email());
+    }
+
+    @Test
+    void searchByOrganizationFiltersSuccess() {
+        UserDirectoryUseCase.PageResult result =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                null,
+                                AFFILIATE_ID,
+                                DEPARTMENT_ID,
+                                TEAM_ID,
+                                POSITION_ID,
+                                "ACTIVE",
+                                1,
+                                20));
+
+        assertEquals(2, result.items().size());
+        assertEquals("Affiliate", result.items().get(0).affiliate());
+    }
+
+    @Test
+    void searchDefaultsToActiveUsers() {
+        UserDirectoryUseCase.PageResult result =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                null, null, null, null, null, null, 1, 20));
+
+        assertEquals(2, result.items().size());
+        assertEquals(
+                List.of(USER_ID, USER3_ID),
+                result.items().stream()
+                        .map(UserDirectoryUseCase.UserDirectorySummary::userId)
+                        .toList());
+    }
+
+    @Test
+    void getSummarySuccess() {
+        UserDirectoryUseCase.UserDirectorySummary result = useCase.getSummary(USER_ID);
 
         assertEquals(USER_ID, result.userId());
-        assertEquals("user01", result.loginId());
-        assertEquals("USER", result.role());
-        assertEquals("ACTIVE", result.status());
+        assertEquals("hong", result.loginId());
         assertEquals("Affiliate", result.affiliate());
         assertEquals("Department", result.department());
         assertEquals("Team", result.team());
@@ -107,50 +172,22 @@ class MyProfileUseCaseTest {
     }
 
     @Test
-    void updateProfileSuccessChangesOnlyNameAndEmail() {
-        MyProfileResult result =
-                useCase.update(
-                        new UpdateMyProfileCommand(USER_ID, "Updated User", "updated@example.com"));
-        User saved = userRepository.findById(USER_ID).orElseThrow();
-
-        assertEquals("Updated User", result.name());
-        assertEquals("updated@example.com", result.email());
-        assertEquals("user01", saved.loginId());
-        assertEquals(UserRole.USER, saved.role());
-        assertEquals(UserStatus.ACTIVE, saved.status());
-        assertEquals(AFFILIATE_ID, saved.affiliateId());
-        assertEquals(DEPARTMENT_ID, saved.departmentId());
-        assertEquals(TEAM_ID, saved.teamId());
-        assertEquals(POSITION_ID, saved.positionId());
-        assertEquals(Instant.parse("2026-06-01T00:00:00Z"), saved.activeFrom());
-        assertEquals(Instant.parse("2026-12-31T23:59:59Z"), saved.activeUntil());
-    }
-
-    @Test
-    void updateProfileFailsWhenEmailAlreadyExists() {
-        userRepository.save(
-                createUser(OTHER_USER_ID, "user02", "user02@example.com", UserRole.USER));
-
+    void getSummaryFailsWhenUserDoesNotExist() {
         BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () ->
-                                useCase.update(
-                                        new UpdateMyProfileCommand(
-                                                USER_ID, "User One", "user02@example.com")));
+                assertThrows(BusinessException.class, () -> useCase.getSummary(UUID.randomUUID()));
 
-        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        assertEquals(ErrorCode.USER_NOT_FOUND, exception.errorCode());
     }
 
-    private User createUser(UUID id, String loginId, String email, UserRole role) {
+    private User createUser(UUID id, String loginId, String name, String email, UserStatus status) {
         return User.of(
                 id,
                 loginId,
                 "hash",
-                "User One",
+                name,
                 email,
-                role,
-                UserStatus.ACTIVE,
+                UserRole.USER,
+                status,
                 AFFILIATE_ID,
                 DEPARTMENT_ID,
                 POSITION_ID,
@@ -213,7 +250,33 @@ class MyProfileUseCaseTest {
                 UserStatus status,
                 int page,
                 int size) {
-            return new Paged<>(List.copyOf(users.values()), users.size());
+            List<User> filtered =
+                    users.values().stream()
+                            .filter(user -> keyword == null || matchesKeyword(user, keyword))
+                            .filter(
+                                    user ->
+                                            affiliateId == null
+                                                    || affiliateId.equals(user.affiliateId()))
+                            .filter(
+                                    user ->
+                                            departmentId == null
+                                                    || departmentId.equals(user.departmentId()))
+                            .filter(user -> teamId == null || teamId.equals(user.teamId()))
+                            .filter(
+                                    user ->
+                                            positionId == null
+                                                    || positionId.equals(user.positionId()))
+                            .filter(user -> status == null || status == user.status())
+                            .sorted(java.util.Comparator.comparing(User::name))
+                            .toList();
+            return new Paged<>(filtered, filtered.size());
+        }
+
+        private boolean matchesKeyword(User user, String keyword) {
+            String normalized = keyword.toLowerCase();
+            return user.name().toLowerCase().contains(normalized)
+                    || user.email().toLowerCase().contains(normalized)
+                    || user.loginId().toLowerCase().contains(normalized);
         }
 
         @Override
@@ -239,43 +302,36 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public List<Affiliate> findAllByIds(Collection<UUID> affiliateIds) {
-            return affiliateIds.stream().map(affiliates::get).toList();
-        }
-
-        @Override
         public List<Affiliate> findAll() {
             return List.copyOf(affiliates.values());
         }
 
         @Override
+        public List<Affiliate> findAllByIds(Collection<UUID> affiliateIds) {
+            return affiliateIds.stream()
+                    .map(affiliates::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        }
+
+        @Override
         public boolean existsByName(String name) {
-            return affiliates.values().stream()
-                    .anyMatch(affiliate -> affiliate.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByCode(String code) {
-            return affiliates.values().stream()
-                    .anyMatch(affiliate -> affiliate.code().equalsIgnoreCase(code));
+            return false;
         }
 
         @Override
         public boolean existsByNameAndIdNot(String name, UUID affiliateId) {
-            return affiliates.values().stream()
-                    .anyMatch(
-                            affiliate ->
-                                    !affiliate.id().equals(affiliateId)
-                                            && affiliate.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByCodeAndIdNot(String code, UUID affiliateId) {
-            return affiliates.values().stream()
-                    .anyMatch(
-                            affiliate ->
-                                    !affiliate.id().equals(affiliateId)
-                                            && affiliate.code().equalsIgnoreCase(code));
+            return false;
         }
     }
 
@@ -294,33 +350,27 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public List<Department> findAllByIds(Collection<UUID> departmentIds) {
-            return departmentIds.stream().map(departments::get).toList();
-        }
-
-        @Override
         public List<Department> findAll() {
             return List.copyOf(departments.values());
         }
 
         @Override
+        public List<Department> findAllByIds(Collection<UUID> departmentIds) {
+            return departmentIds.stream()
+                    .map(departments::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        }
+
+        @Override
         public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
-            return departments.values().stream()
-                    .anyMatch(
-                            department ->
-                                    department.affiliateId().equals(affiliateId)
-                                            && department.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByAffiliateIdAndNameAndIdNot(
                 UUID affiliateId, String name, UUID departmentId) {
-            return departments.values().stream()
-                    .anyMatch(
-                            department ->
-                                    !department.id().equals(departmentId)
-                                            && department.affiliateId().equals(affiliateId)
-                                            && department.name().equalsIgnoreCase(name));
+            return false;
         }
     }
 
@@ -339,33 +389,24 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public List<Team> findAllByIds(Collection<UUID> teamIds) {
-            return teamIds.stream().map(teams::get).toList();
-        }
-
-        @Override
         public List<Team> findAll() {
             return List.copyOf(teams.values());
         }
 
         @Override
+        public List<Team> findAllByIds(Collection<UUID> teamIds) {
+            return teamIds.stream().map(teams::get).filter(java.util.Objects::nonNull).toList();
+        }
+
+        @Override
         public boolean existsByDepartmentIdAndName(UUID departmentId, String name) {
-            return teams.values().stream()
-                    .anyMatch(
-                            team ->
-                                    team.departmentId().equals(departmentId)
-                                            && team.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByDepartmentIdAndNameAndIdNot(
                 UUID departmentId, String name, UUID teamId) {
-            return teams.values().stream()
-                    .anyMatch(
-                            team ->
-                                    !team.id().equals(teamId)
-                                            && team.departmentId().equals(departmentId)
-                                            && team.name().equalsIgnoreCase(name));
+            return false;
         }
     }
 
@@ -384,43 +425,36 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public List<Position> findAllByIds(Collection<UUID> positionIds) {
-            return positionIds.stream().map(positions::get).toList();
-        }
-
-        @Override
         public List<Position> findAll() {
             return List.copyOf(positions.values());
         }
 
         @Override
+        public List<Position> findAllByIds(Collection<UUID> positionIds) {
+            return positionIds.stream()
+                    .map(positions::get)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        }
+
+        @Override
         public boolean existsByName(String name) {
-            return positions.values().stream()
-                    .anyMatch(position -> position.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByCode(String code) {
-            return positions.values().stream()
-                    .anyMatch(position -> position.code().equalsIgnoreCase(code));
+            return false;
         }
 
         @Override
         public boolean existsByNameAndIdNot(String name, UUID positionId) {
-            return positions.values().stream()
-                    .anyMatch(
-                            position ->
-                                    !position.id().equals(positionId)
-                                            && position.name().equalsIgnoreCase(name));
+            return false;
         }
 
         @Override
         public boolean existsByCodeAndIdNot(String code, UUID positionId) {
-            return positions.values().stream()
-                    .anyMatch(
-                            position ->
-                                    !position.id().equals(positionId)
-                                            && position.code().equalsIgnoreCase(code));
+            return false;
         }
     }
 }

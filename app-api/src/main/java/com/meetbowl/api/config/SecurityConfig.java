@@ -57,8 +57,10 @@ public class SecurityConfig {
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
         "/api/v1/users/me",
         "/api/v1/users/me/settings",
+        "/api/v1/users/search",
         "/api/v1/users/recipients/search",
-        "/api/v1/users/*/simple-profile"
+        "/api/v1/users/*/simple-profile",
+        "/api/v1/organization/users/*/summary"
     };
 
     @Bean
