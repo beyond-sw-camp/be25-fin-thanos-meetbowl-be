@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -103,9 +104,11 @@ public class GlobalExceptionHandler {
     }
 
     /** 매핑되지 않은 URL 또는 정적 리소스 요청은 공통 404 응답으로 변환한다. */
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
-            NoResourceFoundException exception) {
+    @ExceptionHandler({
+        NoResourceFoundException.class,
+        HttpRequestMethodNotSupportedException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_NOT_FOUND;
         return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
     }
