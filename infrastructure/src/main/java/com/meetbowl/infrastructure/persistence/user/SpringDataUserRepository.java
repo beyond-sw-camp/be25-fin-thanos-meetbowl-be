@@ -38,7 +38,6 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             select u
             from UserEntity u
             where u.role in ('USER', 'ADMIN')
-              -- 조직도/수신자 검색에서는 SYSTEM 계정을 노출하지 않는다.
               and (:keyword is null or :keyword = ''
                     or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                     or lower(u.name) like lower(concat('%', :keyword, '%'))

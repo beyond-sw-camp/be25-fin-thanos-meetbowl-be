@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
@@ -27,6 +29,7 @@ public class ResetUserPasswordUseCase {
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TransactionOperations transactionOperations;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
+    private final ObjectMapper objectMapper;
 
     public ResetUserPasswordUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -34,13 +37,15 @@ public class ResetUserPasswordUseCase {
             TemporaryPasswordGenerator temporaryPasswordGenerator,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TransactionOperations transactionOperations,
-            TokenStateRepositoryPort tokenStateRepositoryPort) {
+            TokenStateRepositoryPort tokenStateRepositoryPort,
+            ObjectMapper objectMapper) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.transactionOperations = transactionOperations;
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
+        this.objectMapper = objectMapper;
     }
 
     public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
@@ -97,10 +102,21 @@ public class ResetUserPasswordUseCase {
                         "PASSWORD_RESET",
                         result,
                         null,
-                        failureReason != null ? failureReason : "PASSWORD_RESET_COMPLETED",
+                        failureReason != null ? failureReason : passwordResetSnapshot(),
                         command.ipAddress(),
                         command.userAgent(),
                         Instant.now());
         adminAuditLogRepositoryPort.save(log);
     }
+
+    private String passwordResetSnapshot() {
+        try {
+            return objectMapper.writeValueAsString(new PasswordResetAuditSnapshot(true));
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INTERNAL_ERROR, "Failed to serialize admin audit snapshot.");
+        }
+    }
+
+    private record PasswordResetAuditSnapshot(boolean initialPasswordChangeRequired) {}
 }
