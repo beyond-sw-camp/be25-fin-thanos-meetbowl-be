@@ -30,7 +30,23 @@ public class JpaTeamRepositoryAdapter implements TeamRepositoryPort {
     }
 
     @Override
+    public List<Team> findAll() {
+        return repository.findAll().stream().map(TeamEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Team> findAllByIds(Collection<UUID> teamIds) {
         return repository.findAllById(teamIds).stream().map(TeamEntity::toDomain).toList();
+    }
+
+    @Override
+    public boolean existsByDepartmentIdAndName(UUID departmentId, String name) {
+        return repository.existsByDepartmentIdAndNameIgnoreCase(departmentId, name);
+    }
+
+    @Override
+    public boolean existsByDepartmentIdAndNameAndIdNot(
+            UUID departmentId, String name, UUID teamId) {
+        return repository.existsByDepartmentIdAndNameIgnoreCaseAndIdNot(departmentId, name, teamId);
     }
 }

@@ -29,9 +29,26 @@ public class JpaDepartmentRepositoryAdapter implements DepartmentRepositoryPort 
     }
 
     @Override
+    public List<Department> findAll() {
+        return repository.findAll().stream().map(DepartmentEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Department> findAllByIds(Collection<UUID> departmentIds) {
         return repository.findAllById(departmentIds).stream()
                 .map(DepartmentEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
+        return repository.existsByAffiliateIdAndNameIgnoreCase(affiliateId, name);
+    }
+
+    @Override
+    public boolean existsByAffiliateIdAndNameAndIdNot(
+            UUID affiliateId, String name, UUID departmentId) {
+        return repository.existsByAffiliateIdAndNameIgnoreCaseAndIdNot(
+                affiliateId, name, departmentId);
     }
 }

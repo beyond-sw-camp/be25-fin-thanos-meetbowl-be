@@ -33,9 +33,36 @@ public class JpaAffiliateRepositoryAdapter implements AffiliateRepositoryPort {
     }
 
     @Override
+    public List<Affiliate> findAll() {
+        return springDataOrganizationRepository.findAll().stream()
+                .map(AffiliateEntity::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Affiliate> findAllByIds(Collection<UUID> organizationIds) {
         return springDataOrganizationRepository.findAllById(organizationIds).stream()
                 .map(AffiliateEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean existsByName(String name) {
+        return springDataOrganizationRepository.existsByNameIgnoreCase(name);
+    }
+
+    @Override
+    public boolean existsByCode(String code) {
+        return springDataOrganizationRepository.existsByCodeIgnoreCase(code);
+    }
+
+    @Override
+    public boolean existsByNameAndIdNot(String name, UUID affiliateId) {
+        return springDataOrganizationRepository.existsByNameIgnoreCaseAndIdNot(name, affiliateId);
+    }
+
+    @Override
+    public boolean existsByCodeAndIdNot(String code, UUID affiliateId) {
+        return springDataOrganizationRepository.existsByCodeIgnoreCaseAndIdNot(code, affiliateId);
     }
 }
