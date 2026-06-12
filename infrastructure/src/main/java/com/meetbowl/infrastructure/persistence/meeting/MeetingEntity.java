@@ -24,7 +24,9 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
         indexes = {
             @Index(name = "idx_meeting_host", columnList = "host_user_id"),
             // 회의실 시간대 겹침 조회(중복 예약 검사)용 복합 인덱스. 회의실 + 예정 시작 시각 범위로 스캔한다.
-            @Index(name = "idx_meeting_room_scheduled", columnList = "meeting_room_id, scheduled_at")
+            @Index(
+                    name = "idx_meeting_room_scheduled",
+                    columnList = "meeting_room_id, scheduled_at")
         })
 public class MeetingEntity extends BaseEntity {
 

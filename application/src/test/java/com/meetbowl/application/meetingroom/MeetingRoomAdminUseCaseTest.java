@@ -77,8 +77,7 @@ class MeetingRoomAdminUseCaseTest {
                         new FakeMeetingRoomRepositoryPort(), new FakeBuildingRepositoryPort());
 
         BusinessException exception =
-                assertThrows(
-                        BusinessException.class, () -> useCase.delete(UUID.randomUUID()));
+                assertThrows(BusinessException.class, () -> useCase.delete(UUID.randomUUID()));
         assertEquals(ErrorCode.COMMON_NOT_FOUND, exception.errorCode());
     }
 

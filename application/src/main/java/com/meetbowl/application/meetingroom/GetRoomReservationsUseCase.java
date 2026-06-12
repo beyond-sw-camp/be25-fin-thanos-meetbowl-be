@@ -60,14 +60,20 @@ public class GetRoomReservationsUseCase {
         this.siteRepositoryPort = siteRepositoryPort;
     }
 
-    /** 내 회의실 예약 목록(①②). {@code filter}로 주최(host)/참석(invited)/전체(all)를 구분한다. 활성(SCHEDULED/IN_PROGRESS)만 본다. */
+    /**
+     * 내 회의실 예약 목록(①②). {@code filter}로 주최(host)/참석(invited)/전체(all)를 구분한다.
+     * 활성(SCHEDULED/IN_PROGRESS)만 본다.
+     */
     @Transactional(readOnly = true)
     public List<ReservationItemResult> getMyReservations(UUID userId, MeetingListFilter filter) {
         List<Meeting> meetings =
                 switch (filter) {
                     case HOST -> meetingRepositoryPort.findByHostUserId(userId);
                     case INVITED -> invitedMeetings(userId);
-                    case ALL -> union(meetingRepositoryPort.findByHostUserId(userId), invitedMeetings(userId));
+                    case ALL ->
+                            union(
+                                    meetingRepositoryPort.findByHostUserId(userId),
+                                    invitedMeetings(userId));
                 };
 
         Map<UUID, MeetingRoom> rooms =

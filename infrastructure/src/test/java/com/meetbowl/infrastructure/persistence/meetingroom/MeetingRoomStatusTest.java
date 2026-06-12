@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +17,8 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
-import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.MeetingResult;
+import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meetingroom.GetMeetingRoomStatusUseCase;
 import com.meetbowl.application.meetingroom.RoomAvailabilityStatus;
 import com.meetbowl.application.meetingroom.RoomStatusQuery;
@@ -66,7 +65,9 @@ class MeetingRoomStatusTest {
 
     @BeforeEach
     void setUp() {
-        meetingRoomRepositoryPort.findAll().forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
+        meetingRoomRepositoryPort
+                .findAll()
+                .forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
         UUID siteId = siteRepositoryPort.save(Site.of(null, "판교 사옥", "성남시")).id();
         buildingId = buildingRepositoryPort.save(Building.of(null, siteId, "A동")).id();
     }
@@ -111,7 +112,16 @@ class MeetingRoomStatusTest {
         MeetingResult created =
                 createMeetingUseCase.execute(
                         new CreateMeetingCommand(
-                                "회의", FROM, TO, UUID.randomUUID(), roomId, null, null, null, null, null));
+                                "회의",
+                                FROM,
+                                TO,
+                                UUID.randomUUID(),
+                                roomId,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null));
         // 회의를 실제 진행 상태로 전환해 저장 → IN_USE로 보여야 한다
         Meeting meeting = meetingRepositoryPort.findById(created.meetingId()).orElseThrow();
         meetingRepositoryPort.save(meeting.start(FROM));
@@ -133,7 +143,16 @@ class MeetingRoomStatusTest {
         Instant otherEnd = Instant.parse("2099-05-01T04:00:00Z");
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "회의", otherStart, otherEnd, UUID.randomUUID(), roomId, null, null, null, null, null));
+                        "회의",
+                        otherStart,
+                        otherEnd,
+                        UUID.randomUUID(),
+                        roomId,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null));
 
         assertThat(statusOf(roomId).status()).isEqualTo(RoomAvailabilityStatus.AVAILABLE);
     }

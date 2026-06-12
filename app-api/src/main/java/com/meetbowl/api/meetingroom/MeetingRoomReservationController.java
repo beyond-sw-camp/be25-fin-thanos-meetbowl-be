@@ -60,7 +60,9 @@ public class MeetingRoomReservationController extends BaseController {
             @RequestParam(required = false) UUID siteId,
             @RequestParam(required = false) UUID buildingId) {
         List<RoomReservationsResponse> responses =
-                getRoomReservationsUseCase.getReservationBoard(from, to, siteId, buildingId).stream()
+                getRoomReservationsUseCase
+                        .getReservationBoard(from, to, siteId, buildingId)
+                        .stream()
                         .map(RoomReservationsResponse::from)
                         .toList();
         return ok(responses);

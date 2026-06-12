@@ -24,11 +24,11 @@ import com.meetbowl.domain.meetingroom.Site;
 import com.meetbowl.domain.meetingroom.SiteRepositoryPort;
 
 /**
- * 회의실 현황 조회 UseCase다(F3, FR-019/FR-075). 주어진 시간대 [{@code from}, {@code to})를 기준으로 각 회의실의 상태를
- * 계산한다.
+ * 회의실 현황 조회 UseCase다(F3, FR-019/FR-075). 주어진 시간대 [{@code from}, {@code to})를 기준으로 각 회의실의 상태를 계산한다.
  *
- * <p>상태는 회의실을 점유한 활성 회의로 판정한다: 사용 불가 회의실은 UNAVAILABLE, 진행 중(IN_PROGRESS) 회의가 겹치면 IN_USE, 예정(SCHEDULED)
- * 회의가 겹치면 RESERVED, 아무 회의도 겹치지 않으면 AVAILABLE이다. 별도 예약 테이블 없이 회의(Meeting) 데이터에서 직접 도출한다.
+ * <p>상태는 회의실을 점유한 활성 회의로 판정한다: 사용 불가 회의실은 UNAVAILABLE, 진행 중(IN_PROGRESS) 회의가 겹치면 IN_USE,
+ * 예정(SCHEDULED) 회의가 겹치면 RESERVED, 아무 회의도 겹치지 않으면 AVAILABLE이다. 별도 예약 테이블 없이 회의(Meeting) 데이터에서 직접
+ * 도출한다.
  */
 @Service
 public class GetMeetingRoomStatusUseCase {

@@ -23,8 +23,8 @@ import com.meetbowl.infrastructure.config.InfrastructureConfig;
 /**
  * 사이트+건물 동시 생성의 트랜잭션 경계를 실제 DB(H2)로 검증한다. 핵심은 "사이트만 생기고 건물이 누락된 중간 상태"가 남지 않는지다.
  *
- * <p>유닛 테스트({@code SiteBuildingRegisterUseCaseTest})는 fake 저장소라 롤백을 흉내내지 못하므로, 실제 트랜잭션 매니저가 있는 이
- * 통합 테스트에서 부분 저장 방지를 보장한다.
+ * <p>유닛 테스트({@code SiteBuildingRegisterUseCaseTest})는 fake 저장소라 롤백을 흉내내지 못하므로, 실제 트랜잭션 매니저가 있는 이 통합
+ * 테스트에서 부분 저장 방지를 보장한다.
  */
 @SpringBootTest(classes = SiteBuildingRegisterTransactionTest.TestApplication.class)
 @TestPropertySource(

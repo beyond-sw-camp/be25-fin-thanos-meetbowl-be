@@ -1,5 +1,15 @@
 package com.meetbowl.api.meetingroom;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
@@ -10,21 +20,13 @@ import com.meetbowl.application.meetingroom.MeetingRoomListItemResult;
 import com.meetbowl.application.meetingroom.RoomStatusQuery;
 import com.meetbowl.common.response.ApiResponse;
 import com.meetbowl.common.response.PageResponse;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
 
 /**
  * 회의실 목록·현황 조회 API다(F3). 예약 화면에서 사용자가 자기 회의에 맞는 회의실을 찾는 용도다.
  *
  * <ul>
- *   <li>{@code GET /meeting-rooms} — 사이트/건물/정원 조건으로 거른 회의실 목록(지점 드롭다운 선택값을 siteId로 받아 해당 지점 회의실을 반환).
+ *   <li>{@code GET /meeting-rooms} — 사이트/건물/정원 조건으로 거른 회의실 목록(지점 드롭다운 선택값을 siteId로 받아 해당 지점 회의실을
+ *       반환).
  *   <li>{@code GET /meeting-rooms/status} — 지정 시간대 기준 회의실별 가용 상태(가능/예약됨/사용중/사용제한).
  * </ul>
  *
@@ -67,10 +69,9 @@ public class MeetingRoomController extends BaseController {
     }
 
     /**
-     * 회의실 현황 조회(F3). {@code from}~{@code to} 시간대 기준으로 각 회의실의 상태(AVAILABLE/RESERVED/IN_USE/UNAVAILABLE)를
-     * 반환한다. 사이트/건물로 필터링한다.
+     * 회의실 현황 조회(F3). {@code from}~{@code to} 시간대 기준으로 각 회의실의
+     * 상태(AVAILABLE/RESERVED/IN_USE/UNAVAILABLE)를 반환한다. 사이트/건물로 필터링한다.
      */
-
     @GetMapping("/status")
     public ApiResponse<List<RoomStatusResponse>> getMeetingRoomStatuses(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,

@@ -22,12 +22,12 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
  * 회의 생성(예약) UseCase다. 회의실을 사용하는 회의는 같은 회의실·겹치는 시간대의 중복 예약을 막고, 주최자와 초대 참석자를 함께 저장한다.
  *
  * <p>동시성 처리: 하나의 트랜잭션 안에서 (1) 회의실 행에 비관적 쓰기 잠금을 걸어 같은 회의실에 대한 동시 요청을 직렬화하고, (2) 잠금이 걸린 상태에서 시간대 겹침을
- * 검사한 뒤, (3) 겹치는 활성 회의가 없을 때만 저장한다. 잠금이 검사~저장 구간을 보호하므로, 같은 회의실·시간을 동시에 요청해도 하나만 성공하고 나머지는
- * {@link ErrorCode#MEETING_ROOM_ALREADY_RESERVED}로 실패한다. 화상회의만 진행하는 회의(회의실 없음)는 잠금/검사 없이 저장한다.
+ * 검사한 뒤, (3) 겹치는 활성 회의가 없을 때만 저장한다. 잠금이 검사~저장 구간을 보호하므로, 같은 회의실·시간을 동시에 요청해도 하나만 성공하고 나머지는 {@link
+ * ErrorCode#MEETING_ROOM_ALREADY_RESERVED}로 실패한다. 화상회의만 진행하는 회의(회의실 없음)는 잠금/검사 없이 저장한다.
  *
  * <p>참석자: 주최자는 HOST로 자동 포함하고, {@code attendeeUserIds}는 PARTICIPANT로 저장하며, 그중 검토자로 지정된 사용자는
- * REVIEWER로 저장한다. 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인 소유이며,
- * 참석자 검색은 ElasticSearch 기반 조직 도메인(F5)에서 처리한다 — 이 UseCase는 확정된 userId만 받고, 사용자 존재/유효성 검증은 조직 도메인 책임이다.
+ * REVIEWER로 저장한다. 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인 소유이며, 참석자 검색은
+ * ElasticSearch 기반 조직 도메인(F5)에서 처리한다 — 이 UseCase는 확정된 userId만 받고, 사용자 존재/유효성 검증은 조직 도메인 책임이다.
  */
 @Service
 public class CreateMeetingUseCase {
@@ -65,10 +65,7 @@ public class CreateMeetingUseCase {
         if (command.meetingRoomId() != null) {
             // 회의실 예약 가능 검증(락 + 시간 겹침). 생성이므로 제외할 회의는 없다(null).
             reservationGuard.verifyAvailable(
-                    meeting.meetingRoomId(),
-                    meeting.scheduledAt(),
-                    meeting.scheduledEndAt(),
-                    null);
+                    meeting.meetingRoomId(), meeting.scheduledAt(), meeting.scheduledEndAt(), null);
         }
 
         Meeting saved = meetingRepositoryPort.save(meeting);
@@ -101,12 +98,12 @@ public class CreateMeetingUseCase {
     /**
      * 주최자(HOST), 초대 참석자(PARTICIPANT), 회의록 검토자(REVIEWER)를 저장한다.
      *
-     * <p>참석자 출처(경계): {@code attendeeUserIds}는 유저(조직) 도메인 사용자 테이블에서 선택된 사용자다. 계열사/부서/팀 기준 참석자
-     * "검색"은 ElasticSearch 기반 조직 도메인 검색(F5)에서 처리하며, 이 UseCase는 이미 확정된 userId만 받는다. 따라서 사용자의 존재/유효성
-     * (탈퇴·비활성 등) 검증은 조직 도메인 책임이고, 여기서는 회의 도메인 규칙(역할 배정·중복 제거·검토자 제약)만 책임진다.
+     * <p>참석자 출처(경계): {@code attendeeUserIds}는 유저(조직) 도메인 사용자 테이블에서 선택된 사용자다. 계열사/부서/팀 기준 참석자 "검색"은
+     * ElasticSearch 기반 조직 도메인 검색(F5)에서 처리하며, 이 UseCase는 이미 확정된 userId만 받는다. 따라서 사용자의 존재/유효성 (탈퇴·비활성
+     * 등) 검증은 조직 도메인 책임이고, 여기서는 회의 도메인 규칙(역할 배정·중복 제거·검토자 제약)만 책임진다.
      *
-     * <p>검토자 규칙: 회의록 검토자는 반드시 "참석자 중에서" 지정한다. 검토자로 지정된 참석자만 REVIEWER 역할을 갖고 나머지는 PARTICIPANT다.
-     * 참석자 1명당 역할은 하나이므로, 주최자(HOST)는 검토자로 지정할 수 없다(participants에서 제외되어 검증에 걸린다).
+     * <p>검토자 규칙: 회의록 검토자는 반드시 "참석자 중에서" 지정한다. 검토자로 지정된 참석자만 REVIEWER 역할을 갖고 나머지는 PARTICIPANT다. 참석자
+     * 1명당 역할은 하나이므로, 주최자(HOST)는 검토자로 지정할 수 없다(participants에서 제외되어 검증에 걸린다).
      */
     private List<MeetingAttendee> saveAttendees(
             UUID meetingId, UUID hostUserId, List<UUID> attendeeUserIds, UUID reviewerUserId) {

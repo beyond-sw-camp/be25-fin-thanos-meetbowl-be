@@ -1,10 +1,10 @@
 package com.meetbowl.domain.meeting;
 
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
-
 import java.time.Instant;
 import java.util.UUID;
+
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 
 /**
  * 회의 본체 도메인 모델이다.

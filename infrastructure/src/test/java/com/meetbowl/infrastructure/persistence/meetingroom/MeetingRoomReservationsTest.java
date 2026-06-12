@@ -18,8 +18,8 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
-import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.MeetingListFilter;
+import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
 import com.meetbowl.application.meetingroom.ReservationItemResult;
 import com.meetbowl.application.meetingroom.RoomReservationsResult;
@@ -64,7 +64,9 @@ class MeetingRoomReservationsTest {
 
     @BeforeEach
     void setUp() {
-        meetingRoomRepositoryPort.findAll().forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
+        meetingRoomRepositoryPort
+                .findAll()
+                .forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
         UUID siteId = siteRepositoryPort.save(Site.of(null, "테헤란로", "서울")).id();
         buildingId = buildingRepositoryPort.save(Building.of(null, siteId, "본관")).id();
     }
@@ -107,8 +109,12 @@ class MeetingRoomReservationsTest {
     void boardIncludesAllUsersReservations() {
         UUID roomId = givenRoom("대 회의실");
         reserve(roomId, UUID.randomUUID(), SLOT_START, SLOT_END, null);
-        reserve(roomId, UUID.randomUUID(), Instant.parse("2099-06-01T03:00:00Z"),
-                Instant.parse("2099-06-01T04:00:00Z"), null);
+        reserve(
+                roomId,
+                UUID.randomUUID(),
+                Instant.parse("2099-06-01T03:00:00Z"),
+                Instant.parse("2099-06-01T04:00:00Z"),
+                null);
 
         RoomReservationsResult room =
                 getRoomReservationsUseCase
@@ -165,7 +171,16 @@ class MeetingRoomReservationsTest {
         // 회의실 없는 화상회의
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "화상", SLOT_START, SLOT_END, host, null, "LIVEKIT", "room-1", null, null, null));
+                        "화상",
+                        SLOT_START,
+                        SLOT_END,
+                        host,
+                        null,
+                        "LIVEKIT",
+                        "room-1",
+                        null,
+                        null,
+                        null));
 
         assertThat(getRoomReservationsUseCase.getMyReservations(host, MeetingListFilter.HOST))
                 .isEmpty();

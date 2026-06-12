@@ -19,9 +19,7 @@ import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 
-/**
- * 회의 조회 UseCase다. FE의 "전체 / 내가 주최한 회의 / 초대된 회의" 탭에 대응하는 목록 조회와, 권한 검증을 포함한 단건 상세 조회를 제공한다.
- */
+/** 회의 조회 UseCase다. FE의 "전체 / 내가 주최한 회의 / 초대된 회의" 탭에 대응하는 목록 조회와, 권한 검증을 포함한 단건 상세 조회를 제공한다. */
 @Service
 public class GetMeetingUseCase {
 
@@ -64,13 +62,11 @@ public class GetMeetingUseCase {
                         .findById(meetingId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
-        List<MeetingAttendee> attendees =
-                meetingAttendeeRepositoryPort.findByMeetingId(meetingId);
+        List<MeetingAttendee> attendees = meetingAttendeeRepositoryPort.findByMeetingId(meetingId);
 
         boolean isAttendee = attendees.stream().anyMatch(a -> a.userId().equals(requesterId));
         if (!isAdmin && !meeting.isHostedBy(requesterId) && !isAttendee) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_FORBIDDEN, "회의 주최자나 참석자만 조회할 수 있습니다.");
+            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "회의 주최자나 참석자만 조회할 수 있습니다.");
         }
         return MeetingResult.of(meeting, attendees);
     }

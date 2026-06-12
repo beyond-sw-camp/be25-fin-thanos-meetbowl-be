@@ -19,10 +19,10 @@ import org.springframework.test.context.TestPropertySource;
 import com.meetbowl.application.meeting.CancelMeetingUseCase;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
-import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
+import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
 import com.meetbowl.common.exception.BusinessException;
@@ -97,7 +97,15 @@ class MeetingLifecycleTest {
         MeetingResult created =
                 createMeetingUseCase.execute(
                         new CreateMeetingCommand(
-                                "회의", START, END, host, roomId, null, null, null, null,
+                                "회의",
+                                START,
+                                END,
+                                host,
+                                roomId,
+                                null,
+                                null,
+                                null,
+                                null,
                                 "회의 안건 메모"));
 
         MeetingResult found = getMeetingUseCase.getById(created.meetingId(), host, false);

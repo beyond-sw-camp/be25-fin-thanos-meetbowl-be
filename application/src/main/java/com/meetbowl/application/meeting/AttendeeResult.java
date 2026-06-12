@@ -9,8 +9,6 @@ public record AttendeeResult(UUID userId, String role, String attendanceStatus) 
 
     public static AttendeeResult of(MeetingAttendee attendee) {
         return new AttendeeResult(
-                attendee.userId(),
-                attendee.role().name(),
-                attendee.attendanceStatus().name());
+                attendee.userId(), attendee.role().name(), attendee.attendanceStatus().name());
     }
 }

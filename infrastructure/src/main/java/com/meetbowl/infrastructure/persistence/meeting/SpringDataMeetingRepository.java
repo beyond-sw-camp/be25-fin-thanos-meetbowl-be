@@ -16,8 +16,8 @@ public interface SpringDataMeetingRepository extends JpaRepository<MeetingEntity
     List<MeetingEntity> findByHostUserId(UUID hostUserId);
 
     /**
-     * 같은 회의실에서 [{@code startAt}, {@code endAt}) 시간대와 겹치는 활성 회의를 조회한다. 겹침 조건은 {@code 기존.scheduledAt <
-     * endAt AND 기존.scheduledEndAt > startAt}이라 경계가 맞닿는 경우는 제외된다. 활성 상태 집합은 호출 측에서 전달한다.
+     * 같은 회의실에서 [{@code startAt}, {@code endAt}) 시간대와 겹치는 활성 회의를 조회한다. 겹침 조건은 {@code 기존.scheduledAt
+     * < endAt AND 기존.scheduledEndAt > startAt}이라 경계가 맞닿는 경우는 제외된다. 활성 상태 집합은 호출 측에서 전달한다.
      */
     @Query(
             "select m from MeetingEntity m"
