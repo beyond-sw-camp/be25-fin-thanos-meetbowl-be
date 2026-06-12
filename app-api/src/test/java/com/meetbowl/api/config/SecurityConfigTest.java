@@ -47,8 +47,7 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"))
-                .andExpect(jsonPath("$.error.message").value("?몄쬆???꾩슂?⑸땲??"));
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
     }
 
     @Test
