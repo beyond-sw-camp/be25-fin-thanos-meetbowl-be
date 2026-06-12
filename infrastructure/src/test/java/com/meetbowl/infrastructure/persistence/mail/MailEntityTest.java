@@ -34,7 +34,6 @@ import com.meetbowl.infrastructure.config.InfrastructureConfig;
             "spring.datasource.password=",
             "spring.datasource.driver-class-name=org.h2.Driver",
             "spring.jpa.hibernate.ddl-auto=create-drop",
-            "spring.flyway.enabled=false",
             "spring.jpa.properties.hibernate.jdbc.time_zone=UTC"
         })
 class MailEntityTest {

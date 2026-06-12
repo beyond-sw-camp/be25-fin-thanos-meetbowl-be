@@ -6,6 +6,12 @@ import java.util.regex.Pattern;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 파일의 의미적 버전(major.minor.patch) 값 객체다.
+ *
+ * <p>{@code v.1.0.0} 또는 {@code 1.0.0} 형식을 파싱·검증하고, 버전 간 크기 비교를 제공해 최신 버전 판정과 정렬에 사용한다. 초기 버전은
+ * {@link #INITIAL}(1.0.0)이다.
+ */
 public record DocumentVersion(int major, int minor, int patch)
         implements Comparable<DocumentVersion> {
 

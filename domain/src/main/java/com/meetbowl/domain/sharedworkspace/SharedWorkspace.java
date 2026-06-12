@@ -6,6 +6,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 워크스페이스 애그리거트 루트다.
+ *
+ * <p>이름·설명 길이와 소유자·조직, 공개 범위를 관리한다. 기본 공개 범위는 멤버 전용(MEMBERS_ONLY)이며, 삭제는 행을 지우지 않고 삭제 시각을 남기는 soft
+ * delete로 처리한다.
+ */
 public class SharedWorkspace {
 
     private static final int MAX_NAME_LENGTH = 100;

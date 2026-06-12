@@ -15,6 +15,7 @@ public record ChatRequestContext(
         String question,
         ChatConversationContext conversation,
         UUID userId,
+        UUID organizationId,
         Set<UUID> sharedWorkspaceIds) {
 
     public ChatRequestContext {
@@ -26,6 +27,7 @@ public record ChatRequestContext(
                         "챗봇 질문은 20000자 이하여야 합니다.");
         conversation = conversation == null ? ChatConversationContext.empty() : conversation;
         ChatDomainValidators.requireId(userId, "챗봇 요청 사용자 ID는 필수입니다.");
+        ChatDomainValidators.requireId(organizationId, "챗봇 요청 조직 ID는 필수입니다.");
         sharedWorkspaceIds = sharedWorkspaceIds == null ? Set.of() : sharedWorkspaceIds;
         if (sharedWorkspaceIds.stream().anyMatch(workspaceId -> workspaceId == null)) {
             throw ChatDomainValidators.invalid("공유 워크스페이스 허용 범위에 빈 ID를 포함할 수 없습니다.");

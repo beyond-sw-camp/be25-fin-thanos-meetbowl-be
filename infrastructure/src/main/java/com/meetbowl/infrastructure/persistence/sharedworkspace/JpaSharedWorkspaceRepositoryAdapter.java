@@ -10,6 +10,12 @@ import com.meetbowl.domain.sharedworkspace.SharedWorkspace;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceRepositoryPort;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceVisibility;
 
+/**
+ * 공유 워크스페이스의 {@link SharedWorkspaceRepositoryPort}를 JPA로 구현한다.
+ *
+ * <p>접근 가능한 워크스페이스 조회를 두 경로로 나눈다. 소유자 본인 소유분과, 같은 조직 전체 공개(ORGANIZATION) 워크스페이스다. 둘 다 삭제된 워크스페이스는
+ * 제외해, 권한 계산이 살아 있는 워크스페이스만 보게 한다.
+ */
 @Repository
 public class JpaSharedWorkspaceRepositoryAdapter implements SharedWorkspaceRepositoryPort {
 

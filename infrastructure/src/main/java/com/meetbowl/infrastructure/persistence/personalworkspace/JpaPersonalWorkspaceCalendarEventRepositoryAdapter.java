@@ -11,6 +11,12 @@ import com.meetbowl.domain.personalworkspace.CalendarEventSource;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEvent;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarEventRepositoryPort;
 
+/**
+ * 개인 캘린더 일정의 {@link PersonalWorkspaceCalendarEventRepositoryPort}를 JPA로 구현한다.
+ *
+ * <p>기간 조회는 일정 구간이 조회 구간과 겹치는지로 판정한다. 직접 삭제는 {@code PERSONAL} 출처 일정으로만 제한해, 회의에서 파생된 일정은 캘린더 API로
+ * 지울 수 없게 한다. 동료 일정은 구독 가시성 쿼리로만 노출한다.
+ */
 @Repository
 public class JpaPersonalWorkspaceCalendarEventRepositoryAdapter
         implements PersonalWorkspaceCalendarEventRepositoryPort {

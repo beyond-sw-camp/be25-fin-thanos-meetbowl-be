@@ -11,6 +11,10 @@ import jakarta.persistence.UniqueConstraint;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceCalendarSubscription;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
+/**
+ * {@link PersonalWorkspaceCalendarSubscription}을 저장하는 영속 엔티티다. (구독자, 대상) 유니크 제약으로 같은 동료의 중복 구독을
+ * 막는다.
+ */
 @Entity
 @Table(
         name = "personal_workspace_calendar_subscriptions",

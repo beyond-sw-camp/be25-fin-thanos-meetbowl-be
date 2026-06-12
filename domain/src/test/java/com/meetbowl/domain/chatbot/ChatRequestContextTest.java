@@ -16,7 +16,8 @@ class ChatRequestContextTest {
     @Test
     void createsStatelessRequestWithEmptyConversation() {
         ChatRequestContext request =
-                new ChatRequestContext("  배포 일정을 알려줘  ", null, UUID.randomUUID(), Set.of());
+                new ChatRequestContext(
+                        "  배포 일정을 알려줘  ", null, UUID.randomUUID(), UUID.randomUUID(), Set.of());
 
         assertEquals("배포 일정을 알려줘", request.question());
         assertEquals(ChatConversationContext.empty(), request.conversation());
@@ -28,7 +29,24 @@ class ChatRequestContextTest {
                 BusinessException.class,
                 () ->
                         new ChatRequestContext(
-                                "질문", ChatConversationContext.empty(), null, Set.of()));
+                                "질문",
+                                ChatConversationContext.empty(),
+                                null,
+                                UUID.randomUUID(),
+                                Set.of()));
+    }
+
+    @Test
+    void requiresOrganizationId() {
+        assertThrows(
+                BusinessException.class,
+                () ->
+                        new ChatRequestContext(
+                                "질문",
+                                ChatConversationContext.empty(),
+                                UUID.randomUUID(),
+                                null,
+                                Set.of()));
     }
 
     @Test
@@ -37,7 +55,8 @@ class ChatRequestContextTest {
         workspaceIds.add(UUID.randomUUID());
 
         ChatRequestContext request =
-                new ChatRequestContext("질문", null, UUID.randomUUID(), workspaceIds);
+                new ChatRequestContext(
+                        "질문", null, UUID.randomUUID(), UUID.randomUUID(), workspaceIds);
         workspaceIds.add(UUID.randomUUID());
 
         assertEquals(1, request.sharedWorkspaceIds().size());

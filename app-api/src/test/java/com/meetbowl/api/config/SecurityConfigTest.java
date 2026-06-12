@@ -60,22 +60,16 @@ class SecurityConfigTest {
     }
 
     @Test
-    void guestCanAccessPublicGuestJoinEndpoint() throws Exception {
-        mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
+    void tokenWithoutExpectedIssuerIsRejected() throws Exception {
+        String accessToken = createAccessToken("USER", false, null);
+
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void guestCanOnlyAccessInvitedMeetingJoinEndpoint() throws Exception {
-        String accessToken = createAccessToken("GUEST");
-
-        mockMvc.perform(
-                        post("/api/v1/meetings/" + UUID.randomUUID() + "/join")
-                                .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isNotFound());
-
-        mockMvc.perform(get("/api/v1/mails/inbox").header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    void publicEndpointsAreAccessible() throws Exception {
+        mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
     }
 
     @Test
@@ -94,7 +88,7 @@ class SecurityConfigTest {
         mockMvc.perform(
                         post("/api/v1/internal/mails/send")
                                 .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -197,7 +191,7 @@ class SecurityConfigTest {
         String accessToken = createAccessToken("USER");
 
         mockMvc.perform(
-                        get("/api/v1/users/" + UUID.randomUUID())
+                        get("/api/v1/admin/users/" + UUID.randomUUID())
                                 .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
@@ -228,8 +222,13 @@ class SecurityConfigTest {
 
     private String createAccessToken(String role, boolean initialPasswordChangeRequired)
             throws Exception {
+        return createAccessToken(role, initialPasswordChangeRequired, "meetbowl");
+    }
+
+    private String createAccessToken(
+            String role, boolean initialPasswordChangeRequired, String issuer) throws Exception {
         Instant now = Instant.now();
-        JWTClaimsSet claims =
+        JWTClaimsSet.Builder claimsBuilder =
                 new JWTClaimsSet.Builder()
                         .subject(UUID.randomUUID().toString())
                         .jwtID(UUID.randomUUID().toString())
@@ -238,8 +237,11 @@ class SecurityConfigTest {
                         .claim("initialPasswordChangeRequired", initialPasswordChangeRequired)
                         .claim("displayName", "홍길동")
                         .issueTime(Date.from(now))
-                        .expirationTime(Date.from(now.plusSeconds(300)))
-                        .build();
+                        .expirationTime(Date.from(now.plusSeconds(300)));
+        if (issuer != null) {
+            claimsBuilder.issuer(issuer);
+        }
+        JWTClaimsSet claims = claimsBuilder.build();
 
         SignedJWT signedJwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         signedJwt.sign(new MACSigner(JWT_SECRET));

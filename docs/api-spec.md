@@ -123,7 +123,9 @@ X-Internal-Token: {internalToken}
 | `MEETING_FORBIDDEN_GUEST_ACCESS` | 403 | 게스트 접근 불가 |
 | `MINUTES_REVIEW_REQUIRED` | 409 | 검토자 승인 필요 |
 | `MINUTES_ALREADY_APPROVED` | 409 | 이미 승인된 회의록 |
+| `MAIL_NOT_FOUND` | 404 | 메일 없음 |
 | `MAIL_FORBIDDEN_ACCESS` | 403 | 메일 접근 불가 |
+| `MAIL_IDEMPOTENCY_CONFLICT` | 409 | 동일한 멱등성 키의 요청 내용 충돌 |
 | `FILE_INVALID_EXTENSION` | 415 | 허용되지 않은 파일 형식 |
 | `FILE_SIZE_EXCEEDED` | 413 | 파일 크기 초과 |
 | `AI_RAG_ACCESS_DENIED` | 403 | AI 자료 접근 권한 없음 |
@@ -140,7 +142,7 @@ X-Internal-Token: {internalToken}
 | POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
-| POST | `/auth/password/reset-by-admin` | 관리자가 비밀번호 초기화 | Admin |
+| POST | `/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
 로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
@@ -148,8 +150,13 @@ X-Internal-Token: {internalToken}
 - Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
 - Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
 - 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- Access Token은 서명, 만료 시간과 함께 `issuer=meetbowl`을 검증하며 `iat`가 없는 토큰은 허용하지 않는다.
+- 관리자에 의한 사용자 상태 변경과 비밀번호 초기화 시 해당 사용자의 모든 Refresh Token을 폐기하고, 변경 시각 이전에 발급된 Access Token을 거부한다.
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
+- 관리자 비밀번호 초기화 응답에는 임시 비밀번호 원문이 1회 포함되며, 이후에는 저장되지 않는다.
+- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
 - 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.
@@ -314,6 +321,110 @@ DELETION_SCHEDULED
 | POST | `/mails/{mailId}/attachments` | 첨부파일 업로드 | Sender |
 | GET | `/mails/{mailId}/attachments/{attachmentId}` | 첨부파일 다운로드 | Owner |
 | POST | `/internal/mails/send` | 시스템 내부 메일 발송 요청 | Internal/System |
+
+### 11.1 구현 범위
+
+현재 사용자 API는 발송, 받은/보낸/휴지통 목록, 상세 조회, 읽음 상태 변경, 휴지통 이동, 복구, 영구 삭제, 선택 메일 백업, 메일 검색, 공지 메일 발송을 제공한다.
+첨부파일 업로드/다운로드와 시스템 내부 발송 API는 Object Storage 및 RabbitMQ Adapter 계약과 함께 후속 구현한다.
+
+#### 메일 검색
+
+`GET /api/v1/mails/search?q={keyword}&page=1&size=20`
+
+- `q`는 필수이며 공백만 입력하면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 현재 사용자가 소유한 메일함 항목 중 제목 또는 본문에 키워드를 포함한 항목을 대소문자 구분 없이 검색한다.
+- 휴지통과 영구 삭제 항목은 검색 대상에서 제외한다.
+- 응답은 받은/보낸 메일함 목록과 동일한 페이지 형식을 사용한다.
+
+#### 공지 메일 발송
+
+`POST /api/v1/mails/announcements` (Admin)
+
+```json
+{
+  "subject": "전사 공지",
+  "body": "공지 내용",
+  "bodyType": "TEXT",
+  "idempotencyKey": "uuid"
+}
+```
+
+- 수신자는 요청 본문으로 받지 않고, 발신 관리자와 같은 조직(affiliate)의 활성 사용자로 서버가 계산한다.
+- 발신자 본인과 시스템 계정은 수신자에서 제외한다. 수신 가능 사용자가 없으면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 메일 유형은 `ANNOUNCEMENT`로 고정하고, 일반 메일과 동일하게 발송 즉시 `SENT` 상태로 저장한다.
+- 같은 `idempotencyKey`로 내용이 동일하면 기존 발송 결과를 반환하고, 다르면 `MAIL_IDEMPOTENCY_CONFLICT`를 반환한다.
+
+### 11.2 메일 발송
+
+`POST /api/v1/mails`
+
+```json
+{
+  "recipientUserIds": ["uuid"],
+  "subject": "회의 자료 공유",
+  "body": "자료를 확인해 주세요.",
+  "bodyType": "TEXT",
+  "relatedResourceType": null,
+  "relatedResourceId": null,
+  "idempotencyKey": "uuid"
+}
+```
+
+- 일반 사용자 발송의 `mailType`은 `NORMAL`로 고정한다.
+- 수신자는 발신자와 같은 조직에 속한 활성 User/Admin 계정이어야 한다.
+- 발신자를 수신자 목록에 포함할 수 없다.
+- `relatedResourceType`과 `relatedResourceId`는 함께 지정하거나 모두 생략한다.
+- 같은 `idempotencyKey`와 동일한 요청은 기존 발송 결과를 반환한다.
+- 같은 `idempotencyKey`로 다른 내용을 요청하면 `MAIL_IDEMPOTENCY_CONFLICT`를 반환한다.
+- 성공 시 메일 상태는 `SENT`이며, 발신자의 `SENT` 항목과 수신자의 `INBOX` 항목을 같은 트랜잭션에서 생성한다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "mailId": "uuid",
+    "deliveryStatus": "SENT",
+    "requestedAt": "2026-06-10T03:00:00Z"
+  }
+}
+```
+
+### 11.3 메일함 목록
+
+`GET /api/v1/mails/inbox?page=1&size=20`
+
+`GET /api/v1/mails/sent?page=1&size=20`
+
+`GET /api/v1/mails/trash?page=1&size=20`
+
+- `page`는 1부터 시작하며 기본값은 1이다.
+- `size` 기본값은 20, 최댓값은 100이다.
+- 받은/보낸 메일함은 휴지통 및 영구 삭제 항목을 제외한다.
+- 휴지통은 받은/보낸 메일함 유형을 모두 포함하며 영구 삭제 항목은 제외한다.
+- 최신 메일함 항목 순서로 반환한다.
+
+### 11.4 메일 상세 및 상태 변경
+
+- `GET /api/v1/mails/{mailId}`는 현재 사용자가 소유한 메일함 항목이 있을 때만 반환한다.
+- `PATCH /api/v1/mails/{mailId}/read` 요청은 `{ "read": true }` 형식이며 받은 메일에만 허용한다.
+- `DELETE /api/v1/mails/{mailId}`는 현재 사용자의 메일함 항목만 휴지통으로 이동한다.
+- `POST /api/v1/mails/{mailId}/restore`는 현재 사용자의 휴지통 항목만 복구한다.
+- `DELETE /api/v1/mails/{mailId}/permanent`는 휴지통에 있는 현재 사용자의 항목만 영구 삭제 표시한다.
+- 다른 사용자의 메일함 상태나 공용 메일 본문은 변경하지 않는다.
+
+### 11.5 선택 메일 백업
+
+`POST /api/v1/mails/backup`
+
+```json
+{
+  "mailIds": ["uuid"]
+}
+```
+
+- 현재 사용자가 소유한 받은/보낸 메일만 개인 워크스페이스 백업으로 등록한다.
+- 같은 메일을 다시 요청하면 기존 백업을 반환해 멱등하게 처리한다.
+- 생성 결과는 `GET /api/v1/workspace/backups`에서 `sourceType: MAIL`로 조회된다.
 
 ---
 

@@ -6,6 +6,12 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 공유 워크스페이스 멤버십 애그리거트다.
+ *
+ * <p>워크스페이스와 사용자, 역할(OWNER/MEMBER)과 상태(ACTIVE/REMOVED)를 잇는다. 추방·탈퇴는 상태를 REMOVED로 바꾸고 제거 시각을 남기며,
+ * 재초대 시 같은 행을 다시 활성화해 권한 판정을 멤버십 단일 기준으로 유지한다.
+ */
 public class SharedWorkspaceMember {
 
     private final UUID id;

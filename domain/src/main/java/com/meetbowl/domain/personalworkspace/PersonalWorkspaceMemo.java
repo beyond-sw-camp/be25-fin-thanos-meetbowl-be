@@ -6,6 +6,11 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
+/**
+ * 사용자 개인 메모 애그리거트다.
+ *
+ * <p>제목·내용 길이와 소유자, 생성/수정 시각 정합성(수정이 생성보다 빠를 수 없음)을 생성 시점에 검증한다. 수정은 새 인스턴스를 만들어 불변성을 유지한다.
+ */
 public class PersonalWorkspaceMemo {
 
     private static final int MAX_TITLE_LENGTH = 100;

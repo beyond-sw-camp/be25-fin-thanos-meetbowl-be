@@ -39,7 +39,8 @@ public class CommentLikeEntity extends BaseEntity {
     }
 
     static CommentLikeEntity from(CommentLike commentLike) {
-        CommentLikeEntity entity = new CommentLikeEntity(commentLike.commentId(), commentLike.userId());
+        CommentLikeEntity entity =
+                new CommentLikeEntity(commentLike.commentId(), commentLike.userId());
         entity.setId(commentLike.id());
         return entity;
     }
