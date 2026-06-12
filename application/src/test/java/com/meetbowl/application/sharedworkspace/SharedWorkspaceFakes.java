@@ -276,6 +276,19 @@ final class SharedWorkspaceFakes {
         }
 
         @Override
+        public Paged<User> search(
+                String keyword,
+                UUID affiliateId,
+                UUID departmentId,
+                UUID teamId,
+                UUID positionId,
+                UserStatus status,
+                int page,
+                int size) {
+            return new Paged<>(List.copyOf(store.values()), store.size());
+        }
+
+        @Override
         public java.util.List<User> findAllByAffiliateId(UUID affiliateId) {
             return store.values().stream()
                     .filter(user -> affiliateId.equals(user.affiliateId()))
