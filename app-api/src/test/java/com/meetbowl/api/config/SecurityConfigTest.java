@@ -60,6 +60,13 @@ class SecurityConfigTest {
     }
 
     @Test
+    void menusEndpointWithoutTokenReturnsCommonUnauthorizedResponse() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me/menus"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
     void tokenWithoutExpectedIssuerIsRejected() throws Exception {
         String accessToken = createAccessToken("USER", false, null);
 
@@ -214,6 +221,17 @@ class SecurityConfigTest {
         mockMvc.perform(get("/unconfigured").header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+    }
+
+    @Test
+    void userCanAccessMenusEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        get("/api/v1/users/me/menus")
+                                .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("USER"));
     }
 
     private String createAccessToken(String role) throws Exception {

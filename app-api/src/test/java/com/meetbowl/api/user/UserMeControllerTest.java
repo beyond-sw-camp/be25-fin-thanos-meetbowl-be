@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.AccessTokenValidationService;
+import com.meetbowl.application.user.GetMyMenusUseCase;
+import com.meetbowl.application.user.MenuItemResult;
+import com.meetbowl.application.user.MyMenusResult;
 import com.meetbowl.application.user.MyProfileResult;
 import com.meetbowl.application.user.MyProfileUseCase;
 import com.meetbowl.application.user.MySettingsResult;
@@ -56,6 +60,7 @@ class UserMeControllerTest {
 
     @MockitoBean private MyProfileUseCase myProfileUseCase;
     @MockitoBean private MySettingsUseCase mySettingsUseCase;
+    @MockitoBean private GetMyMenusUseCase getMyMenusUseCase;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Test
@@ -128,6 +133,48 @@ class UserMeControllerTest {
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(15))
                 .andExpect(jsonPath("$.data.autoBackupEnabled").value(true))
                 .andExpect(jsonPath("$.data.autoBackupTime").value("19:30:00"));
+    }
+
+    @Test
+    void getMenusSuccessForAdminIncludesAdminMenus() throws Exception {
+        given(getMyMenusUseCase.get("ADMIN")).willReturn(adminMenusResult());
+
+        mockMvc.perform(
+                        get("/api/v1/users/me/menus")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("ADMIN"))
+                .andExpect(jsonPath("$.data.menus[0].code").value("DASHBOARD"))
+                .andExpect(jsonPath("$.data.menus[3].code").value("ADMIN_DASHBOARD"))
+                .andExpect(jsonPath("$.data.menus[4].children[0].code").value("USER_MANAGEMENT"))
+                .andExpect(
+                        jsonPath("$.data.menus[4].children[3].code")
+                                .value("MENU_PERMISSION_MANAGEMENT"));
+    }
+
+    @Test
+    void getMenusSuccessForUserExcludesAdminMenus() throws Exception {
+        given(getMyMenusUseCase.get("USER")).willReturn(userMenusResult());
+
+        mockMvc.perform(
+                        get("/api/v1/users/me/menus")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.role").value("USER"))
+                .andExpect(jsonPath("$.data.menus.length()").value(3))
+                .andExpect(jsonPath("$.data.menus[0].code").value("DASHBOARD"))
+                .andExpect(jsonPath("$.data.menus[2].code").value("ORGANIZATION_CHART"));
+    }
+
+    @Test
+    void getMenusFailsWhenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me/menus"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
     }
 
     @Test
@@ -214,5 +261,58 @@ class UserMeControllerTest {
                 "Position",
                 Instant.parse("2026-06-11T00:00:00Z"),
                 Instant.parse("2026-12-31T23:59:59Z"));
+    }
+
+    private MyMenusResult adminMenusResult() {
+        return new MyMenusResult(
+                "ADMIN",
+                List.of(
+                        menu("DASHBOARD", "Dashboard", "/", 1),
+                        menu("MY_PAGE", "My Page", "/my-profile", 2),
+                        menu("ORGANIZATION_CHART", "Organization Chart", "/organization-chart", 3),
+                        menu("ADMIN_DASHBOARD", "Admin Dashboard", "/admin/dashboard", 4),
+                        new MenuItemResult(
+                                "ADMIN_SETTINGS",
+                                "Settings",
+                                "/admin/settings",
+                                5,
+                                List.of(
+                                        menu(
+                                                "USER_MANAGEMENT",
+                                                "User Management",
+                                                "/admin/users",
+                                                1),
+                                        menu(
+                                                "ORGANIZATION_MASTER_DATA",
+                                                "Organization Master Data",
+                                                "/admin/organizations",
+                                                2),
+                                        menu(
+                                                "ORGANIZATION_EXCEL",
+                                                "Organization Excel",
+                                                "/admin/organization-chart/excel",
+                                                3),
+                                        menu(
+                                                "MENU_PERMISSION_MANAGEMENT",
+                                                "Menu Permission",
+                                                "/admin/settings/menus",
+                                                4)))));
+    }
+
+    private MyMenusResult userMenusResult() {
+        return new MyMenusResult(
+                "USER",
+                List.of(
+                        menu("DASHBOARD", "Dashboard", "/", 1),
+                        menu("MY_PAGE", "My Page", "/my-profile", 2),
+                        menu(
+                                "ORGANIZATION_CHART",
+                                "Organization Chart",
+                                "/organization-chart",
+                                3)));
+    }
+
+    private MenuItemResult menu(String code, String name, String path, int order) {
+        return new MenuItemResult(code, name, path, order, List.of());
     }
 }
