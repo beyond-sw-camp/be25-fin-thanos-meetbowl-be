@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.mail.Mail;
 import com.meetbowl.domain.mail.MailRepositoryPort;
 import com.meetbowl.domain.mail.MailboxEntry;
@@ -60,9 +61,11 @@ class BackupMailsUseCaseTest {
                         mailRepository,
                         mailboxRepository,
                         backupRepository,
+                        mock(DocumentIndexRequestedEventPort.class),
                         Clock.fixed(now, ZoneOffset.UTC));
 
-        List<BackupMailResult> results = useCase.execute(userId, List.of(mailId, mailId));
+        List<BackupMailResult> results =
+                useCase.execute(userId, UUID.randomUUID(), List.of(mailId, mailId));
 
         assertEquals(1, results.size());
         assertEquals(backupId, results.get(0).backupId());
