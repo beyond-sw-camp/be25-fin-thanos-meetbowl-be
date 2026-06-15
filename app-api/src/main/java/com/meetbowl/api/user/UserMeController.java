@@ -76,8 +76,7 @@ public class UserMeController extends BaseController {
                                         currentUser.userId(),
                                         request.meetingStartReminderMinutes(),
                                         request.minutesReviewReminderMinutes(),
-                                        request.autoBackupEnabled(),
-                                        request.autoBackupTime()))));
+                                        request.autoBackupEnabled()))));
     }
 
     private void requireUserOrAdmin(AuthenticatedUser currentUser) {

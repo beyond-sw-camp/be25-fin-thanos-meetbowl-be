@@ -2,7 +2,6 @@ package com.meetbowl.application.user;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -31,8 +30,7 @@ public class MySettingsUseCase {
                         () -> {
                             // 설정 레코드가 아직 없으면 화면이 바로 렌더링되도록 기본 설정을 내려준다.
                             return toResult(
-                                    UserSetting.createDefault(
-                                            currentUserId, Instant.now(clock)));
+                                    UserSetting.createDefault(currentUserId, Instant.now(clock)));
                         });
     }
 
@@ -53,7 +51,6 @@ public class MySettingsUseCase {
                         // 회의록 미검토 알림 주기는 도메인에서 허용값(60/120/180/240)만 저장한다.
                         command.minutesReviewReminderMinutes(),
                         command.autoBackupEnabled(),
-                        command.autoBackupTime(),
                         current.createdAt(),
                         now);
         return toResult(userSettingRepositoryPort.save(updated));
@@ -64,14 +61,12 @@ public class MySettingsUseCase {
                 // API 응답 필드명은 기존 프론트 계약인 meetingStartReminderMinutes를 유지한다.
                 setting.meetingReminderMinutesBefore(),
                 setting.minutesReviewReminderMinutes(),
-                setting.autoBackupEnabled(),
-                setting.autoBackupTime());
+                setting.autoBackupEnabled());
     }
 
     public record UpdateMySettingsCommand(
             UUID userId,
             int meetingStartReminderMinutes,
             int minutesReviewReminderMinutes,
-            boolean autoBackupEnabled,
-            LocalTime autoBackupTime) {}
+            boolean autoBackupEnabled) {}
 }

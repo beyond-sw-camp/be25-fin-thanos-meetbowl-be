@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,6 @@ class UserSettingTest {
         assertEquals(
                 UserSetting.DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
                 setting.minutesReviewReminderMinutes());
-        assertEquals(UserSetting.DEFAULT_AUTO_BACKUP_TIME, setting.autoBackupTime());
         assertFalse(setting.autoBackupEnabled());
     }
 
@@ -42,7 +40,6 @@ class UserSettingTest {
                                         10,
                                         90,
                                         false,
-                                        LocalTime.of(18, 0),
                                         Instant.parse("2026-06-08T08:00:00Z"),
                                         Instant.parse("2026-06-08T08:00:00Z")));
 

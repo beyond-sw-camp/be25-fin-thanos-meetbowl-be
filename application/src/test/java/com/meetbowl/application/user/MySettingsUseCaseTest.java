@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
@@ -46,20 +45,17 @@ class MySettingsUseCaseTest {
                 UserSetting.DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
                 result.minutesReviewReminderMinutes());
         assertEquals(false, result.autoBackupEnabled());
-        assertEquals(UserSetting.DEFAULT_AUTO_BACKUP_TIME, result.autoBackupTime());
     }
 
     @Test
     void updateSettingsSuccessCreatesSettingForCurrentUser() {
         MySettingsResult result =
                 useCase.update(
-                        new MySettingsUseCase.UpdateMySettingsCommand(
-                                USER_ID, 30, 180, true, LocalTime.of(20, 0)));
+                        new MySettingsUseCase.UpdateMySettingsCommand(USER_ID, 30, 180, true));
 
         assertEquals(30, result.meetingStartReminderMinutes());
         assertEquals(180, result.minutesReviewReminderMinutes());
         assertEquals(true, result.autoBackupEnabled());
-        assertEquals(LocalTime.of(20, 0), result.autoBackupTime());
         assertEquals(USER_ID, userSettingRepository.findByUserId(USER_ID).orElseThrow().userId());
     }
 
@@ -71,7 +67,7 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, -1, 60, false, LocalTime.of(18, 0))));
+                                                USER_ID, -1, 60, false)));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -84,20 +80,7 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, 10, 90, false, LocalTime.of(18, 0))));
-
-        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
-    }
-
-    @Test
-    void updateSettingsFailsWhenAutoBackupEnabledWithoutTime() {
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () ->
-                                useCase.update(
-                                        new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, 10, 60, true, null)));
+                                                USER_ID, 10, 90, false)));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -114,7 +97,6 @@ class MySettingsUseCaseTest {
                             userSetting.meetingReminderMinutesBefore(),
                             userSetting.minutesReviewReminderMinutes(),
                             userSetting.autoBackupEnabled(),
-                            userSetting.autoBackupTime(),
                             userSetting.createdAt(),
                             userSetting.updatedAt());
             settings.put(saved.userId(), saved);

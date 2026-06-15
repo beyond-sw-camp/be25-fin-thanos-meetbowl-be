@@ -1,6 +1,5 @@
 package com.meetbowl.infrastructure.persistence.user;
 
-import java.time.LocalTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -30,9 +29,6 @@ public class UserSettingEntity extends BaseEntity {
     @Column(nullable = false)
     private boolean autoBackupEnabled;
 
-    /** 자동 백업 실행 시각이다. */
-    private LocalTime autoBackupTime;
-
     protected UserSettingEntity() {}
 
     private UserSettingEntity(UserSetting userSetting) {
@@ -41,7 +37,6 @@ public class UserSettingEntity extends BaseEntity {
         // 도메인에서 검증된 분 단위 값을 그대로 영속화한다.
         minutesReviewReminderMinutes = userSetting.minutesReviewReminderMinutes();
         autoBackupEnabled = userSetting.autoBackupEnabled();
-        autoBackupTime = userSetting.autoBackupTime();
     }
 
     static UserSettingEntity from(UserSetting userSetting) {
@@ -57,7 +52,6 @@ public class UserSettingEntity extends BaseEntity {
                 meetingReminderMinutesBefore,
                 minutesReviewReminderMinutes,
                 autoBackupEnabled,
-                autoBackupTime,
                 getCreatedAt(),
                 getUpdatedAt());
     }

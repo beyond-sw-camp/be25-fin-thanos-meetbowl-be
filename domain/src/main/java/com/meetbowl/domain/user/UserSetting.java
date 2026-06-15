@@ -1,7 +1,6 @@
 package com.meetbowl.domain.user;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.Set;
 import java.util.UUID;
 
@@ -15,7 +14,6 @@ public record UserSetting(
         // 회의록 검토 전까지 반복 알림을 보내는 주기이며, 분 단위 정수로 저장한다.
         int minutesReviewReminderMinutes,
         boolean autoBackupEnabled,
-        LocalTime autoBackupTime,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -23,7 +21,6 @@ public record UserSetting(
     public static final int DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES = 60;
     public static final Set<Integer> ALLOWED_MINUTES_REVIEW_REMINDER_MINUTES =
             Set.of(60, 120, 180, 240);
-    public static final LocalTime DEFAULT_AUTO_BACKUP_TIME = LocalTime.of(18, 0);
 
     public UserSetting {
         if (userId == null) {
@@ -37,9 +34,6 @@ public record UserSetting(
             throw new BusinessException(
                     ErrorCode.COMMON_INVALID_REQUEST, "회의록 미검토 알림 주기가 올바르지 않습니다.");
         }
-        if (autoBackupEnabled && autoBackupTime == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "자동 백업 시간은 필수입니다.");
-        }
     }
 
     public static UserSetting createDefault(UUID userId, Instant now) {
@@ -50,7 +44,6 @@ public record UserSetting(
                 // 개인 설정이 아직 없는 사용자는 1시간마다 알림을 받도록 기본값을 둔다.
                 DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
                 false,
-                DEFAULT_AUTO_BACKUP_TIME,
                 now,
                 now);
     }

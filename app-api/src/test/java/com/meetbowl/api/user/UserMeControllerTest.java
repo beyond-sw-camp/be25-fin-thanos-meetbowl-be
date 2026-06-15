@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -116,8 +115,7 @@ class UserMeControllerTest {
 
     @Test
     void getSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.get(USER_ID))
-                .willReturn(new MySettingsResult(15, 120, true, LocalTime.of(19, 30)));
+        given(mySettingsUseCase.get(USER_ID)).willReturn(new MySettingsResult(15, 120, true));
 
         mockMvc.perform(
                         get("/api/v1/users/me/settings")
@@ -128,13 +126,12 @@ class UserMeControllerTest {
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(15))
                 .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(120))
                 .andExpect(jsonPath("$.data.autoBackupEnabled").value(true))
-                .andExpect(jsonPath("$.data.autoBackupTime").value("19:30:00"));
+                .andExpect(jsonPath("$.data.autoBackupTime").doesNotExist());
     }
 
     @Test
     void updateSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.update(any()))
-                .willReturn(new MySettingsResult(20, 180, false, LocalTime.of(18, 0)));
+        given(mySettingsUseCase.update(any())).willReturn(new MySettingsResult(20, 180, false));
 
         mockMvc.perform(
                         patch("/api/v1/users/me/settings")
@@ -147,8 +144,7 @@ class UserMeControllerTest {
                                         {
                                           "meetingStartReminderMinutes": 20,
                                           "minutesReviewReminderMinutes": 180,
-                                          "autoBackupEnabled": false,
-                                          "autoBackupTime": "18:00:00"
+                                          "autoBackupEnabled": false
                                         }
                                         """))
                 .andExpect(status().isOk())
@@ -178,8 +174,7 @@ class UserMeControllerTest {
                                         {
                                           "meetingStartReminderMinutes": -1,
                                           "minutesReviewReminderMinutes": 60,
-                                          "autoBackupEnabled": false,
-                                          "autoBackupTime": "18:00:00"
+                                          "autoBackupEnabled": false
                                         }
                                         """))
                 .andExpect(status().isBadRequest())
@@ -200,8 +195,7 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": 10,
-                                          "autoBackupEnabled": false,
-                                          "autoBackupTime": "18:00:00"
+                                          "autoBackupEnabled": false
                                         }
                                         """))
                 .andExpect(status().isBadRequest())
