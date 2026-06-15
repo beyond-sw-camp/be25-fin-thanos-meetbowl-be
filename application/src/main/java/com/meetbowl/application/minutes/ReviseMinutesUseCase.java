@@ -29,7 +29,8 @@ public class ReviseMinutesUseCase {
         MinutesAccessValidator.ensureSameOrganization(minutes, command.actorOrganizationId());
 
         // 수정과 IN_REVIEW 상태 전이를 한 트랜잭션에서 저장해 수정 내용만 반영되는 상태를 방지한다.
-        Minutes revised = minutes.revise(command.summary(), command.content(), command.actorUserId());
+        Minutes revised =
+                minutes.revise(command.summary(), command.content(), command.actorUserId());
         return MinutesResult.from(minutesRepositoryPort.save(revised));
     }
 

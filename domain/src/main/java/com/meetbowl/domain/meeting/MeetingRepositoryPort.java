@@ -31,5 +31,8 @@ public interface MeetingRepositoryPort {
      */
     List<Meeting> findActiveOverlapsInRooms(List<UUID> meetingRoomIds, Instant from, Instant to);
 
+    /** 회의실이 있는 회의 중 CANCELLED를 제외하고 [{@code from}, {@code to})와 겹치는 회의를 조회한다. */
+    List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to);
+
     void deleteById(UUID id);
 }
