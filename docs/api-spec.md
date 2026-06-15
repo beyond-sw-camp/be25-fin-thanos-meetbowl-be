@@ -480,6 +480,16 @@ DELETION_SCHEDULED
 | PATCH | `/shared-workspaces/{spaceId}/files/{fileId}/versions/{versionId}` | 버전 변경 내용 메모 수정 | Member |
 공유 워크스페이스 파일은 새 버전이 업로드되어도 기존 버전과 변경 이력을 보존한다.
 
+### 12.2 공유 자료 업로드/새 버전 업로드
+
+`POST /api/v1/shared-workspaces/{spaceId}/files`, `POST /api/v1/shared-workspaces/{spaceId}/files/{fileId}/versions`
+
+- 두 API 모두 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다. 새 버전 업로드는 `expectedCurrentVersion`, `newVersion`, `changeMemo`(선택)를 form 필드로 함께 받는다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다. Content-Type은 서버가 확장자로 결정한다.
+- 파일 원본은 S3 호환 Object Storage에 저장하고, DB에는 메타데이터(파일명, Content-Type, 크기, `storageKey`)만 저장한다. 버전마다 별도 `storageKey`를 두어 이전 버전 원본도 보존한다.
+- 저장 성공 후 `document.index.requested`를 발행한다. 색인 단위는 파일(`documentId=fileId`)이라 새 버전이 올라오면 같은 문서를 최신 내용으로 교체 색인한다.
+- 공유 자료이므로 `accessScope.sharedWorkspaceIds`에 워크스페이스 ID를 담아 멤버 전원이 검색할 수 있게 한다.
+
 ---
 
 ## 13. AI Chatbot Gateway API
