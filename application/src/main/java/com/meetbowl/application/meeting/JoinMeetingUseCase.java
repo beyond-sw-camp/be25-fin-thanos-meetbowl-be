@@ -25,11 +25,15 @@ public class JoinMeetingUseCase {
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final LiveKitTokenIssuer liveKitTokenIssuer;
+    private final MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
 
     public JoinMeetingUseCase(
-            MeetingRepositoryPort meetingRepositoryPort, LiveKitTokenIssuer liveKitTokenIssuer) {
+            MeetingRepositoryPort meetingRepositoryPort,
+            LiveKitTokenIssuer liveKitTokenIssuer,
+            MeetingRealtimeSessionStarter meetingRealtimeSessionStarter) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.liveKitTokenIssuer = liveKitTokenIssuer;
+        this.meetingRealtimeSessionStarter = meetingRealtimeSessionStarter;
     }
 
     public JoinMeetingResult execute(JoinMeetingCommand command) {
@@ -40,6 +44,9 @@ public class JoinMeetingUseCase {
         String roomName = resolveRoomName(command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
+
+        // 사용자가 회의 화면에 입장하는 시점에 STT 세션도 같이 보장해야, 자막 탭이 빈 상태로 오래 머무르지 않는다.
+        meetingRealtimeSessionStarter.ensureStarted(command.meetingId(), roomName);
 
         LiveKitTokenIssueResult issuedToken =
                 liveKitTokenIssuer.issue(
