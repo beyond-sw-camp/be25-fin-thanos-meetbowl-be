@@ -1,7 +1,9 @@
 package com.meetbowl.api.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.meetbowl.api.common.ApiHeaders;
 import com.meetbowl.application.auth.AccessTokenValidationService;
+import com.meetbowl.application.meeting.MeetingRealtimeSessionStarter;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -33,6 +36,7 @@ class SecurityConfigTest {
 
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
+    @MockitoBean private MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
 
     @Test
     void healthEndpointIsPublic() throws Exception {
@@ -80,6 +84,16 @@ class SecurityConfigTest {
     @Test
     void publicEndpointsAreAccessible() throws Exception {
         mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void corsPreflightForMeetingJoinEndpointIsAllowedFromLocalFrontend() throws Exception {
+        mockMvc.perform(
+                        options("/api/v1/meetings/" + UUID.randomUUID() + "/join")
+                                .header("Origin", "http://localhost:5173")
+                                .header("Access-Control-Request-Method", "POST"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 
     @Test
