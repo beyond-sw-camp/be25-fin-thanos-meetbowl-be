@@ -40,6 +40,7 @@ public class SecurityConfig {
         "/api/v1/health",
         "/api/v1/auth/login",
         "/api/v1/auth/token/refresh",
+        "/api/v1/meetings/*/join",
         "/api/v1/meetings/guest-join",
         "/swagger-ui.html",
         "/swagger-ui/**",
@@ -84,8 +85,6 @@ public class SecurityConfig {
                                 authorize
                                         .requestMatchers(PUBLIC_ENDPOINTS)
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.POST, "/api/v1/meetings/*/join")
-                                        .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(SYSTEM_ENDPOINTS)
                                         .hasRole("SYSTEM")
                                         .requestMatchers(ADMIN_ENDPOINTS)
