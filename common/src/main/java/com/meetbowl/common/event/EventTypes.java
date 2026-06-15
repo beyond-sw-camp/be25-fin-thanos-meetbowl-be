@@ -7,6 +7,7 @@ public final class EventTypes {
     public static final String MINUTES_GENERATION_REQUESTED = "minutes.generation.requested";
     public static final String MINUTES_GENERATED = "minutes.generated";
     public static final String DOCUMENT_INDEX_REQUESTED = "document.index.requested";
+    public static final String DOCUMENT_INDEX_REMOVED = "document.index.removed";
     public static final String MAIL_SEND_REQUESTED = "mail.send.requested";
     public static final String MAIL_SENT = "mail.sent";
     public static final String MAIL_FAILED = "mail.failed";

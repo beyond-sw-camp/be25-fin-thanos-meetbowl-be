@@ -15,6 +15,7 @@ import org.mockito.Mockito;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.document.DocumentIndexRemovedEventPort;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemoRepositoryPort;
 
@@ -48,7 +49,9 @@ class MemoUseCaseTest {
 
     @Test
     void deleteMemo_fail_when_nothing_deleted() {
-        DeleteMemoUseCase useCase = new DeleteMemoUseCase(memoPort);
+        DeleteMemoUseCase useCase =
+                new DeleteMemoUseCase(
+                        memoPort, Mockito.mock(DocumentIndexRemovedEventPort.class));
         UUID userId = UUID.randomUUID();
         UUID memoId = UUID.randomUUID();
         when(memoPort.deleteByIdAndOwnerUserId(memoId, userId)).thenReturn(false);

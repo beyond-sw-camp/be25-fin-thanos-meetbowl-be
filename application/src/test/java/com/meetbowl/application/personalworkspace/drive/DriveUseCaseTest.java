@@ -19,6 +19,7 @@ import org.mockito.Mockito;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.document.DocumentIndexRemovedEventPort;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceDriveFile;
@@ -132,7 +133,9 @@ class DriveUseCaseTest {
 
     @Test
     void deleteFile_is_idempotent_when_already_deleted() {
-        DeleteDriveFileUseCase useCase = new DeleteDriveFileUseCase(filePort);
+        DeleteDriveFileUseCase useCase =
+                new DeleteDriveFileUseCase(
+                        filePort, Mockito.mock(DocumentIndexRemovedEventPort.class));
         UUID userId = UUID.randomUUID();
         UUID fileId = UUID.randomUUID();
         PersonalWorkspaceDriveFile deleted =
