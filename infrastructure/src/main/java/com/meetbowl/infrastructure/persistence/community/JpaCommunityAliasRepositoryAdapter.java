@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.persistence.community;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,6 +31,16 @@ public class JpaCommunityAliasRepositoryAdapter implements CommunityAliasReposit
         return springDataCommunityAliasRepository
                 .findByUserId(userId)
                 .map(CommunityAliasEntity::toDomain);
+    }
+
+    @Override
+    public List<CommunityAlias> findByUserIdIn(Collection<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return springDataCommunityAliasRepository.findByUserIdIn(userIds).stream()
+                .map(CommunityAliasEntity::toDomain)
+                .toList();
     }
 
     @Override
