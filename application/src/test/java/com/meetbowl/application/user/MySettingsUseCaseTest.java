@@ -42,6 +42,9 @@ class MySettingsUseCaseTest {
         assertEquals(
                 UserSetting.DEFAULT_MEETING_REMINDER_MINUTES_BEFORE,
                 result.meetingStartReminderMinutes());
+        assertEquals(
+                UserSetting.DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
+                result.minutesReviewReminderMinutes());
         assertEquals(false, result.autoBackupEnabled());
         assertEquals(UserSetting.DEFAULT_AUTO_BACKUP_TIME, result.autoBackupTime());
     }
@@ -51,9 +54,10 @@ class MySettingsUseCaseTest {
         MySettingsResult result =
                 useCase.update(
                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                USER_ID, 30, true, LocalTime.of(20, 0)));
+                                USER_ID, 30, 180, true, LocalTime.of(20, 0)));
 
         assertEquals(30, result.meetingStartReminderMinutes());
+        assertEquals(180, result.minutesReviewReminderMinutes());
         assertEquals(true, result.autoBackupEnabled());
         assertEquals(LocalTime.of(20, 0), result.autoBackupTime());
         assertEquals(USER_ID, userSettingRepository.findByUserId(USER_ID).orElseThrow().userId());
@@ -67,7 +71,20 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, -1, false, LocalTime.of(18, 0))));
+                                                USER_ID, -1, 60, false, LocalTime.of(18, 0))));
+
+        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+    }
+
+    @Test
+    void updateSettingsFailsWhenMinutesReviewReminderMinutesIsNotAllowed() {
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.update(
+                                        new MySettingsUseCase.UpdateMySettingsCommand(
+                                                USER_ID, 10, 90, false, LocalTime.of(18, 0))));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -80,7 +97,7 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, 10, true, null)));
+                                                USER_ID, 10, 60, true, null)));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -95,6 +112,7 @@ class MySettingsUseCaseTest {
                             userSetting.id() == null ? UUID.randomUUID() : userSetting.id(),
                             userSetting.userId(),
                             userSetting.meetingReminderMinutesBefore(),
+                            userSetting.minutesReviewReminderMinutes(),
                             userSetting.autoBackupEnabled(),
                             userSetting.autoBackupTime(),
                             userSetting.createdAt(),

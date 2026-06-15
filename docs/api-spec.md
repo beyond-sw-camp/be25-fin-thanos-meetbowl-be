@@ -204,6 +204,22 @@ X-Internal-Token: {internalToken}
 
 ---
 
+### `/settings/me` fields
+
+`GET /api/v1/users/me/settings` and `PATCH /api/v1/users/me/settings` use the fields below.
+
+```json
+{
+  "meetingStartReminderMinutes": 10,
+  "minutesReviewReminderMinutes": 60,
+  "autoBackupEnabled": false,
+  "autoBackupTime": "18:00:00"
+}
+```
+
+- `minutesReviewReminderMinutes` is the reminder interval for unreviewed meeting minutes.
+- Allowed values are `60`, `120`, `180`, `240`.
+
 ## 7. Meeting Room API
 
 | Method | Endpoint | 설명 | 권한 |

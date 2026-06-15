@@ -13,9 +13,7 @@ public record MeetingTranscriptResponse(
         return new MeetingTranscriptResponse(
                 result.meetingId(),
                 result.fullText(),
-                result.segments().stream()
-                        .map(MeetingTranscriptSegmentResponse::from)
-                        .toList());
+                result.segments().stream().map(MeetingTranscriptSegmentResponse::from).toList());
     }
 
     public record MeetingTranscriptSegmentResponse(

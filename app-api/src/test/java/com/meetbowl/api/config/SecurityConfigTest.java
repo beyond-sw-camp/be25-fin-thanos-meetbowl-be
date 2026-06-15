@@ -75,6 +75,9 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/mails/inbox"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    }
+
+    @Test
     void publicEndpointsAreAccessible() throws Exception {
         mockMvc.perform(post("/api/v1/meetings/guest-join")).andExpect(status().isNotFound());
     }

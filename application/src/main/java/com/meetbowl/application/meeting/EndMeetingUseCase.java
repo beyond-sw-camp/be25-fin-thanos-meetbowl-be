@@ -50,7 +50,8 @@ public class EndMeetingUseCase {
                     false);
         }
 
-        Meeting endedMeeting = meeting.completeFromExternalSession(resolveEndedAt(command.endedAt()));
+        Meeting endedMeeting =
+                meeting.completeFromExternalSession(resolveEndedAt(command.endedAt()));
         Meeting savedMeeting = meetingRepositoryPort.save(endedMeeting);
 
         UUID reviewerUserId =

@@ -76,8 +76,7 @@ class GetMeetingTranscriptUseCaseTest {
                                                 1000L,
                                                 UUID.randomUUID()))));
 
-        GetMeetingTranscriptResult result =
-                useCase.execute(meetingId, participantUserId, false);
+        GetMeetingTranscriptResult result = useCase.execute(meetingId, participantUserId, false);
 
         assertEquals(2, result.segments().size());
         assertEquals("첫 문장\n둘째 문장", result.fullText());
@@ -142,7 +141,9 @@ class GetMeetingTranscriptUseCaseTest {
 
         @Override
         public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
-            return attendees.stream().filter(attendee -> attendee.meetingId().equals(meetingId)).toList();
+            return attendees.stream()
+                    .filter(attendee -> attendee.meetingId().equals(meetingId))
+                    .toList();
         }
 
         @Override
@@ -168,7 +169,9 @@ class GetMeetingTranscriptUseCaseTest {
 
         @Override
         public List<MeetingTranscriptSegment> findAllByMeetingIdOrderBySequence(UUID meetingId) {
-            return segments.stream().filter(segment -> segment.meetingId().equals(meetingId)).toList();
+            return segments.stream()
+                    .filter(segment -> segment.meetingId().equals(meetingId))
+                    .toList();
         }
     }
 }

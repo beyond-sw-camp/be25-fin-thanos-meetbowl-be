@@ -71,9 +71,11 @@ public class UserMeController extends BaseController {
         return ok(
                 MySettingsResponse.from(
                         mySettingsUseCase.update(
+                                // 개인 설정 수정은 현재 로그인한 사용자 본인 설정만 갱신한다.
                                 new MySettingsUseCase.UpdateMySettingsCommand(
                                         currentUser.userId(),
                                         request.meetingStartReminderMinutes(),
+                                        request.minutesReviewReminderMinutes(),
                                         request.autoBackupEnabled(),
                                         request.autoBackupTime()))));
     }

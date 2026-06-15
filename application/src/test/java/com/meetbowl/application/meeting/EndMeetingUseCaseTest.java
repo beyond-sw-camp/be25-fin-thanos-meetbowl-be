@@ -27,7 +27,8 @@ class EndMeetingUseCaseTest {
         UUID meetingId = UUID.randomUUID();
         UUID hostUserId = UUID.randomUUID();
         UUID reviewerUserId = UUID.randomUUID();
-        RecordingMeetingEndedEventPublisher eventPublisher = new RecordingMeetingEndedEventPublisher();
+        RecordingMeetingEndedEventPublisher eventPublisher =
+                new RecordingMeetingEndedEventPublisher();
         StubMeetingRepository meetingRepository =
                 new StubMeetingRepository(
                         Meeting.of(
@@ -72,7 +73,8 @@ class EndMeetingUseCaseTest {
     @Test
     void 이미종료된회의는이벤트를다시발행하지않는다() {
         UUID meetingId = UUID.randomUUID();
-        RecordingMeetingEndedEventPublisher eventPublisher = new RecordingMeetingEndedEventPublisher();
+        RecordingMeetingEndedEventPublisher eventPublisher =
+                new RecordingMeetingEndedEventPublisher();
         EndMeetingUseCase useCase =
                 new EndMeetingUseCase(
                         new StubMeetingRepository(
@@ -92,7 +94,12 @@ class EndMeetingUseCaseTest {
 
         EndMeetingResult result =
                 useCase.execute(
-                        new EndMeetingCommand(meetingId, Instant.now(), UUID.randomUUID(), "retry", "stt-server"));
+                        new EndMeetingCommand(
+                                meetingId,
+                                Instant.now(),
+                                UUID.randomUUID(),
+                                "retry",
+                                "stt-server"));
 
         assertFalse(result.meetingEndedEventPublished());
         assertFalse(eventPublisher.called);
@@ -125,7 +132,8 @@ class EndMeetingUseCaseTest {
         public void deleteById(UUID id) {}
     }
 
-    private static final class StubMeetingAttendeeRepository implements MeetingAttendeeRepositoryPort {
+    private static final class StubMeetingAttendeeRepository
+            implements MeetingAttendeeRepositoryPort {
         private final List<MeetingAttendee> attendees;
 
         private StubMeetingAttendeeRepository(List<MeetingAttendee> attendees) {
@@ -146,7 +154,9 @@ class EndMeetingUseCaseTest {
 
         @Override
         public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
-            return attendees.stream().filter(attendee -> attendee.meetingId().equals(meetingId)).toList();
+            return attendees.stream()
+                    .filter(attendee -> attendee.meetingId().equals(meetingId))
+                    .toList();
         }
 
         @Override

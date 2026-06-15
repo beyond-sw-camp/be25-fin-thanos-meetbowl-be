@@ -2,6 +2,9 @@ package com.meetbowl.api.meeting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,7 +15,6 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.AuthenticatedUserRole;
 import com.meetbowl.api.meeting.dto.JoinMeetingRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingResponse;
-import com.meetbowl.application.meeting.JoinMeetingCommand;
 import com.meetbowl.application.meeting.JoinMeetingResult;
 import com.meetbowl.application.meeting.JoinMeetingUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -20,20 +22,23 @@ import com.meetbowl.common.response.ApiResponse;
 class MeetingControllerTest {
 
     @Test
-    void joinMeeting은UseCase결과를응답Envelope로감싼다() {
+    void joinMeetingWrapsUseCaseResultWithApiEnvelope() {
         UUID meetingId = UUID.fromString("3ef5f58f-50b2-4f0b-97bf-42e79d91ac39");
+        JoinMeetingUseCase joinMeetingUseCase = mock(JoinMeetingUseCase.class);
+        given(joinMeetingUseCase.execute(any()))
+                .willReturn(
+                        new JoinMeetingResult(
+                                meetingId,
+                                "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+                                "http://localhost:7880",
+                                "user-31f73d71-c04e-4410-a98c-fdc15e918091",
+                                "테스터",
+                                "issued-token",
+                                Instant.parse("2026-06-12T01:00:00Z"),
+                                Instant.parse("2026-06-12T02:00:00Z")));
+
         MeetingController controller =
-                new MeetingController(
-                        new StubJoinMeetingUseCase(
-                                new JoinMeetingResult(
-                                        meetingId,
-                                        "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
-                                        "http://localhost:7880",
-                                        "user-31f73d71-c04e-4410-a98c-fdc15e918091",
-                                        "이지연",
-                                        "issued-token",
-                                        Instant.parse("2026-06-12T01:00:00Z"),
-                                        Instant.parse("2026-06-12T02:00:00Z"))));
+                new MeetingController(null, null, null, null, joinMeetingUseCase);
 
         ApiResponse<JoinMeetingResponse> response =
                 controller.joinMeeting(
@@ -42,27 +47,12 @@ class MeetingControllerTest {
                                 UUID.fromString("31f73d71-c04e-4410-a98c-fdc15e918091"),
                                 null,
                                 AuthenticatedUserRole.USER,
-                                "이지연"),
-                        new JoinMeetingRequest("이지연", "frontend-id"));
+                                "테스터"),
+                        new JoinMeetingRequest("테스터", "frontend-id"));
 
         assertTrue(response.success());
         assertEquals("http://localhost:7880", response.data().livekitUrl());
         assertEquals("issued-token", response.data().token());
         assertEquals(meetingId, response.data().meetingId());
-    }
-
-    private static final class StubJoinMeetingUseCase extends JoinMeetingUseCase {
-
-        private final JoinMeetingResult result;
-
-        private StubJoinMeetingUseCase(JoinMeetingResult result) {
-            super(null, null);
-            this.result = result;
-        }
-
-        @Override
-        public JoinMeetingResult execute(JoinMeetingCommand command) {
-            return result;
-        }
     }
 }

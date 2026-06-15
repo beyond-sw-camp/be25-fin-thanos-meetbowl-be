@@ -60,8 +60,8 @@ public class JoinMeetingUseCase {
     /**
      * providerRoomId가 이미 저장돼 있으면 그 값을 신뢰한다.
      *
-     * <p>다만 현재 화면은 mock meetingId로도 회의 입장 테스트를 해야 하므로, DB에 회의가 없거나 providerRoomId가 비어 있더라도 즉시 404를 내지
-     * 않고 deterministic fallback room을 만든다.
+     * <p>다만 현재 화면은 mock meetingId로도 회의 입장 테스트를 해야 하므로, DB에 회의가 없거나 providerRoomId가 비어 있더라도 즉시 404를
+     * 내지 않고 deterministic fallback room을 만든다.
      */
     private String resolveRoomName(UUID meetingId) {
         return meetingRepositoryPort

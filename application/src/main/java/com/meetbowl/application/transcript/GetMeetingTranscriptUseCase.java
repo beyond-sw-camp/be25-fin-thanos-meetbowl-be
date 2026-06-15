@@ -34,7 +34,8 @@ public class GetMeetingTranscriptUseCase {
         this.meetingTranscriptSegmentRepositoryPort = meetingTranscriptSegmentRepositoryPort;
     }
 
-    public GetMeetingTranscriptResult execute(UUID meetingId, UUID requesterUserId, boolean isAdmin) {
+    public GetMeetingTranscriptResult execute(
+            UUID meetingId, UUID requesterUserId, boolean isAdmin) {
         Meeting meeting =
                 meetingRepositoryPort
                         .findById(meetingId)
@@ -42,7 +43,8 @@ public class GetMeetingTranscriptUseCase {
         validateAccess(meeting, requesterUserId, isAdmin);
 
         var segments =
-                meetingTranscriptSegmentRepositoryPort.findAllByMeetingIdOrderBySequence(meetingId)
+                meetingTranscriptSegmentRepositoryPort
+                        .findAllByMeetingIdOrderBySequence(meetingId)
                         .stream()
                         .map(
                                 segment ->

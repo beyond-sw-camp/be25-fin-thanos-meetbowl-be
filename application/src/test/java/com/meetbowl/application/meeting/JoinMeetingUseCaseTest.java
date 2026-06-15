@@ -99,7 +99,8 @@ class JoinMeetingUseCaseTest {
 
         @Override
         public Optional<Meeting> findById(UUID id) {
-            return Optional.ofNullable(meeting).filter(savedMeeting -> savedMeeting.id().equals(id));
+            return Optional.ofNullable(meeting)
+                    .filter(savedMeeting -> savedMeeting.id().equals(id));
         }
 
         @Override

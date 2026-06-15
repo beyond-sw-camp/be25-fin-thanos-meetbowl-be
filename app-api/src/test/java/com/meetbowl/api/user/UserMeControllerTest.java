@@ -117,7 +117,7 @@ class UserMeControllerTest {
     @Test
     void getSettingsSuccess() throws Exception {
         given(mySettingsUseCase.get(USER_ID))
-                .willReturn(new MySettingsResult(15, true, LocalTime.of(19, 30)));
+                .willReturn(new MySettingsResult(15, 120, true, LocalTime.of(19, 30)));
 
         mockMvc.perform(
                         get("/api/v1/users/me/settings")
@@ -126,6 +126,7 @@ class UserMeControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(15))
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(120))
                 .andExpect(jsonPath("$.data.autoBackupEnabled").value(true))
                 .andExpect(jsonPath("$.data.autoBackupTime").value("19:30:00"));
     }
@@ -133,7 +134,7 @@ class UserMeControllerTest {
     @Test
     void updateSettingsSuccess() throws Exception {
         given(mySettingsUseCase.update(any()))
-                .willReturn(new MySettingsResult(20, false, LocalTime.of(18, 0)));
+                .willReturn(new MySettingsResult(20, 180, false, LocalTime.of(18, 0)));
 
         mockMvc.perform(
                         patch("/api/v1/users/me/settings")
@@ -145,12 +146,14 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": 20,
+                                          "minutesReviewReminderMinutes": 180,
                                           "autoBackupEnabled": false,
                                           "autoBackupTime": "18:00:00"
                                         }
                                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(20))
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(180))
                 .andExpect(jsonPath("$.data.autoBackupEnabled").value(false));
 
         ArgumentCaptor<MySettingsUseCase.UpdateMySettingsCommand> commandCaptor =
@@ -158,6 +161,7 @@ class UserMeControllerTest {
         verify(mySettingsUseCase).update(commandCaptor.capture());
         assertEquals(USER_ID, commandCaptor.getValue().userId());
         assertEquals(20, commandCaptor.getValue().meetingStartReminderMinutes());
+        assertEquals(180, commandCaptor.getValue().minutesReviewReminderMinutes());
         assertEquals(false, commandCaptor.getValue().autoBackupEnabled());
     }
 
@@ -173,6 +177,29 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": -1,
+                                          "minutesReviewReminderMinutes": 60,
+                                          "autoBackupEnabled": false,
+                                          "autoBackupTime": "18:00:00"
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(mySettingsUseCase);
+    }
+
+    @Test
+    void updateSettingsFailsWhenMinutesReviewReminderMinutesIsMissing() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me/settings")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "meetingStartReminderMinutes": 10,
                                           "autoBackupEnabled": false,
                                           "autoBackupTime": "18:00:00"
                                         }
