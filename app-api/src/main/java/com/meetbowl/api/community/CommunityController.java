@@ -23,7 +23,7 @@ import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
-import com.meetbowl.api.common.auth.RequireUserOrAdmin;
+import com.meetbowl.api.common.auth.RequireUser;
 import com.meetbowl.application.community.CommentResult;
 import com.meetbowl.application.community.CreateCommentCommand;
 import com.meetbowl.application.community.CreateCommentUseCase;
@@ -44,13 +44,13 @@ import com.meetbowl.application.community.UpdatePostUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
 /**
- * 익명 커뮤니티 게시글 API다. 등록·목록 조회·Hot 조회를 제공한다(로그인 필수, User/Admin).
+ * 익명 커뮤니티 게시글 API다. 등록·목록 조회·Hot 조회를 제공한다(로그인 필수, User 전용).
  *
  * <p>익명성: 작성자 식별자는 본문이 아닌 {@link CurrentUser}에서만 채워 사칭을 막고, 응답에는 실제 userId 대신 "익명N" 표시명만 노출한다.
  */
 @Validated
 @RestController
-@RequireUserOrAdmin
+@RequireUser
 @RequestMapping(ApiPaths.API_V1 + "/community/posts")
 public class CommunityController extends BaseController {
 
