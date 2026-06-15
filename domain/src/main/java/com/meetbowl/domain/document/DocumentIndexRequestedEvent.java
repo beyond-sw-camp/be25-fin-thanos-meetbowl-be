@@ -11,6 +11,8 @@ public record DocumentIndexRequestedEvent(
         UUID ownerUserId,
         String title,
         String content,
+        String storageKey,
+        String contentType,
         List<UUID> userIds,
         List<UUID> departmentIds,
         List<UUID> sharedWorkspaceIds) {
@@ -20,5 +22,30 @@ public record DocumentIndexRequestedEvent(
         userIds = List.copyOf(userIds);
         departmentIds = List.copyOf(departmentIds);
         sharedWorkspaceIds = List.copyOf(sharedWorkspaceIds);
+    }
+
+    /** 회의록·메모·메일처럼 본문을 직접 전달하는 기존 호출의 계약을 유지한다. */
+    public DocumentIndexRequestedEvent(
+            UUID documentId,
+            String documentType,
+            UUID organizationId,
+            UUID ownerUserId,
+            String title,
+            String content,
+            List<UUID> userIds,
+            List<UUID> departmentIds,
+            List<UUID> sharedWorkspaceIds) {
+        this(
+                documentId,
+                documentType,
+                organizationId,
+                ownerUserId,
+                title,
+                content,
+                null,
+                null,
+                userIds,
+                departmentIds,
+                sharedWorkspaceIds);
     }
 }

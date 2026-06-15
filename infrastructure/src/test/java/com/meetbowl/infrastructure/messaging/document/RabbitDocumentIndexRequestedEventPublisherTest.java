@@ -58,4 +58,44 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                                             && message.accessScope().sharedWorkspaceIds().isEmpty();
                                 }));
     }
+
+    @Test
+    void publishFileDocumentIndexRequestedMessage() {
+        RabbitEventPublisher commonPublisher = mock(RabbitEventPublisher.class);
+        RabbitDocumentIndexRequestedEventPublisher publisher =
+                new RabbitDocumentIndexRequestedEventPublisher(commonPublisher);
+        UUID fileId = UUID.randomUUID();
+        UUID ownerUserId = UUID.randomUUID();
+        String storageKey = "personal-drive/" + ownerUserId + "/" + UUID.randomUUID();
+
+        publisher.publish(
+                new DocumentIndexRequestedEvent(
+                        fileId,
+                        "PERSONAL_DRIVE_FILE",
+                        null,
+                        ownerUserId,
+                        "자료.pdf",
+                        null,
+                        storageKey,
+                        "application/pdf",
+                        List.of(ownerUserId),
+                        List.of(),
+                        List.of()));
+
+        verify(commonPublisher)
+                .publish(
+                        eq(EventTypes.DOCUMENT_INDEX_REQUESTED),
+                        argThat(
+                                payload -> {
+                                    DocumentIndexRequestedMessage message =
+                                            (DocumentIndexRequestedMessage) payload;
+                                    return message.documentId().equals(fileId)
+                                            && message.content() == null
+                                            && message.storageKey().equals(storageKey)
+                                            && message.contentType().equals("application/pdf")
+                                            && message.accessScope()
+                                                    .userIds()
+                                                    .equals(List.of(ownerUserId));
+                                }));
+    }
 }

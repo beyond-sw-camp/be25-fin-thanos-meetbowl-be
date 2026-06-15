@@ -13,6 +13,8 @@ public record DocumentIndexRequestedMessage(
         UUID ownerUserId,
         String title,
         String content,
+        String storageKey,
+        String contentType,
         AccessScope accessScope) {
 
     static DocumentIndexRequestedMessage from(DocumentIndexRequestedEvent event) {
@@ -23,6 +25,8 @@ public record DocumentIndexRequestedMessage(
                 event.ownerUserId(),
                 event.title(),
                 event.content(),
+                event.storageKey(),
+                event.contentType(),
                 new AccessScope(
                         event.userIds(), event.departmentIds(), event.sharedWorkspaceIds()));
     }
