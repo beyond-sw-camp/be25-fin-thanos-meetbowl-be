@@ -44,7 +44,8 @@ public class TranscriptFinalCreatedListener {
                         payload.path("startedAtMs").isMissingNode()
                                 ? null
                                 : payload.path("startedAtMs").asLong(),
-                        payload.path("endedAtMs").isMissingNode() || payload.path("endedAtMs").isNull()
+                        payload.path("endedAtMs").isMissingNode()
+                                        || payload.path("endedAtMs").isNull()
                                 ? null
                                 : payload.path("endedAtMs").asLong(),
                         payload.path("provider").asText(),

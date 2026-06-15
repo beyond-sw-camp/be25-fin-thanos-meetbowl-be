@@ -39,10 +39,14 @@ public class RabbitMqMessagingConfig {
                 false,
                 false,
                 Map.of(
-                        "x-queue-type", "quorum",
-                        "x-delivery-limit", 3,
-                        "x-dead-letter-exchange", DLX_EXCHANGE,
-                        "x-dead-letter-routing-key", "dlq.transcript.final.created"));
+                        "x-queue-type",
+                        "quorum",
+                        "x-delivery-limit",
+                        3,
+                        "x-dead-letter-exchange",
+                        DLX_EXCHANGE,
+                        "x-dead-letter-routing-key",
+                        "dlq.transcript.final.created"));
     }
 
     @Bean

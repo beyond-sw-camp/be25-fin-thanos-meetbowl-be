@@ -2,7 +2,6 @@ package com.meetbowl.application.user;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -28,10 +27,11 @@ public class MySettingsUseCase {
                 .findByUserId(currentUserId)
                 .map(this::toResult)
                 .orElseGet(
-                        () ->
-                                toResult(
-                                        UserSetting.createDefault(
-                                                currentUserId, Instant.now(clock))));
+                        () -> {
+                            // 설정 레코드가 아직 없으면 화면이 바로 렌더링되도록 기본 설정을 내려준다.
+                            return toResult(
+                                    UserSetting.createDefault(currentUserId, Instant.now(clock)));
+                        });
     }
 
     @Transactional
@@ -40,6 +40,7 @@ public class MySettingsUseCase {
         UserSetting current =
                 userSettingRepositoryPort
                         .findByUserId(command.userId())
+                        // 첫 저장 요청이어도 기존 생성 플로우를 재사용해 기본 설정을 기준점으로 삼는다.
                         .orElseGet(() -> UserSetting.createDefault(command.userId(), now));
 
         UserSetting updated =
@@ -47,8 +48,8 @@ public class MySettingsUseCase {
                         current.id(),
                         command.userId(),
                         command.meetingStartReminderMinutes(),
-                        command.autoBackupEnabled(),
-                        command.autoBackupTime(),
+                        // 회의록 미검토 알림 주기는 도메인에서 허용값(60/120/180/240)만 저장한다.
+                        command.minutesReviewReminderMinutes(),
                         current.createdAt(),
                         now);
         return toResult(userSettingRepositoryPort.save(updated));
@@ -56,14 +57,10 @@ public class MySettingsUseCase {
 
     private MySettingsResult toResult(UserSetting setting) {
         return new MySettingsResult(
-                setting.meetingReminderMinutesBefore(),
-                setting.autoBackupEnabled(),
-                setting.autoBackupTime());
+                // API 응답 필드명은 기존 프론트 계약인 meetingStartReminderMinutes를 유지한다.
+                setting.meetingReminderMinutesBefore(), setting.minutesReviewReminderMinutes());
     }
 
     public record UpdateMySettingsCommand(
-            UUID userId,
-            int meetingStartReminderMinutes,
-            boolean autoBackupEnabled,
-            LocalTime autoBackupTime) {}
+            UUID userId, int meetingStartReminderMinutes, int minutesReviewReminderMinutes) {}
 }

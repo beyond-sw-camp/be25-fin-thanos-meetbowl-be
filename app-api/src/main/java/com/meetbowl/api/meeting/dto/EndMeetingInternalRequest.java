@@ -5,9 +5,7 @@ import java.util.UUID;
 
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * STT 서버 같은 내부 시스템이 회의 종료를 API 서버에 알릴 때 사용하는 요청 DTO다.
- */
+/** STT 서버 같은 내부 시스템이 회의 종료를 API 서버에 알릴 때 사용하는 요청 DTO다. */
 public record EndMeetingInternalRequest(
         Instant endedAt,
         UUID correlationId,

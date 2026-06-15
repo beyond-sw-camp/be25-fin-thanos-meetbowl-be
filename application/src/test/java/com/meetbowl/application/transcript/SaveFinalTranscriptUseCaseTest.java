@@ -89,7 +89,9 @@ class SaveFinalTranscriptUseCaseTest {
 
         @Override
         public List<MeetingTranscriptSegment> findAllByMeetingIdOrderBySequence(UUID meetingId) {
-            return segments.stream().filter(segment -> segment.meetingId().equals(meetingId)).toList();
+            return segments.stream()
+                    .filter(segment -> segment.meetingId().equals(meetingId))
+                    .toList();
         }
     }
 }

@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -116,8 +115,7 @@ class UserMeControllerTest {
 
     @Test
     void getSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.get(USER_ID))
-                .willReturn(new MySettingsResult(15, true, LocalTime.of(19, 30)));
+        given(mySettingsUseCase.get(USER_ID)).willReturn(new MySettingsResult(15, 120));
 
         mockMvc.perform(
                         get("/api/v1/users/me/settings")
@@ -126,14 +124,12 @@ class UserMeControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(15))
-                .andExpect(jsonPath("$.data.autoBackupEnabled").value(true))
-                .andExpect(jsonPath("$.data.autoBackupTime").value("19:30:00"));
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(120));
     }
 
     @Test
     void updateSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.update(any()))
-                .willReturn(new MySettingsResult(20, false, LocalTime.of(18, 0)));
+        given(mySettingsUseCase.update(any())).willReturn(new MySettingsResult(20, 180));
 
         mockMvc.perform(
                         patch("/api/v1/users/me/settings")
@@ -145,20 +141,19 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": 20,
-                                          "autoBackupEnabled": false,
-                                          "autoBackupTime": "18:00:00"
+                                          "minutesReviewReminderMinutes": 180
                                         }
                                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(20))
-                .andExpect(jsonPath("$.data.autoBackupEnabled").value(false));
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(180));
 
         ArgumentCaptor<MySettingsUseCase.UpdateMySettingsCommand> commandCaptor =
                 ArgumentCaptor.forClass(MySettingsUseCase.UpdateMySettingsCommand.class);
         verify(mySettingsUseCase).update(commandCaptor.capture());
         assertEquals(USER_ID, commandCaptor.getValue().userId());
         assertEquals(20, commandCaptor.getValue().meetingStartReminderMinutes());
-        assertEquals(false, commandCaptor.getValue().autoBackupEnabled());
+        assertEquals(180, commandCaptor.getValue().minutesReviewReminderMinutes());
     }
 
     @Test
@@ -173,8 +168,27 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": -1,
-                                          "autoBackupEnabled": false,
-                                          "autoBackupTime": "18:00:00"
+                                          "minutesReviewReminderMinutes": 60
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(mySettingsUseCase);
+    }
+
+    @Test
+    void updateSettingsFailsWhenMinutesReviewReminderMinutesIsMissing() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me/settings")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "meetingStartReminderMinutes": 10
                                         }
                                         """))
                 .andExpect(status().isBadRequest())
