@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import com.meetbowl.domain.user.UserSetting;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/** 사용자 개인 설정을 저장하는 엔티티다. 회의 알림, 회의록 검토 알림, 자동 백업 설정을 관리한다. */
+/** 사용자 개인 설정을 저장하는 엔티티다. 회의 알림과 회의록 검토 알림을 관리한다. */
 @Entity
 @Table(name = "user_settings")
 public class UserSettingEntity extends BaseEntity {
@@ -25,10 +25,6 @@ public class UserSettingEntity extends BaseEntity {
     @Column(nullable = false)
     private int minutesReviewReminderMinutes;
 
-    /** 자동 백업 사용 여부다. */
-    @Column(nullable = false)
-    private boolean autoBackupEnabled;
-
     protected UserSettingEntity() {}
 
     private UserSettingEntity(UserSetting userSetting) {
@@ -36,7 +32,6 @@ public class UserSettingEntity extends BaseEntity {
         meetingReminderMinutesBefore = userSetting.meetingReminderMinutesBefore();
         // 도메인에서 검증된 분 단위 값을 그대로 영속화한다.
         minutesReviewReminderMinutes = userSetting.minutesReviewReminderMinutes();
-        autoBackupEnabled = userSetting.autoBackupEnabled();
     }
 
     static UserSettingEntity from(UserSetting userSetting) {
@@ -51,7 +46,6 @@ public class UserSettingEntity extends BaseEntity {
                 userId,
                 meetingReminderMinutesBefore,
                 minutesReviewReminderMinutes,
-                autoBackupEnabled,
                 getCreatedAt(),
                 getUpdatedAt());
     }

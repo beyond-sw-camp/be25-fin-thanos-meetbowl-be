@@ -1,7 +1,6 @@
 package com.meetbowl.domain.user;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -25,7 +24,6 @@ class UserSettingTest {
         assertEquals(
                 UserSetting.DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
                 setting.minutesReviewReminderMinutes());
-        assertFalse(setting.autoBackupEnabled());
     }
 
     @Test
@@ -39,7 +37,6 @@ class UserSettingTest {
                                         UUID.randomUUID(),
                                         10,
                                         90,
-                                        false,
                                         Instant.parse("2026-06-08T08:00:00Z"),
                                         Instant.parse("2026-06-08T08:00:00Z")));
 

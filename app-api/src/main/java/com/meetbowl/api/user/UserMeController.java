@@ -75,8 +75,7 @@ public class UserMeController extends BaseController {
                                 new MySettingsUseCase.UpdateMySettingsCommand(
                                         currentUser.userId(),
                                         request.meetingStartReminderMinutes(),
-                                        request.minutesReviewReminderMinutes(),
-                                        request.autoBackupEnabled()))));
+                                        request.minutesReviewReminderMinutes()))));
     }
 
     private void requireUserOrAdmin(AuthenticatedUser currentUser) {

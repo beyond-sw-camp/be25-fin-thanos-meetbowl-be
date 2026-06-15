@@ -13,7 +13,6 @@ public record UserSetting(
         int meetingReminderMinutesBefore,
         // 회의록 검토 전까지 반복 알림을 보내는 주기이며, 분 단위 정수로 저장한다.
         int minutesReviewReminderMinutes,
-        boolean autoBackupEnabled,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -43,7 +42,6 @@ public record UserSetting(
                 DEFAULT_MEETING_REMINDER_MINUTES_BEFORE,
                 // 개인 설정이 아직 없는 사용자는 1시간마다 알림을 받도록 기본값을 둔다.
                 DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
-                false,
                 now,
                 now);
     }

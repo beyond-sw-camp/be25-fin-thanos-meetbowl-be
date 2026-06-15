@@ -115,7 +115,7 @@ class UserMeControllerTest {
 
     @Test
     void getSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.get(USER_ID)).willReturn(new MySettingsResult(15, 120, true));
+        given(mySettingsUseCase.get(USER_ID)).willReturn(new MySettingsResult(15, 120));
 
         mockMvc.perform(
                         get("/api/v1/users/me/settings")
@@ -124,14 +124,12 @@ class UserMeControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(15))
-                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(120))
-                .andExpect(jsonPath("$.data.autoBackupEnabled").value(true))
-                .andExpect(jsonPath("$.data.autoBackupTime").doesNotExist());
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(120));
     }
 
     @Test
     void updateSettingsSuccess() throws Exception {
-        given(mySettingsUseCase.update(any())).willReturn(new MySettingsResult(20, 180, false));
+        given(mySettingsUseCase.update(any())).willReturn(new MySettingsResult(20, 180));
 
         mockMvc.perform(
                         patch("/api/v1/users/me/settings")
@@ -143,14 +141,12 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": 20,
-                                          "minutesReviewReminderMinutes": 180,
-                                          "autoBackupEnabled": false
+                                          "minutesReviewReminderMinutes": 180
                                         }
                                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.meetingStartReminderMinutes").value(20))
-                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(180))
-                .andExpect(jsonPath("$.data.autoBackupEnabled").value(false));
+                .andExpect(jsonPath("$.data.minutesReviewReminderMinutes").value(180));
 
         ArgumentCaptor<MySettingsUseCase.UpdateMySettingsCommand> commandCaptor =
                 ArgumentCaptor.forClass(MySettingsUseCase.UpdateMySettingsCommand.class);
@@ -158,7 +154,6 @@ class UserMeControllerTest {
         assertEquals(USER_ID, commandCaptor.getValue().userId());
         assertEquals(20, commandCaptor.getValue().meetingStartReminderMinutes());
         assertEquals(180, commandCaptor.getValue().minutesReviewReminderMinutes());
-        assertEquals(false, commandCaptor.getValue().autoBackupEnabled());
     }
 
     @Test
@@ -173,8 +168,7 @@ class UserMeControllerTest {
                                         """
                                         {
                                           "meetingStartReminderMinutes": -1,
-                                          "minutesReviewReminderMinutes": 60,
-                                          "autoBackupEnabled": false
+                                          "minutesReviewReminderMinutes": 60
                                         }
                                         """))
                 .andExpect(status().isBadRequest())
@@ -194,8 +188,7 @@ class UserMeControllerTest {
                                 .content(
                                         """
                                         {
-                                          "meetingStartReminderMinutes": 10,
-                                          "autoBackupEnabled": false
+                                          "meetingStartReminderMinutes": 10
                                         }
                                         """))
                 .andExpect(status().isBadRequest())

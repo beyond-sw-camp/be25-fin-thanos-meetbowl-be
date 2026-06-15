@@ -50,7 +50,6 @@ public class MySettingsUseCase {
                         command.meetingStartReminderMinutes(),
                         // 회의록 미검토 알림 주기는 도메인에서 허용값(60/120/180/240)만 저장한다.
                         command.minutesReviewReminderMinutes(),
-                        command.autoBackupEnabled(),
                         current.createdAt(),
                         now);
         return toResult(userSettingRepositoryPort.save(updated));
@@ -59,14 +58,9 @@ public class MySettingsUseCase {
     private MySettingsResult toResult(UserSetting setting) {
         return new MySettingsResult(
                 // API 응답 필드명은 기존 프론트 계약인 meetingStartReminderMinutes를 유지한다.
-                setting.meetingReminderMinutesBefore(),
-                setting.minutesReviewReminderMinutes(),
-                setting.autoBackupEnabled());
+                setting.meetingReminderMinutesBefore(), setting.minutesReviewReminderMinutes());
     }
 
     public record UpdateMySettingsCommand(
-            UUID userId,
-            int meetingStartReminderMinutes,
-            int minutesReviewReminderMinutes,
-            boolean autoBackupEnabled) {}
+            UUID userId, int meetingStartReminderMinutes, int minutesReviewReminderMinutes) {}
 }

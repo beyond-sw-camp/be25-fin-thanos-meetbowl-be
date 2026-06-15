@@ -44,18 +44,15 @@ class MySettingsUseCaseTest {
         assertEquals(
                 UserSetting.DEFAULT_MINUTES_REVIEW_REMINDER_MINUTES,
                 result.minutesReviewReminderMinutes());
-        assertEquals(false, result.autoBackupEnabled());
     }
 
     @Test
     void updateSettingsSuccessCreatesSettingForCurrentUser() {
         MySettingsResult result =
-                useCase.update(
-                        new MySettingsUseCase.UpdateMySettingsCommand(USER_ID, 30, 180, true));
+                useCase.update(new MySettingsUseCase.UpdateMySettingsCommand(USER_ID, 30, 180));
 
         assertEquals(30, result.meetingStartReminderMinutes());
         assertEquals(180, result.minutesReviewReminderMinutes());
-        assertEquals(true, result.autoBackupEnabled());
         assertEquals(USER_ID, userSettingRepository.findByUserId(USER_ID).orElseThrow().userId());
     }
 
@@ -67,7 +64,7 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, -1, 60, false)));
+                                                USER_ID, -1, 60)));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -80,7 +77,7 @@ class MySettingsUseCaseTest {
                         () ->
                                 useCase.update(
                                         new MySettingsUseCase.UpdateMySettingsCommand(
-                                                USER_ID, 10, 90, false)));
+                                                USER_ID, 10, 90)));
 
         assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
     }
@@ -96,7 +93,6 @@ class MySettingsUseCaseTest {
                             userSetting.userId(),
                             userSetting.meetingReminderMinutesBefore(),
                             userSetting.minutesReviewReminderMinutes(),
-                            userSetting.autoBackupEnabled(),
                             userSetting.createdAt(),
                             userSetting.updatedAt());
             settings.put(saved.userId(), saved);

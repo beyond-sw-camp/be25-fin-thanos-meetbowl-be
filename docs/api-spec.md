@@ -200,7 +200,7 @@ X-Internal-Token: {internalToken}
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
 | GET | `/settings/me` | 개인 설정 조회 | User/Admin |
-| PATCH | `/settings/me` | 회의 알림 시간, 회의록 미검토 알림 주기, 자동 백업 여부 수정 | User/Admin |
+| PATCH | `/settings/me` | 회의 알림 시간, 회의록 미검토 알림 주기 수정 | User/Admin |
 
 ---
 
@@ -211,8 +211,7 @@ X-Internal-Token: {internalToken}
 ```json
 {
   "meetingStartReminderMinutes": 10,
-  "minutesReviewReminderMinutes": 60,
-  "autoBackupEnabled": false
+  "minutesReviewReminderMinutes": 60
 }
 ```
 
