@@ -21,6 +21,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionOperations;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
@@ -41,9 +43,11 @@ class ResetUserPasswordUseCaseTest {
     @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    void resetPassword_returnsTemporaryPassword_hashesStoredPassword_and_setsInitialPasswordFlag() {
+    void resetPassword_returnsTemporaryPassword_hashesStoredPassword_and_setsInitialPasswordFlag()
+            throws Exception {
         User user = createUser();
         ResetUserPasswordUseCase useCase = useCase();
         given(userRepositoryPort.findById(user.id())).willReturn(Optional.of(user));
@@ -66,7 +70,13 @@ class ResetUserPasswordUseCaseTest {
         assertTrue(
                 passwordEncoder.matches(
                         result.temporaryPassword(), savedUser.getValue().passwordHash()));
-        verify(adminAuditLogRepositoryPort).save(any(AdminAuditLog.class));
+        ArgumentCaptor<AdminAuditLog> auditLogCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(auditLogCaptor.capture());
+        JsonNode afterSnapshot = objectMapper.readTree(auditLogCaptor.getValue().afterValue());
+        assertTrue(afterSnapshot.get("initialPasswordChangeRequired").asBoolean());
+        assertFalse(auditLogCaptor.getValue().afterValue().contains(result.temporaryPassword()));
+        assertFalse(auditLogCaptor.getValue().afterValue().contains("temporaryPassword"));
+        assertFalse(auditLogCaptor.getValue().afterValue().contains("passwordHash"));
         verify(tokenStateRepositoryPort)
                 .revokeUserSessions(org.mockito.ArgumentMatchers.eq(user.id()), any());
     }
@@ -122,7 +132,8 @@ class ResetUserPasswordUseCaseTest {
                 temporaryPasswordGenerator,
                 adminAuditLogRepositoryPort,
                 transactionOperations,
-                tokenStateRepositoryPort);
+                tokenStateRepositoryPort,
+                objectMapper);
     }
 
     @SuppressWarnings("unchecked")

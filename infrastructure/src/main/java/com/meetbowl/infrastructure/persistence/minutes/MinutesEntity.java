@@ -38,6 +38,9 @@ public class MinutesEntity extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String summary;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String content;
+
     @Column(nullable = false, length = 100)
     private String model;
 
@@ -60,6 +63,7 @@ public class MinutesEntity extends BaseEntity {
             UUID reviewerUserId,
             MinutesStatus status,
             String summary,
+            String content,
             String model,
             String promptVersion,
             Instant approvedAt,
@@ -70,6 +74,7 @@ public class MinutesEntity extends BaseEntity {
         this.reviewerUserId = reviewerUserId;
         this.status = status;
         this.summary = summary;
+        this.content = content;
         this.model = model;
         this.promptVersion = promptVersion;
         this.approvedAt = approvedAt;
@@ -86,6 +91,7 @@ public class MinutesEntity extends BaseEntity {
                         minutes.reviewerUserId(),
                         minutes.status(),
                         minutes.summary(),
+                        minutes.content(),
                         minutes.model(),
                         minutes.promptVersion(),
                         minutes.approvedAt(),
@@ -104,6 +110,7 @@ public class MinutesEntity extends BaseEntity {
                 reviewerUserId,
                 status,
                 summary,
+                content,
                 model,
                 promptVersion,
                 approvedAt,

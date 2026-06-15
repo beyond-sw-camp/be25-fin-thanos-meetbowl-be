@@ -1,10 +1,12 @@
 package com.meetbowl.infrastructure.persistence.meeting;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 
+import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 
@@ -47,6 +49,14 @@ public class JpaMeetingAttendeeRepositoryAdapter implements MeetingAttendeeRepos
         return springDataMeetingAttendeeRepository.findByUserId(userId).stream()
                 .map(MeetingAttendeeEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<UUID> findReviewerUserId(UUID meetingId) {
+        return springDataMeetingAttendeeRepository
+                .findByMeetingIdAndRole(meetingId, AttendeeRole.REVIEWER)
+                .map(MeetingAttendeeEntity::toDomain)
+                .map(MeetingAttendee::userId);
     }
 
     @Override

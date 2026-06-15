@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,8 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
         UUID minutesId = UUID.randomUUID();
         UUID organizationId = UUID.randomUUID();
         UUID reviewerUserId = UUID.randomUUID();
+        UUID meetingId = UUID.randomUUID();
+        Instant approvedAt = Instant.parse("2099-01-01T01:00:00Z");
 
         publisher.publish(
                 new DocumentIndexRequestedEvent(
@@ -33,7 +36,9 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                         organizationId,
                         reviewerUserId,
                         "회의록",
-                        "색인할 회의 요약",
+                        "색인할 회의록 본문",
+                        new DocumentIndexRequestedEvent.Metadata(
+                                meetingId, approvedAt, null, null, null),
                         List.of(reviewerUserId),
                         List.of(),
                         List.of()));
@@ -50,7 +55,9 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                                             && message.organizationId().equals(organizationId)
                                             && message.ownerUserId().equals(reviewerUserId)
                                             && message.title().equals("회의록")
-                                            && message.content().equals("색인할 회의 요약")
+                                            && message.content().equals("색인할 회의록 본문")
+                                            && message.metadata().meetingId().equals(meetingId)
+                                            && message.metadata().approvedAt().equals(approvedAt)
                                             && message.accessScope()
                                                     .userIds()
                                                     .equals(List.of(reviewerUserId))

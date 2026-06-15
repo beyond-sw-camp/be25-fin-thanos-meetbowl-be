@@ -15,6 +15,7 @@ public class Minutes {
     private final UUID reviewerUserId;
     private final MinutesStatus status;
     private final String summary;
+    private final String content;
     private final String model;
     private final String promptVersion;
     private final Instant approvedAt;
@@ -28,6 +29,7 @@ public class Minutes {
             UUID reviewerUserId,
             MinutesStatus status,
             String summary,
+            String content,
             String model,
             String promptVersion,
             Instant approvedAt,
@@ -40,12 +42,16 @@ public class Minutes {
         if (summary == null || summary.isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의록 요약은 필수입니다.");
         }
+        if (content == null || content.isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의록 본문은 필수입니다.");
+        }
         this.id = id;
         this.meetingId = meetingId;
         this.organizationId = organizationId;
         this.reviewerUserId = reviewerUserId;
         this.status = status;
         this.summary = summary;
+        this.content = content;
         this.model = model == null ? "" : model;
         this.promptVersion = promptVersion == null ? "" : promptVersion;
         this.approvedAt = approvedAt;
@@ -59,6 +65,7 @@ public class Minutes {
             UUID organizationId,
             UUID reviewerUserId,
             String summary,
+            String content,
             String model,
             String promptVersion) {
         return of(
@@ -68,6 +75,7 @@ public class Minutes {
                 reviewerUserId,
                 MinutesStatus.DRAFT,
                 summary,
+                content,
                 model,
                 promptVersion,
                 null,
@@ -83,6 +91,7 @@ public class Minutes {
             UUID reviewerUserId,
             MinutesStatus status,
             String summary,
+            String content,
             String model,
             String promptVersion,
             Instant approvedAt,
@@ -95,6 +104,7 @@ public class Minutes {
                 reviewerUserId,
                 status,
                 summary,
+                content,
                 model,
                 promptVersion,
                 approvedAt,
@@ -112,7 +122,7 @@ public class Minutes {
      *
      * <p>수정과 상태 전이를 분리하지 않아 DRAFT 상태에 검토자 수정본이 남는 불완전한 상태를 허용하지 않는다.
      */
-    public Minutes revise(String revisedSummary, UUID reviewerUserId) {
+    public Minutes revise(String revisedSummary, String revisedContent, UUID reviewerUserId) {
         ensureReviewer(reviewerUserId);
         ensureNotApproved();
         return of(
@@ -122,6 +132,7 @@ public class Minutes {
                 this.reviewerUserId,
                 MinutesStatus.IN_REVIEW,
                 revisedSummary,
+                revisedContent,
                 model,
                 promptVersion,
                 approvedAt,
@@ -174,6 +185,7 @@ public class Minutes {
                 reviewerUserId,
                 nextStatus,
                 summary,
+                content,
                 model,
                 promptVersion,
                 nextApprovedAt,
@@ -239,6 +251,10 @@ public class Minutes {
 
     public String summary() {
         return summary;
+    }
+
+    public String content() {
+        return content;
     }
 
     public String model() {

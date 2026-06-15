@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.messaging.document;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ public record DocumentIndexRequestedMessage(
         UUID ownerUserId,
         String title,
         String content,
+        Metadata metadata,
         AccessScope accessScope) {
 
     static DocumentIndexRequestedMessage from(DocumentIndexRequestedEvent event) {
@@ -23,8 +25,26 @@ public record DocumentIndexRequestedMessage(
                 event.ownerUserId(),
                 event.title(),
                 event.content(),
+                Metadata.from(event.metadata()),
                 new AccessScope(
                         event.userIds(), event.departmentIds(), event.sharedWorkspaceIds()));
+    }
+
+    /** sourceType만으로는 부족한 문서별 추가 식별자와 시점을 전달한다. */
+    public record Metadata(
+            UUID meetingId, Instant approvedAt, UUID workspaceId, UUID fileVersionId, UUID mailId) {
+
+        static Metadata from(DocumentIndexRequestedEvent.Metadata metadata) {
+            if (metadata == null) {
+                return new Metadata(null, null, null, null, null);
+            }
+            return new Metadata(
+                    metadata.meetingId(),
+                    metadata.approvedAt(),
+                    metadata.workspaceId(),
+                    metadata.fileVersionId(),
+                    metadata.mailId());
+        }
     }
 
     /** AI 서버가 Qdrant 검색 필터로 저장해야 하는 문서 열람 범위다. */

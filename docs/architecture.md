@@ -329,7 +329,7 @@ meetbowl-be
 Reviewer
   ↓ PATCH /meetings/{meetingId}/minutes
 meetbowl-be
-  ↓ 회의록 수정
+  ↓ 회의록 요약/본문 수정
 Reviewer
   ↓ POST /meetings/{meetingId}/minutes/approve
 meetbowl-be

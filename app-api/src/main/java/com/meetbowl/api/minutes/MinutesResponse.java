@@ -12,6 +12,7 @@ public record MinutesResponse(
         UUID reviewerUserId,
         String status,
         String summary,
+        String content,
         Instant approvedAt) {
 
     public static MinutesResponse from(MinutesResult result) {
@@ -21,6 +22,7 @@ public record MinutesResponse(
                 result.reviewerUserId(),
                 result.status(),
                 result.summary(),
+                result.content(),
                 result.approvedAt());
     }
 }
