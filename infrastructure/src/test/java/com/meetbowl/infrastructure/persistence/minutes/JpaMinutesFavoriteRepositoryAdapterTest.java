@@ -2,7 +2,6 @@ package com.meetbowl.infrastructure.persistence.minutes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -52,10 +51,7 @@ class JpaMinutesFavoriteRepositoryAdapterTest {
         Minutes savedMinutes = minutesAdapter.save(minutes(UUID.randomUUID(), UUID.randomUUID()));
         MinutesFavorite savedFavorite =
                 favoriteAdapter.save(
-                        MinutesFavorite.create(
-                                userId,
-                                savedMinutes.id(),
-                                Instant.parse("2099-01-01T01:00:00Z")));
+                        MinutesFavorite.create(userId, savedMinutes.id()));
 
         assertThat(savedFavorite.id()).isNotNull();
         assertThat(favoriteAdapter.findByUserId(userId))

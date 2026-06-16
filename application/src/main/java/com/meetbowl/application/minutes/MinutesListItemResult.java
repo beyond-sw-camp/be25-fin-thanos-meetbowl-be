@@ -11,13 +11,10 @@ public record MinutesListItemResult(
         UUID meetingId,
         UUID organizationId,
         UUID reviewerUserId,
-        String title,
         String status,
         String summary,
         Instant approvedAt,
         boolean favorite) {
-
-    private static final String DEFAULT_TITLE = "회의록";
 
     public static MinutesListItemResult from(Minutes minutes, boolean favorite) {
         return new MinutesListItemResult(
@@ -25,7 +22,6 @@ public record MinutesListItemResult(
                 minutes.meetingId(),
                 minutes.organizationId(),
                 minutes.reviewerUserId(),
-                DEFAULT_TITLE,
                 minutes.status().name(),
                 minutes.summary(),
                 minutes.approvedAt(),

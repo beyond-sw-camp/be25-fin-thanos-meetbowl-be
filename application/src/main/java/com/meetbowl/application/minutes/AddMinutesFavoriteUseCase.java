@@ -1,6 +1,5 @@
 package com.meetbowl.application.minutes;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -36,8 +35,7 @@ public class AddMinutesFavoriteUseCase {
                 .isPresent()) {
             return;
         }
-        favoriteRepositoryPort.save(
-                MinutesFavorite.create(actorUserId, minutes.id(), Instant.now()));
+        favoriteRepositoryPort.save(MinutesFavorite.create(actorUserId, minutes.id()));
     }
 
     private Minutes findReadableMinutes(UUID actorOrganizationId, UUID minutesId) {

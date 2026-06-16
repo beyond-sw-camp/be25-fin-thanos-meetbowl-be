@@ -1,6 +1,5 @@
 package com.meetbowl.domain.minutes;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import com.meetbowl.common.exception.BusinessException;
@@ -12,20 +11,18 @@ public class MinutesFavorite {
     private final UUID id;
     private final UUID userId;
     private final UUID minutesId;
-    private final Instant favoritedAt;
 
-    private MinutesFavorite(UUID id, UUID userId, UUID minutesId, Instant favoritedAt) {
+    private MinutesFavorite(UUID id, UUID userId, UUID minutesId) {
         this.id = id;
         this.userId = userId;
         this.minutesId = minutesId;
-        this.favoritedAt = favoritedAt;
     }
 
-    public static MinutesFavorite create(UUID userId, UUID minutesId, Instant favoritedAt) {
-        return of(null, userId, minutesId, favoritedAt);
+    public static MinutesFavorite create(UUID userId, UUID minutesId) {
+        return of(null, userId, minutesId);
     }
 
-    public static MinutesFavorite of(UUID id, UUID userId, UUID minutesId, Instant favoritedAt) {
+    public static MinutesFavorite of(UUID id, UUID userId, UUID minutesId) {
         if (userId == null) {
             throw new BusinessException(
                     ErrorCode.COMMON_INVALID_REQUEST, "회의록 즐겨찾기 사용자 ID는 필수입니다.");
@@ -33,10 +30,7 @@ public class MinutesFavorite {
         if (minutesId == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의록 즐겨찾기 대상 ID는 필수입니다.");
         }
-        if (favoritedAt == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의록 즐겨찾기 시각은 필수입니다.");
-        }
-        return new MinutesFavorite(id, userId, minutesId, favoritedAt);
+        return new MinutesFavorite(id, userId, minutesId);
     }
 
     public UUID id() {
@@ -49,9 +43,5 @@ public class MinutesFavorite {
 
     public UUID minutesId() {
         return minutesId;
-    }
-
-    public Instant favoritedAt() {
-        return favoritedAt;
     }
 }

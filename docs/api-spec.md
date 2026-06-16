@@ -386,8 +386,7 @@ AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generate
 
 `GET /minutes`는 `keyword` query parameter로 `summary`, `content`를 검색할 수 있다.
 목록 응답에는 사용자별 즐겨찾기 여부를 나타내는 `favorite` 필드가 포함된다.
-목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `title`, `status`, `summary`, `approvedAt`, `favorite`를 반환한다.
-회의 제목 도메인이 연결되기 전까지 `title`은 `회의록` 기본값을 사용한다.
+목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`를 반환한다.
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 

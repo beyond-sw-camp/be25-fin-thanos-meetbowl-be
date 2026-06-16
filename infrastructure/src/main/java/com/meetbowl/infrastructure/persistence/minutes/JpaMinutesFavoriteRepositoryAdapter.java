@@ -33,7 +33,7 @@ public class JpaMinutesFavoriteRepositoryAdapter implements MinutesFavoriteRepos
 
     @Override
     public List<MinutesFavorite> findByUserId(UUID userId) {
-        return repository.findByUserIdOrderByFavoritedAtDesc(userId).stream()
+        return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(MinutesFavoriteEntity::toDomain)
                 .toList();
     }

@@ -11,7 +11,7 @@ interface SpringDataMinutesFavoriteRepository extends JpaRepository<MinutesFavor
 
     Optional<MinutesFavoriteEntity> findByUserIdAndMinutesId(UUID userId, UUID minutesId);
 
-    List<MinutesFavoriteEntity> findByUserIdOrderByFavoritedAtDesc(UUID userId);
+    List<MinutesFavoriteEntity> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     void deleteByUserIdAndMinutesId(UUID userId, UUID minutesId);
 }

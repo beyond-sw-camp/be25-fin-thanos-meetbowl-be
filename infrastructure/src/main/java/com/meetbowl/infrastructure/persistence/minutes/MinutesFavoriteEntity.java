@@ -1,6 +1,5 @@
 package com.meetbowl.infrastructure.persistence.minutes;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -27,26 +26,21 @@ public class MinutesFavoriteEntity extends BaseEntity {
     @Column(name = "minutes_id", nullable = false, columnDefinition = "BINARY(16)")
     private UUID minutesId;
 
-    @Column(nullable = false)
-    private Instant favoritedAt;
-
     protected MinutesFavoriteEntity() {}
 
-    private MinutesFavoriteEntity(UUID userId, UUID minutesId, Instant favoritedAt) {
+    private MinutesFavoriteEntity(UUID userId, UUID minutesId) {
         this.userId = userId;
         this.minutesId = minutesId;
-        this.favoritedAt = favoritedAt;
     }
 
     static MinutesFavoriteEntity from(MinutesFavorite favorite) {
         MinutesFavoriteEntity entity =
-                new MinutesFavoriteEntity(
-                        favorite.userId(), favorite.minutesId(), favorite.favoritedAt());
+                new MinutesFavoriteEntity(favorite.userId(), favorite.minutesId());
         entity.setId(favorite.id());
         return entity;
     }
 
     MinutesFavorite toDomain() {
-        return MinutesFavorite.of(getId(), userId, minutesId, favoritedAt);
+        return MinutesFavorite.of(getId(), userId, minutesId);
     }
 }

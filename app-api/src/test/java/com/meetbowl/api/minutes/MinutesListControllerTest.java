@@ -63,7 +63,6 @@ class MinutesListControllerTest {
                                         MEETING_ID,
                                         ORGANIZATION_ID,
                                         USER_ID,
-                                        "회의록",
                                         "APPROVED",
                                         "Meeting summary",
                                         APPROVED_AT,
@@ -78,7 +77,6 @@ class MinutesListControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].minutesId").value(MINUTES_ID.toString()))
-                .andExpect(jsonPath("$.data[0].title").value("회의록"))
                 .andExpect(jsonPath("$.data[0].favorite").value(true));
 
         verify(getMinutesListUseCase).execute(USER_ID, ORGANIZATION_ID, "meeting");

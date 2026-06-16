@@ -3,7 +3,6 @@ package com.meetbowl.application.minutes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +25,7 @@ class MinutesFavoriteUseCaseTest {
     void getMinutesListMarksFavorite() {
         Fixture fixture = new Fixture();
         fixture.favoriteRepository.save(
-                MinutesFavorite.create(
-                        fixture.reviewerUserId, fixture.repository.minutes.id(), fixture.now));
+                MinutesFavorite.create(fixture.reviewerUserId, fixture.repository.minutes.id()));
         GetMinutesListUseCase useCase =
                 new GetMinutesListUseCase(fixture.repository, fixture.favoriteRepository);
 
@@ -36,7 +34,6 @@ class MinutesFavoriteUseCaseTest {
 
         assertEquals(1, results.size());
         assertEquals(fixture.repository.minutes.id(), results.get(0).minutesId());
-        assertEquals("회의록", results.get(0).title());
         assertEquals(true, results.get(0).favorite());
     }
 
@@ -75,7 +72,6 @@ class MinutesFavoriteUseCaseTest {
         private final UUID meetingId = UUID.randomUUID();
         private final UUID organizationId = UUID.randomUUID();
         private final UUID reviewerUserId = UUID.randomUUID();
-        private final Instant now = Instant.parse("2099-01-01T01:00:00Z");
         private final FakeMinutesRepository repository =
                 new FakeMinutesRepository(
                         Minutes.of(
@@ -154,8 +150,7 @@ class MinutesFavoriteUseCaseTest {
                     MinutesFavorite.of(
                             favorite.id() == null ? UUID.randomUUID() : favorite.id(),
                             favorite.userId(),
-                            favorite.minutesId(),
-                            favorite.favoritedAt());
+                            favorite.minutesId());
             favorites.put(saved.id(), saved);
             return saved;
         }
