@@ -40,6 +40,15 @@ public class Notification {
     /** 읽은 시각. null이면 아직 안 읽음. */
     private Instant readAt;
 
+    /**
+     * 생성 시각(목록 최신순 정렬·표시용). 실제 값은 저장 시 JPA 감사(@CreatedDate)가 채우므로, 새로 만든 알림(create)에서는 null이고 DB에서 복원한
+     * 알림(of)에서만 채워진다 — {@link #id}와 같은 재구성 전용 필드다.
+     *
+     * <p>{@code MINUTES_REVIEW_REQUEST}의 경우 재알림 스케줄러가 이 값을 '검토 요청 시각'으로 재사용한다. 변경/제거
+     * 시 주의 — 알림 생성 시각과 검토 요청 시각이 분리되면 재알림 기준시각이 어긋난다.
+     */
+    private final Instant createdAt;
+
     private Notification(
             UUID id,
             UUID recipientUserId,
@@ -48,7 +57,8 @@ public class Notification {
             String content,
             NotificationResourceType resourceType,
             UUID resourceId,
-            Instant readAt) {
+            Instant readAt,
+            Instant createdAt) {
         this.id = id;
         this.recipientUserId = requireNonNull(recipientUserId, "수신자는 필수입니다.");
         this.type = requireNonNull(type, "알림 종류는 필수입니다.");
@@ -58,9 +68,10 @@ public class Notification {
         this.resourceType = resourceType;
         this.resourceId = resourceId;
         this.readAt = readAt;
+        this.createdAt = createdAt;
     }
 
-    /** 새 알림 생성(미읽음 상태). */
+    /** 새 알림 생성(미읽음 상태). id/생성 시각은 저장 시점에 채워지므로 아직 비어 있다. */
     public static Notification create(
             UUID recipientUserId,
             NotificationType type,
@@ -69,10 +80,10 @@ public class Notification {
             NotificationResourceType resourceType,
             UUID resourceId) {
         return new Notification(
-                null, recipientUserId, type, title, content, resourceType, resourceId, null);
+                null, recipientUserId, type, title, content, resourceType, resourceId, null, null);
     }
 
-    /** DB 복원용. 저장된 id/읽음 시각을 그대로 채워 재구성한다. */
+    /** DB 복원용. 저장된 id/읽음 시각/생성 시각을 그대로 채워 재구성한다. */
     public static Notification of(
             UUID id,
             UUID recipientUserId,
@@ -81,9 +92,11 @@ public class Notification {
             String content,
             NotificationResourceType resourceType,
             UUID resourceId,
-            Instant readAt) {
+            Instant readAt,
+            Instant createdAt) {
         return new Notification(
-                id, recipientUserId, type, title, content, resourceType, resourceId, readAt);
+                id, recipientUserId, type, title, content, resourceType, resourceId, readAt,
+                createdAt);
     }
 
     /** 읽음 처리. 이미 읽은 알림은 첫 읽은 시각을 보존하기 위해 변경하지 않는다(read-all 시 멱등). */
@@ -132,6 +145,11 @@ public class Notification {
 
     public Instant readAt() {
         return readAt;
+    }
+
+    /** 생성 시각. 저장 전 새 알림에서는 null이다. */
+    public Instant createdAt() {
+        return createdAt;
     }
 
     /** 딥링크 정보는 종류와 식별자가 항상 짝을 이뤄야 한다(한쪽만 지정 시 어디로 보낼지 모호해진다). */

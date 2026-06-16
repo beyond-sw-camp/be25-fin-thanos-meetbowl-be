@@ -19,6 +19,8 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -34,6 +36,11 @@ import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 public class SecurityConfig {
 
     private static final String JWT_ISSUER = "meetbowl";
+
+    /** SSE 구독 경로. EventSource가 Authorization 헤더를 못 붙이므로 이 경로에 한해 access token을 쿼리 파라미터로 받는다. */
+    private static final String SSE_SUBSCRIBE_PATH = "/api/v1/notifications/subscribe";
+
+    private static final String SSE_TOKEN_PARAM = "token";
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/error",
@@ -70,7 +77,8 @@ public class SecurityConfig {
             JwtAuthenticatedUserConverter jwtAuthenticatedUserConverter,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
             ApiAccessDeniedHandler apiAccessDeniedHandler,
-            InternalTokenAuthenticationFilter internalTokenAuthenticationFilter)
+            InternalTokenAuthenticationFilter internalTokenAuthenticationFilter,
+            BearerTokenResolver bearerTokenResolver)
             throws Exception {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -113,13 +121,33 @@ public class SecurityConfig {
                                         .denyAll())
                 .oauth2ResourceServer(
                         oauth2 ->
-                                oauth2.jwt(
-                                        jwt ->
-                                                jwt.jwtAuthenticationConverter(
-                                                        jwtAuthenticatedUserConverter)))
+                                oauth2.bearerTokenResolver(bearerTokenResolver)
+                                        .jwt(
+                                                jwt ->
+                                                        jwt.jwtAuthenticationConverter(
+                                                                jwtAuthenticatedUserConverter)))
                 .addFilterBefore(
                         internalTokenAuthenticationFilter, BearerTokenAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * Authorization 헤더의 Bearer 토큰을 우선 사용하고, 헤더가 없을 때만 SSE 구독 경로에 한해 {@code ?token=} 쿼리 파라미터를 토큰으로
+     * 받아들인다. 토큰을 URL에 노출하는 건 로그 유출 위험이 있어, EventSource가 헤더를 못 붙이는 SSE 구독에만 한정한다.
+     */
+    @Bean
+    BearerTokenResolver bearerTokenResolver() {
+        DefaultBearerTokenResolver headerResolver = new DefaultBearerTokenResolver();
+        return request -> {
+            String headerToken = headerResolver.resolve(request);
+            if (headerToken != null) {
+                return headerToken;
+            }
+            if (request.getRequestURI().endsWith(SSE_SUBSCRIBE_PATH)) {
+                return request.getParameter(SSE_TOKEN_PARAM);
+            }
+            return null;
+        };
     }
 
     @Bean

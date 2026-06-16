@@ -21,6 +21,8 @@ class NotificationEntityTest {
         UUID recipient = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
         Instant readAt = Instant.parse("2026-06-15T10:00:00Z");
+        // 재구성된(생성 시각이 있는) 알림은 from()이 생성 시각을 보존해야 한다(merge 후 반환 객체가 잃지 않도록).
+        Instant createdAt = Instant.parse("2026-06-15T09:00:00Z");
 
         Notification origin =
                 Notification.of(
@@ -31,7 +33,8 @@ class NotificationEntityTest {
                         "회의록 검토가 지연되고 있습니다.",
                         NotificationResourceType.MEETING_MINUTES,
                         resourceId,
-                        readAt);
+                        readAt,
+                        createdAt);
 
         Notification restored = NotificationEntity.from(origin).toDomain();
 
@@ -43,6 +46,7 @@ class NotificationEntityTest {
         assertEquals(NotificationResourceType.MEETING_MINUTES, restored.resourceType());
         assertEquals(resourceId, restored.resourceId());
         assertEquals(readAt, restored.readAt());
+        assertEquals(createdAt, restored.createdAt());
     }
 
     @Test

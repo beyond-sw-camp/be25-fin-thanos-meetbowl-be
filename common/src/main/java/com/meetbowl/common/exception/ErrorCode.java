@@ -38,6 +38,10 @@ public enum ErrorCode {
     MAIL_IDEMPOTENCY_CONFLICT("MAIL_IDEMPOTENCY_CONFLICT", "동일한 멱등성 키로 다른 메일을 요청할 수 없습니다.", 409),
     MAIL_SEND_FAILED("MAIL_SEND_FAILED", "내부 메일 발송에 실패했습니다.", 500),
 
+    // Notification
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", "알림을 찾을 수 없습니다.", 404),
+    NOTIFICATION_FORBIDDEN_ACCESS("NOTIFICATION_FORBIDDEN_ACCESS", "알림 접근 권한이 없습니다.", 403),
+
     // Shared Workspace
     SHARED_WORKSPACE_NOT_FOUND("SHARED_WORKSPACE_NOT_FOUND", "공유 워크스페이스를 찾을 수 없습니다.", 404),
     SHARED_WORKSPACE_FORBIDDEN("SHARED_WORKSPACE_FORBIDDEN", "공유 워크스페이스 접근 권한이 없습니다.", 403),

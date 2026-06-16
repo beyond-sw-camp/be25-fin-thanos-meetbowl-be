@@ -87,11 +87,23 @@ public class NotificationEntity extends BaseEntity {
                         notification.resourceId(),
                         notification.readAt());
         entity.setId(notification.id());
+        if (notification.createdAt() != null) {
+            // 재저장(읽음 처리 등)이면 기존 생성 시각을 채워, merge 후 반환 객체가 생성 시각을 잃지 않게 한다.
+            entity.setCreatedAt(notification.createdAt());
+        }
         return entity;
     }
 
     Notification toDomain() {
         return Notification.of(
-                getId(), recipientUserId, type, title, content, resourceType, resourceId, readAt);
+                getId(),
+                recipientUserId,
+                type,
+                title,
+                content,
+                resourceType,
+                resourceId,
+                readAt,
+                getCreatedAt());
     }
 }
