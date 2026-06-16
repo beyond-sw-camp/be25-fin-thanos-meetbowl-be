@@ -69,7 +69,11 @@ public class WorkspaceMemoController extends BaseController {
             @CurrentUser AuthenticatedUser user, @Valid @RequestBody CreateMemoRequest request) {
         MemoResult result =
                 createMemoUseCase.execute(
-                        new CreateMemoCommand(user.userId(), request.title(), request.content()));
+                        new CreateMemoCommand(
+                                user.userId(),
+                                user.organizationId(),
+                                request.title(),
+                                request.content()));
         return created(MemoResponse.from(result));
     }
 
@@ -81,7 +85,11 @@ public class WorkspaceMemoController extends BaseController {
         MemoResult result =
                 updateMemoUseCase.execute(
                         new UpdateMemoCommand(
-                                memoId, user.userId(), request.title(), request.content()));
+                                memoId,
+                                user.userId(),
+                                user.organizationId(),
+                                request.title(),
+                                request.content()));
         return ok(MemoResponse.from(result));
     }
 

@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
+import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.mail.Mail;
 import com.meetbowl.domain.mail.MailRepositoryPort;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
@@ -23,25 +25,29 @@ import com.meetbowl.domain.personalworkspace.PersonalWorkspaceBackupSourceType;
 public class BackupMailsUseCase {
 
     private static final int MAX_SUMMARY_LENGTH = 1000;
+    private static final String BACKUP_MAIL_DOCUMENT_TYPE = "BACKUP_MAIL";
 
     private final MailRepositoryPort mailRepositoryPort;
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final PersonalWorkspaceBackupRepositoryPort backupRepositoryPort;
+    private final DocumentIndexRequestedEventPort documentIndexRequestedEventPort;
     private final Clock clock;
 
     public BackupMailsUseCase(
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             PersonalWorkspaceBackupRepositoryPort backupRepositoryPort,
+            DocumentIndexRequestedEventPort documentIndexRequestedEventPort,
             Clock clock) {
         this.mailRepositoryPort = mailRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.backupRepositoryPort = backupRepositoryPort;
+        this.documentIndexRequestedEventPort = documentIndexRequestedEventPort;
         this.clock = clock;
     }
 
     @Transactional
-    public List<BackupMailResult> execute(UUID userId, List<UUID> mailIds) {
+    public List<BackupMailResult> execute(UUID userId, UUID organizationId, List<UUID> mailIds) {
         Set<UUID> existingMailIds =
                 backupRepositoryPort.findByOwnerUserId(userId).stream()
                         .filter(
@@ -54,12 +60,16 @@ public class BackupMailsUseCase {
         Instant backedUpAt = Instant.now(clock);
         return mailIds.stream()
                 .distinct()
-                .map(mailId -> backup(userId, mailId, existingMailIds, backedUpAt))
+                .map(mailId -> backup(userId, organizationId, mailId, existingMailIds, backedUpAt))
                 .toList();
     }
 
     private BackupMailResult backup(
-            UUID userId, UUID mailId, Set<UUID> existingMailIds, Instant backedUpAt) {
+            UUID userId,
+            UUID organizationId,
+            UUID mailId,
+            Set<UUID> existingMailIds,
+            Instant backedUpAt) {
         Mail mail = MailUseCaseSupport.findMail(mailRepositoryPort, mailId);
         MailUseCaseSupport.findOwnedEntry(mailboxEntryRepositoryPort, mailId, userId);
 
@@ -83,8 +93,32 @@ public class BackupMailsUseCase {
                                     toBackupAttachments(mail),
                                     backedUpAt));
             existingMailIds.add(mailId);
+            // 새로 만든 백업만 AI 검색용으로 색인한다(이미 백업된 메일은 내용이 동일하므로 재색인 불필요).
+            publishIndexEvent(backup, organizationId);
         }
         return BackupMailResult.from(backup);
+    }
+
+    private void publishIndexEvent(PersonalWorkspaceBackup backup, UUID organizationId) {
+        // 본문이 비어 있으면 임베딩할 텍스트가 없으므로 색인하지 않는다(AI는 content를 필수로 요구).
+        if (backup.body() == null || backup.body().isBlank()) {
+            return;
+        }
+        // 백업메일은 본인 소유 자료이므로 접근 범위를 소유자로 제한한다. organization은 선택값(미소속도 발행).
+        documentIndexRequestedEventPort.publish(
+                new DocumentIndexRequestedEvent(
+                        backup.id(),
+                        BACKUP_MAIL_DOCUMENT_TYPE,
+                        organizationId,
+                        backup.ownerUserId(),
+                        backup.title(),
+                        backup.body(),
+                        // 백업 출처인 원본 메일을 metadata.mailId로 연결한다(검색 결과에서 원본 추적용).
+                        new DocumentIndexRequestedEvent.Metadata(
+                                null, null, null, null, backup.sourceId(), null, null),
+                        List.of(backup.ownerUserId()),
+                        List.of(),
+                        List.of()));
     }
 
     /**

@@ -554,6 +554,19 @@ DELETION_SCHEDULED
 | DELETE | `/workspace/memos/{memoId}` | 개인 메모 삭제 | Owner |
 
 개인 캘린더에서 직접 수정·삭제할 수 있는 대상은 사용자가 작성한 개인 일정으로 제한한다. 회의에서 파생된 일정은 회의 정보가 기준이므로 회의 생성·수정·취소 흐름을 통해서만 변경한다.
+
+### 12.1 개인 드라이브 파일 업로드
+
+`POST /api/v1/workspace/drive/files`
+
+- 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다.
+- 서버는 확장자를 기준으로 신뢰할 Content-Type을 결정하고 파일 원본을 S3 호환 Object Storage에 저장한다.
+- MariaDB에는 파일 원본을 저장하지 않고 파일명, Content-Type, 크기, `storageKey` 등 메타데이터만 저장한다.
+- 저장 성공 후 `document.index.requested` 이벤트를 발행한다. 파일 본문은 이벤트에 싣지 않고 `storageKey`와 `contentType`을 전달하며, AI 서버가 파일을 내려받아 텍스트 추출·임베딩·Qdrant 색인을 수행한다.
+- 개인 드라이브 파일의 `accessScope.userIds`에는 소유자만 포함한다. 조직 미소속 사용자는 `organizationId: null`로 발행할 수 있다.
+- 허용되지 않은 형식은 `FILE_INVALID_EXTENSION`, 20MB 초과 파일은 `FILE_SIZE_EXCEEDED`로 거절한다.
+
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
 | DELETE | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 삭제 | Owner |
@@ -571,6 +584,16 @@ DELETION_SCHEDULED
 | GET | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 파일 버전 목록 조회 | Member |
 | PATCH | `/shared-workspaces/{spaceId}/files/{fileId}/versions/{versionId}` | 버전 변경 내용 메모 수정 | Member |
 공유 워크스페이스 파일은 새 버전이 업로드되어도 기존 버전과 변경 이력을 보존한다.
+
+### 12.2 공유 자료 업로드/새 버전 업로드
+
+`POST /api/v1/shared-workspaces/{spaceId}/files`, `POST /api/v1/shared-workspaces/{spaceId}/files/{fileId}/versions`
+
+- 두 API 모두 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다. 새 버전 업로드는 `expectedCurrentVersion`, `newVersion`, `changeMemo`(선택)를 form 필드로 함께 받는다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다. Content-Type은 서버가 확장자로 결정한다.
+- 파일 원본은 S3 호환 Object Storage에 저장하고, DB에는 메타데이터(파일명, Content-Type, 크기, `storageKey`)만 저장한다. 버전마다 별도 `storageKey`를 두어 이전 버전 원본도 보존한다.
+- 저장 성공 후 `document.index.requested`를 발행한다. 색인 단위는 파일(`documentId=fileId`)이라 새 버전이 올라오면 같은 문서를 최신 내용으로 교체 색인한다.
+- 공유 자료이므로 `accessScope.sharedWorkspaceIds`에 워크스페이스 ID를 담아 멤버 전원이 검색할 수 있게 한다.
 
 ---
 

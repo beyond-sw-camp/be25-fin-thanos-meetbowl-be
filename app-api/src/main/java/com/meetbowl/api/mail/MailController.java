@@ -129,7 +129,9 @@ public class MailController extends BaseController {
             @Parameter(hidden = true) @CurrentUser AuthenticatedUser user,
             @Valid @RequestBody BackupMailsRequest request) {
         return ok(
-                backupMailsUseCase.execute(user.userId(), request.mailIds()).stream()
+                backupMailsUseCase
+                        .execute(user.userId(), user.organizationId(), request.mailIds())
+                        .stream()
                         .map(BackupMailResponse::from)
                         .toList());
     }
