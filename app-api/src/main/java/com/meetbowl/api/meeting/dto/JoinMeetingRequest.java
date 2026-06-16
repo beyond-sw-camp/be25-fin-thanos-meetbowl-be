@@ -1,6 +1,5 @@
 package com.meetbowl.api.meeting.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -10,8 +9,7 @@ import jakarta.validation.constraints.Size;
  * 사용한다.
  */
 public record JoinMeetingRequest(
-        @NotBlank(message = "displayName은 필수입니다.")
-                @Size(max = 100, message = "displayName은 100자 이하여야 합니다.")
+        @Size(max = 100, message = "displayName은 100자 이하여야 합니다.")
                 String displayName,
         @Size(max = 120, message = "participantIdentity는 120자 이하여야 합니다.")
                 String participantIdentity) {}

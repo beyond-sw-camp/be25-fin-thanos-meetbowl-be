@@ -43,7 +43,8 @@ class JoinMeetingUseCaseTest {
                                         null,
                                         "주간 전략 공유")),
                         tokenIssuer,
-                        realtimeSessionStarter);
+                        realtimeSessionStarter,
+                        new MeetingGuestNameAllocator());
 
         JoinMeetingResult result =
                 useCase.execute(
@@ -72,7 +73,8 @@ class JoinMeetingUseCaseTest {
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
                         tokenIssuer,
-                        realtimeSessionStarter);
+                        realtimeSessionStarter,
+                        new MeetingGuestNameAllocator());
 
         JoinMeetingResult result =
                 useCase.execute(
@@ -98,7 +100,8 @@ class JoinMeetingUseCaseTest {
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
                         tokenIssuer,
-                        realtimeSessionStarter);
+                        realtimeSessionStarter,
+                        new MeetingGuestNameAllocator());
 
         useCase.execute(
                 new JoinMeetingCommand(
@@ -118,16 +121,42 @@ class JoinMeetingUseCaseTest {
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
                         tokenIssuer,
-                        realtimeSessionStarter);
+                        realtimeSessionStarter,
+                        new MeetingGuestNameAllocator());
 
         JoinMeetingResult result =
                 useCase.execute(
                         new JoinMeetingCommand(
-                                meetingId, null, "참석자", "guest-12345678-1234-1234-1234-123456789012"));
+                                meetingId, null, "", "guest-12345678-1234-1234-1234-123456789012"));
 
-        assertTrue(result.participantName().startsWith("참석자 "));
+        assertTrue(result.participantName().startsWith("게스트 "));
         assertEquals(result.participantName(), tokenIssuer.lastCommand.participantName());
         assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
+    }
+
+    @Test
+    void 같은회의의게스트는입장순서대로순번을받는다() {
+        UUID meetingId = UUID.randomUUID();
+        RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
+        RecordingRealtimeSessionStarter realtimeSessionStarter =
+                new RecordingRealtimeSessionStarter();
+        MeetingGuestNameAllocator allocator = new MeetingGuestNameAllocator();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(null),
+                        tokenIssuer,
+                        realtimeSessionStarter,
+                        allocator);
+
+        JoinMeetingResult first =
+                useCase.execute(
+                        new JoinMeetingCommand(meetingId, null, "", "guest-1"));
+        JoinMeetingResult second =
+                useCase.execute(
+                        new JoinMeetingCommand(meetingId, null, "", "guest-2"));
+
+        assertEquals("게스트 1", first.participantName());
+        assertEquals("게스트 2", second.participantName());
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {

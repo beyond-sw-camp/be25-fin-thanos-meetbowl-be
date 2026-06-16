@@ -53,7 +53,8 @@ class EndMeetingUseCaseTest {
                                                 reviewerUserId,
                                                 AttendeeRole.REVIEWER,
                                                 AttendanceStatus.ACCEPTED))),
-                        eventPublisher);
+                        eventPublisher,
+                        new MeetingGuestNameAllocator());
 
         EndMeetingResult result =
                 useCase.execute(
@@ -90,7 +91,8 @@ class EndMeetingUseCaseTest {
                                         Instant.parse("2026-06-12T01:00:00Z"),
                                         Instant.parse("2026-06-12T02:00:00Z"))),
                         new StubMeetingAttendeeRepository(List.of()),
-                        eventPublisher);
+                        eventPublisher,
+                        new MeetingGuestNameAllocator());
 
         EndMeetingResult result =
                 useCase.execute(

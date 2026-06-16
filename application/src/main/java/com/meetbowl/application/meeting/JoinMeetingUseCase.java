@@ -24,20 +24,23 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 @Transactional(readOnly = true)
 public class JoinMeetingUseCase {
 
-    private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "참석자";
+    private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "게스트";
     private static final String DEFAULT_GUEST_DISPLAY_NAME = "게스트";
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final LiveKitTokenIssuer liveKitTokenIssuer;
     private final MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
+    private final MeetingGuestNameAllocator meetingGuestNameAllocator;
 
     public JoinMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             LiveKitTokenIssuer liveKitTokenIssuer,
-            MeetingRealtimeSessionStarter meetingRealtimeSessionStarter) {
+            MeetingRealtimeSessionStarter meetingRealtimeSessionStarter,
+            MeetingGuestNameAllocator meetingGuestNameAllocator) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.liveKitTokenIssuer = liveKitTokenIssuer;
         this.meetingRealtimeSessionStarter = meetingRealtimeSessionStarter;
+        this.meetingGuestNameAllocator = meetingGuestNameAllocator;
     }
 
     public JoinMeetingResult execute(JoinMeetingCommand command) {
@@ -48,7 +51,7 @@ public class JoinMeetingUseCase {
         Meeting meeting = meetingRepositoryPort.findById(command.meetingId()).orElse(null);
         String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
-        String participantName = resolveParticipantName(command, participantIdentity);
+        String participantName = resolveParticipantName(command);
 
         // 사용자가 회의 화면에 입장하는 시점에 STT 세션도 같이 보장해야, 자막 탭이 빈 상태로 오래 머무르지 않는다.
         meetingRealtimeSessionStarter.ensureStarted(command.meetingId(), roomName);
@@ -103,10 +106,10 @@ public class JoinMeetingUseCase {
     /**
      * 게스트는 화면에 같은 이름으로만 보이면 누가 누구인지 구분이 안 되므로, 서버에서 구분 가능한 번호를 붙인다.
      *
-     * <p>사용자가 직접 이름을 입력한 경우에는 그 값을 우선 쓰고, 기본값인 "게스트"/"참석자" 계열만 번호가 붙은 표시명으로 바꾼다.
-     * 번호는 participantIdentity를 기반으로 계산해 같은 입장 흐름에서는 일관되게 유지되도록 한다.
+     * <p>비로그인 게스트는 입력한 이름이 비어 있거나 기본값인 경우만 "게스트 {번호}"로 만든다. 번호는 participantIdentity를 기반으로
+     * 계산해 같은 입장 흐름에서는 일관되게 유지되도록 한다.
      */
-    private String resolveParticipantName(JoinMeetingCommand command, String participantIdentity) {
+    private String resolveParticipantName(JoinMeetingCommand command) {
         String requestedDisplayName = normalizeDisplayName(command.displayName());
         if (command.authenticatedUserId() != null) {
             return requestedDisplayName.isBlank() ? DEFAULT_GUEST_DISPLAY_NAME : requestedDisplayName;
@@ -114,7 +117,9 @@ public class JoinMeetingUseCase {
         if (!isDefaultGuestDisplayName(requestedDisplayName)) {
             return requestedDisplayName;
         }
-        return DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX + " " + resolveGuestNumber(participantIdentity);
+        return DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX
+                + " "
+                + meetingGuestNameAllocator.nextGuestSequence(command.meetingId());
     }
 
     private String normalizeDisplayName(String displayName) {
@@ -126,15 +131,7 @@ public class JoinMeetingUseCase {
             return true;
         }
         return DEFAULT_GUEST_DISPLAY_NAME.equals(displayName)
-                || DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX.equals(displayName);
+                || "참석자".equals(displayName);
     }
 
-    private int resolveGuestNumber(String participantIdentity) {
-        String normalizedIdentity = normalizeDisplayName(participantIdentity);
-        if (normalizedIdentity.isBlank()) {
-            return 1;
-        }
-        // guest-UUID처럼 길고 불규칙한 식별자도 화면에서는 짧은 숫자 하나로만 보여주기 위한 경량 변환이다.
-        return Math.floorMod(normalizedIdentity.hashCode(), 9000) + 1000;
-    }
 }

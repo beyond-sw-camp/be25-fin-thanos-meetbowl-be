@@ -25,14 +25,17 @@ public class EndMeetingUseCase {
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
     private final MeetingEndedEventPublisher meetingEndedEventPublisher;
+    private final MeetingGuestNameAllocator meetingGuestNameAllocator;
 
     public EndMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
-            MeetingEndedEventPublisher meetingEndedEventPublisher) {
+            MeetingEndedEventPublisher meetingEndedEventPublisher,
+            MeetingGuestNameAllocator meetingGuestNameAllocator) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.meetingEndedEventPublisher = meetingEndedEventPublisher;
+        this.meetingGuestNameAllocator = meetingGuestNameAllocator;
     }
 
     public EndMeetingResult execute(EndMeetingCommand command) {
@@ -42,6 +45,7 @@ public class EndMeetingUseCase {
                         .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         if (meeting.status() == com.meetbowl.domain.meeting.MeetingStatus.ENDED) {
+            meetingGuestNameAllocator.reset(meeting.id());
             return new EndMeetingResult(
                     meeting.id(),
                     meeting.status().name(),
@@ -69,6 +73,7 @@ public class EndMeetingUseCase {
                 savedMeeting.startedAt(),
                 savedMeeting.endedAt(),
                 resolveCorrelationId(command.correlationId()));
+        meetingGuestNameAllocator.reset(savedMeeting.id());
 
         return new EndMeetingResult(
                 savedMeeting.id(),
