@@ -22,6 +22,7 @@ class JoinMeetingUseCaseTest {
     @Test
     void providerRoomId가있으면기존Room으로토큰을발급한다() {
         UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
         RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
         RecordingRealtimeSessionStarter realtimeSessionStarter =
                 new RecordingRealtimeSessionStarter();
@@ -33,7 +34,7 @@ class JoinMeetingUseCaseTest {
                                         "주간 전략 회의",
                                         Instant.parse("2026-06-12T01:00:00Z"),
                                         Instant.parse("2026-06-12T02:00:00Z"),
-                                        UUID.randomUUID(),
+                                        hostUserId,
                                         null,
                                         "LIVEKIT",
                                         "provider-room-123",
@@ -53,6 +54,7 @@ class JoinMeetingUseCaseTest {
                                 "ignored-client-identity"));
 
         assertEquals("provider-room-123", result.roomName());
+        assertEquals(hostUserId, result.hostUserId());
         assertEquals("user-31f73d71-c04e-4410-a98c-fdc15e918091", result.participantIdentity());
         assertEquals("이지연", result.participantName());
         assertEquals("provider-room-123", tokenIssuer.lastCommand.roomName());
@@ -104,6 +106,28 @@ class JoinMeetingUseCaseTest {
 
         assertTrue(realtimeSessionStarter.called);
         assertEquals("meeting-" + meetingId, realtimeSessionStarter.lastRoomName);
+    }
+
+    @Test
+    void 게스트는기본이름대신번호가붙은이름을받는다() {
+        UUID meetingId = UUID.randomUUID();
+        RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
+        RecordingRealtimeSessionStarter realtimeSessionStarter =
+                new RecordingRealtimeSessionStarter();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(null),
+                        tokenIssuer,
+                        realtimeSessionStarter);
+
+        JoinMeetingResult result =
+                useCase.execute(
+                        new JoinMeetingCommand(
+                                meetingId, null, "참석자", "guest-12345678-1234-1234-1234-123456789012"));
+
+        assertTrue(result.participantName().startsWith("참석자 "));
+        assertEquals(result.participantName(), tokenIssuer.lastCommand.participantName());
+        assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {

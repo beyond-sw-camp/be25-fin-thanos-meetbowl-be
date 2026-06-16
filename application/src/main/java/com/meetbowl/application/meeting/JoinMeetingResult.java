@@ -12,6 +12,7 @@ public record JoinMeetingResult(
         UUID meetingId,
         String roomName,
         String livekitUrl,
+        UUID hostUserId,
         String participantIdentity,
         String participantName,
         String token,

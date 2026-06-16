@@ -70,6 +70,15 @@ public class MeetingAttendee {
         return of(id, meetingId, userId, role, newStatus);
     }
 
+    /**
+     * 회의 내 역할만 교체한다.
+     *
+     * <p>호스트 이전처럼 같은 참석자 행을 유지한 채 role만 바꿔야 하는 경우에 사용한다.
+     */
+    public MeetingAttendee withRole(AttendeeRole newRole) {
+        return of(id, meetingId, userId, newRole, attendanceStatus);
+    }
+
     public UUID id() {
         return id;
     }

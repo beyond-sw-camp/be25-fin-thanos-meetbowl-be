@@ -253,6 +253,8 @@ X-Internal-Token: {internalToken}
 | PATCH | `/meetings/{meetingId}` | 회의 일정, 회의실, 참석자, 검토자 수정 | Host/Admin |
 | DELETE | `/meetings/{meetingId}` | 회의 취소 | Host/Admin |
 | POST | `/meetings/{meetingId}/join` | LiveKit 회의 참여 정보 조회 | Participant/Guest |
+| POST | `/meetings/{meetingId}/end` | 회의 종료 확정 | Host |
+| POST | `/meetings/{meetingId}/transfer-host` | 회의 관리자 이전 | Host |
 | POST | `/meetings/{meetingId}/invite-link` | 회의 초대 코드/URL 생성 | Host |
 | POST | `/meetings/guest-join` | 게스트 초대 코드로 회의 참여 | Public |
 
@@ -270,6 +272,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 - 응답 `livekitUrl`, `token`, `roomName`을 그대로 사용해 `room.connect()`를 호출한다.
 - 인증 사용자가 있으면 서버가 `user-{userId}` 규칙으로 participant identity를 결정한다.
 - 인증 연동 전 개발 화면에서는 요청 `participantIdentity`를 fallback 값으로 사용할 수 있다.
+- 응답에는 현재 회의 주최자 `hostUserId`도 포함되어 회의 화면에서 관리자 UI를 제어할 수 있다.
 
 요청 예시:
 
@@ -289,6 +292,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
     "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
     "roomName": "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
     "livekitUrl": "http://localhost:7880",
+    "hostUserId": "31f73d71-c04e-4410-a98c-fdc15e918091",
     "participantIdentity": "u-user",
     "participantName": "이지연",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
