@@ -49,6 +49,14 @@ public abstract class BaseEntity {
         return createdAt;
     }
 
+    /**
+     * 도메인 모델에서 엔티티를 재구성(merge용)할 때 기존 생성 시각을 보존하기 위한 설정자다. 새로 저장하는 엔티티에서는 호출하지 않아야 한다(그 경우 감사 리스너가
+     * 채운다). 컬럼이 updatable=false라 이 값이 UPDATE로 다시 쓰이지는 않지만, merge 후 반환 객체가 생성 시각을 잃지 않도록 채운다.
+     */
+    protected void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
     public Instant getUpdatedAt() {
         return updatedAt;
     }

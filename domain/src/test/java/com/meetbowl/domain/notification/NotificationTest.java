@@ -69,6 +69,7 @@ class NotificationTest {
         UUID recipient = UUID.randomUUID();
         UUID resourceId = UUID.randomUUID();
         Instant readAt = Instant.parse("2026-06-15T10:00:00Z");
+        Instant createdAt = Instant.parse("2026-06-15T09:00:00Z");
 
         Notification notification =
                 Notification.of(
@@ -79,7 +80,8 @@ class NotificationTest {
                         "회의록 검토를 요청합니다.",
                         NotificationResourceType.MEETING_MINUTES,
                         resourceId,
-                        readAt);
+                        readAt,
+                        createdAt);
 
         assertEquals(id, notification.id());
         assertEquals(recipient, notification.recipientUserId());
@@ -89,6 +91,7 @@ class NotificationTest {
         assertEquals(NotificationResourceType.MEETING_MINUTES, notification.resourceType());
         assertEquals(resourceId, notification.resourceId());
         assertEquals(readAt, notification.readAt());
+        assertEquals(createdAt, notification.createdAt());
     }
 
     @Test
