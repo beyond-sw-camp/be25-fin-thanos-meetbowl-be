@@ -113,6 +113,9 @@ public class BackupMailsUseCase {
                         backup.ownerUserId(),
                         backup.title(),
                         backup.body(),
+                        // 백업 출처인 원본 메일을 metadata.mailId로 연결한다(검색 결과에서 원본 추적용).
+                        new DocumentIndexRequestedEvent.Metadata(
+                                null, null, null, null, backup.sourceId(), null, null),
                         List.of(backup.ownerUserId()),
                         List.of(),
                         List.of()));

@@ -102,9 +102,10 @@ public class UploadSharedWorkspaceFileUseCase {
                         command.organizationId(),
                         command.uploaderUserId(),
                         command.originalFileName(),
+                        // 파일 문서라 content 대신 S3 위치/타입을 metadata에 담고, 어느 워크스페이스 자료인지도 함께 식별한다.
                         null,
-                        storageKey,
-                        contentType,
+                        new DocumentIndexRequestedEvent.Metadata(
+                                null, null, command.workspaceId(), null, null, storageKey, contentType),
                         List.of(),
                         List.of(),
                         List.of(command.workspaceId())));

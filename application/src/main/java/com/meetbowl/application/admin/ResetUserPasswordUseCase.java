@@ -1,6 +1,5 @@
 package com.meetbowl.application.admin;
 
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -9,60 +8,84 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
 import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
 import com.meetbowl.domain.admin.AuditResult;
+import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
+import com.meetbowl.domain.user.UserRole;
 
 @Service
 public class ResetUserPasswordUseCase {
 
-    private static final int TEMPORARY_PASSWORD_LENGTH = 16;
-    private static final char[] TEMPORARY_PASSWORD_ALPHABET =
-            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray();
-
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TransactionOperations transactionOperations;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final TokenStateRepositoryPort tokenStateRepositoryPort;
+    private final ObjectMapper objectMapper;
 
     public ResetUserPasswordUseCase(
             UserRepositoryPort userRepositoryPort,
             PasswordEncoder passwordEncoder,
+            TemporaryPasswordGenerator temporaryPasswordGenerator,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
-            TransactionOperations transactionOperations) {
+            TransactionOperations transactionOperations,
+            TokenStateRepositoryPort tokenStateRepositoryPort,
+            ObjectMapper objectMapper) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.transactionOperations = transactionOperations;
+        this.tokenStateRepositoryPort = tokenStateRepositoryPort;
+        this.objectMapper = objectMapper;
     }
 
     public ResetUserPasswordResult execute(ResetUserPasswordCommand command) {
         // 관리자 초기화는 1회용 임시 비밀번호를 생성하고 해시만 저장한다.
-        return Objects.requireNonNull(
-                transactionOperations.execute(
-                        status -> {
-                            User user =
-                                    userRepositoryPort
-                                            .findById(command.userId())
-                                            .orElseThrow(
-                                                    () ->
-                                                            new BusinessException(
-                                                                    ErrorCode.USER_NOT_FOUND));
+        ResetUserPasswordResult result =
+                Objects.requireNonNull(
+                        transactionOperations.execute(
+                                status -> {
+                                    User user =
+                                            userRepositoryPort
+                                                    .findById(command.userId())
+                                                    .orElseThrow(
+                                                            () ->
+                                                                    new BusinessException(
+                                                                            ErrorCode
+                                                                                    .USER_NOT_FOUND));
+                                    ensureManagedUser(user);
 
-                            String temporaryPassword = generateTemporaryPassword(user);
-                            User updatedUser =
-                                    user.resetPasswordByAdmin(
-                                            passwordEncoder.encode(temporaryPassword));
-                            userRepositoryPort.save(updatedUser);
+                                    String temporaryPassword =
+                                            temporaryPasswordGenerator.generateDistinctFrom(
+                                                    user.passwordHash(), passwordEncoder);
+                                    User updatedUser =
+                                            user.resetPasswordByAdmin(
+                                                    passwordEncoder.encode(temporaryPassword));
+                                    userRepositoryPort.save(updatedUser);
 
-                            logAudit(command, AuditResult.SUCCESS, null);
-                            return new ResetUserPasswordResult(temporaryPassword);
-                        }));
+                                    logAudit(command, AuditResult.SUCCESS, null);
+                                    return new ResetUserPasswordResult(temporaryPassword);
+                                }));
+        // 비밀번호 초기화 트랜잭션이 성공한 뒤 탈취 가능성이 있는 기존 세션을 모두 폐기한다.
+        tokenStateRepositoryPort.revokeUserSessions(command.userId(), Instant.now());
+        return result;
+    }
+
+    private void ensureManagedUser(User user) {
+        // 초기 관리자와 시스템 계정의 자격 증명은 일반 회원 관리 흐름에서 변경하지 않는다.
+        if (user.role() != UserRole.USER) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "관리자 및 시스템 계정의 비밀번호는 초기화할 수 없습니다.");
+        }
     }
 
     private void logAudit(
@@ -79,33 +102,22 @@ public class ResetUserPasswordUseCase {
                         "PASSWORD_RESET",
                         result,
                         null,
-                        failureReason != null ? failureReason : "PASSWORD_RESET_COMPLETED",
+                        failureReason != null ? failureReason : passwordResetSnapshot(),
                         command.ipAddress(),
                         command.userAgent(),
                         Instant.now());
         adminAuditLogRepositoryPort.save(log);
     }
 
-    private String generateTemporaryPassword(User user) {
-        // 현재 비밀번호와 사실상 같은 값이 나오지 않도록 다시 생성한다.
-        for (int attempt = 0; attempt < 10; attempt++) {
-            String temporaryPassword = generateRandomPassword();
-            if (!passwordEncoder.matches(temporaryPassword, user.passwordHash())) {
-                return temporaryPassword;
-            }
+    private String passwordResetSnapshot() {
+        try {
+            // 감사 로그에는 임시 비밀번호나 해시를 남기지 않고, 초기 비밀번호 변경 필요 여부만 기록한다.
+            return objectMapper.writeValueAsString(new PasswordResetAuditSnapshot(true));
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INTERNAL_ERROR, "Failed to serialize admin audit snapshot.");
         }
-
-        throw new BusinessException(
-                ErrorCode.COMMON_INTERNAL_ERROR, "?꾩떆 鍮꾨?踰덊샇瑜??앹꽦?????놁뒿?덈떎.");
     }
 
-    private String generateRandomPassword() {
-        // 허용된 문자 집합으로 사람이 읽기 쉬운 임시 비밀번호를 만든다.
-        StringBuilder builder = new StringBuilder(TEMPORARY_PASSWORD_LENGTH);
-        for (int index = 0; index < TEMPORARY_PASSWORD_LENGTH; index++) {
-            int randomIndex = secureRandom.nextInt(TEMPORARY_PASSWORD_ALPHABET.length);
-            builder.append(TEMPORARY_PASSWORD_ALPHABET[randomIndex]);
-        }
-        return builder.toString();
-    }
+    private record PasswordResetAuditSnapshot(boolean initialPasswordChangeRequired) {}
 }

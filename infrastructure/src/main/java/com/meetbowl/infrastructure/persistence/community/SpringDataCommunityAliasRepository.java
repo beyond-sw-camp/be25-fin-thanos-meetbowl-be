@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.persistence.community;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -10,4 +12,6 @@ public interface SpringDataCommunityAliasRepository
         extends JpaRepository<CommunityAliasEntity, UUID> {
 
     Optional<CommunityAliasEntity> findByUserId(UUID userId);
+
+    List<CommunityAliasEntity> findByUserIdIn(Collection<UUID> userIds);
 }

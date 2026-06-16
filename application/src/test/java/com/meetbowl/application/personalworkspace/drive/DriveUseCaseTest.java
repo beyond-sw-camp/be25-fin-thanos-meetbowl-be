@@ -71,8 +71,9 @@ class DriveUseCaseTest {
         verify(indexEventPort).publish(eventCaptor.capture());
         DocumentIndexRequestedEvent event = eventCaptor.getValue();
         assertEquals("PERSONAL_DRIVE_FILE", event.documentType());
-        assertEquals(result.storageKey(), event.storageKey());
-        assertEquals("application/pdf", event.contentType());
+        // storageKey/contentType은 이제 문서 전용 metadata 안에 담긴다.
+        assertEquals(result.storageKey(), event.metadata().storageKey());
+        assertEquals("application/pdf", event.metadata().contentType());
         assertEquals(null, event.content());
         assertEquals(java.util.List.of(userId), event.userIds());
     }

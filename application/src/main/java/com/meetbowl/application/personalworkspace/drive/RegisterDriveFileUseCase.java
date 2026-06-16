@@ -80,9 +80,10 @@ public class RegisterDriveFileUseCase {
                         command.organizationId(),
                         saved.ownerUserId(),
                         saved.originalFileName(),
+                        // 파일 문서라 content는 없고, S3 위치/타입을 metadata에 담아 AI가 받아 추출하게 한다.
                         null,
-                        saved.storageKey(),
-                        saved.contentType(),
+                        new DocumentIndexRequestedEvent.Metadata(
+                                null, null, null, null, null, saved.storageKey(), saved.contentType()),
                         List.of(saved.ownerUserId()),
                         List.of(),
                         List.of()));

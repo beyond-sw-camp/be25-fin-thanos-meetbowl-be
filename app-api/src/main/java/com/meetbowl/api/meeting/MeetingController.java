@@ -1,0 +1,174 @@
+package com.meetbowl.api.meeting;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+import jakarta.validation.Valid;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.meetbowl.api.common.ApiPaths;
+import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
+import com.meetbowl.api.common.auth.RequireUserOrAdmin;
+import com.meetbowl.api.meeting.dto.JoinMeetingRequest;
+import com.meetbowl.api.meeting.dto.JoinMeetingResponse;
+import com.meetbowl.application.meeting.CancelMeetingUseCase;
+import com.meetbowl.application.meeting.CreateMeetingCommand;
+import com.meetbowl.application.meeting.CreateMeetingUseCase;
+import com.meetbowl.application.meeting.GetMeetingUseCase;
+import com.meetbowl.application.meeting.JoinMeetingCommand;
+import com.meetbowl.application.meeting.JoinMeetingResult;
+import com.meetbowl.application.meeting.JoinMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingListFilter;
+import com.meetbowl.application.meeting.MeetingResult;
+import com.meetbowl.application.meeting.UpdateMeetingCommand;
+import com.meetbowl.application.meeting.UpdateMeetingUseCase;
+import com.meetbowl.common.response.ApiResponse;
+
+/** 회의 생성, 조회, 수정, 취소와 회의 입장 정보를 제공하는 API다. */
+@RestController
+@RequestMapping(ApiPaths.API_V1 + "/meetings")
+public class MeetingController extends BaseController {
+
+    private final CreateMeetingUseCase createMeetingUseCase;
+    private final GetMeetingUseCase getMeetingUseCase;
+    private final UpdateMeetingUseCase updateMeetingUseCase;
+    private final CancelMeetingUseCase cancelMeetingUseCase;
+    private final JoinMeetingUseCase joinMeetingUseCase;
+
+    public MeetingController(
+            CreateMeetingUseCase createMeetingUseCase,
+            GetMeetingUseCase getMeetingUseCase,
+            UpdateMeetingUseCase updateMeetingUseCase,
+            CancelMeetingUseCase cancelMeetingUseCase,
+            JoinMeetingUseCase joinMeetingUseCase) {
+        this.createMeetingUseCase = createMeetingUseCase;
+        this.getMeetingUseCase = getMeetingUseCase;
+        this.updateMeetingUseCase = updateMeetingUseCase;
+        this.cancelMeetingUseCase = cancelMeetingUseCase;
+        this.joinMeetingUseCase = joinMeetingUseCase;
+    }
+
+    /** 회의 생성. 회의실 시간이 겹치면 409(MEETING_ROOM_ALREADY_RESERVED)를 반환한다. */
+    @PostMapping
+    @RequireUserOrAdmin
+    public ResponseEntity<ApiResponse<MeetingResponse>> createMeeting(
+            @CurrentUser AuthenticatedUser currentUser,
+            @Valid @RequestBody CreateMeetingRequest request) {
+        CreateMeetingCommand command =
+                new CreateMeetingCommand(
+                        request.title(),
+                        request.scheduledAt(),
+                        request.scheduledEndAt(),
+                        currentUser.userId(),
+                        request.meetingRoomId(),
+                        request.provider(),
+                        request.providerRoomId(),
+                        request.attendeeUserIds(),
+                        request.reviewerUserId(),
+                        request.description());
+        MeetingResult result = createMeetingUseCase.execute(command);
+        return created(MeetingResponse.from(result));
+    }
+
+    /**
+     * 내 회의 목록 조회.
+     *
+     * <p>{@code role}로 전체(all), 주최(host), 초대(invited)를 구분하고 기간 조건으로 시작 시간을 필터링한다.
+     */
+    @GetMapping
+    @RequireUserOrAdmin
+    public ApiResponse<List<MeetingResponse>> getMyMeetings(
+            @CurrentUser AuthenticatedUser currentUser,
+            @RequestParam(defaultValue = "all") String role,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    Instant to) {
+        List<MeetingResponse> responses =
+                getMeetingUseCase
+                        .getMyMeetings(currentUser.userId(), toFilter(role), from, to)
+                        .stream()
+                        .map(MeetingResponse::from)
+                        .toList();
+        return ok(responses);
+    }
+
+    /** 회의 단건 상세 조회. */
+    @GetMapping("/{meetingId}")
+    @RequireUserOrAdmin
+    public ApiResponse<MeetingDetailResponse> getMeeting(
+            @CurrentUser AuthenticatedUser currentUser, @PathVariable UUID meetingId) {
+        MeetingResult result =
+                getMeetingUseCase.getById(meetingId, currentUser.userId(), currentUser.isAdmin());
+        return ok(MeetingDetailResponse.from(result));
+    }
+
+    /** 회의 수정. 회의실 시간이 겹치면 409(MEETING_ROOM_ALREADY_RESERVED)를 반환한다. */
+    @PatchMapping("/{meetingId}")
+    @RequireUserOrAdmin
+    public ApiResponse<MeetingResponse> updateMeeting(
+            @CurrentUser AuthenticatedUser currentUser,
+            @PathVariable UUID meetingId,
+            @Valid @RequestBody UpdateMeetingRequest request) {
+        UpdateMeetingCommand command =
+                new UpdateMeetingCommand(
+                        meetingId,
+                        currentUser.userId(),
+                        request.title(),
+                        request.scheduledAt(),
+                        request.scheduledEndAt(),
+                        request.meetingRoomId(),
+                        request.description());
+        return ok(MeetingResponse.from(updateMeetingUseCase.execute(command)));
+    }
+
+    /** 회의 취소. */
+    @PostMapping("/{meetingId}/cancel")
+    @RequireUserOrAdmin
+    public ApiResponse<MeetingResponse> cancelMeeting(
+            @CurrentUser AuthenticatedUser currentUser, @PathVariable UUID meetingId) {
+        MeetingResult result = cancelMeetingUseCase.execute(meetingId, currentUser.userId());
+        return ok(MeetingResponse.from(result));
+    }
+
+    /**
+     * 회의 입장용 LiveKit 연결 정보를 발급한다.
+     *
+     * <p>로그인 사용자는 userId를 기반으로 참여자를 식별하고, 비로그인 요청은 guest/public 경로 정책에 따라 별도 처리된다.
+     */
+    @PostMapping("/{meetingId}/join")
+    public ApiResponse<JoinMeetingResponse> joinMeeting(
+            @PathVariable UUID meetingId,
+            @CurrentUser(required = false) AuthenticatedUser currentUser,
+            @Valid @RequestBody JoinMeetingRequest request) {
+        JoinMeetingResult result =
+                joinMeetingUseCase.execute(
+                        new JoinMeetingCommand(
+                                meetingId,
+                                currentUser != null ? currentUser.userId() : null,
+                                request.displayName(),
+                                request.participantIdentity()));
+        return ok(JoinMeetingResponse.from(result));
+    }
+
+    private MeetingListFilter toFilter(String role) {
+        return switch (role == null ? "all" : role.toLowerCase()) {
+            case "host" -> MeetingListFilter.HOST;
+            case "invited" -> MeetingListFilter.INVITED;
+            default -> MeetingListFilter.ALL;
+        };
+    }
+}

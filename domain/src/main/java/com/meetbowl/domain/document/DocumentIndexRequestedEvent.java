@@ -1,5 +1,6 @@
 package com.meetbowl.domain.document;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,8 +12,7 @@ public record DocumentIndexRequestedEvent(
         UUID ownerUserId,
         String title,
         String content,
-        String storageKey,
-        String contentType,
+        Metadata metadata,
         List<UUID> userIds,
         List<UUID> departmentIds,
         List<UUID> sharedWorkspaceIds) {
@@ -24,28 +24,18 @@ public record DocumentIndexRequestedEvent(
         sharedWorkspaceIds = List.copyOf(sharedWorkspaceIds);
     }
 
-    /** 회의록·메모·메일처럼 본문을 직접 전달하는 기존 호출의 계약을 유지한다. */
-    public DocumentIndexRequestedEvent(
-            UUID documentId,
-            String documentType,
-            UUID organizationId,
-            UUID ownerUserId,
-            String title,
-            String content,
-            List<UUID> userIds,
-            List<UUID> departmentIds,
-            List<UUID> sharedWorkspaceIds) {
-        this(
-                documentId,
-                documentType,
-                organizationId,
-                ownerUserId,
-                title,
-                content,
-                null,
-                null,
-                userIds,
-                departmentIds,
-                sharedWorkspaceIds);
-    }
+    /**
+     * 문서 종류별 추가 식별자와 시점을 담는 metadata다.
+     *
+     * <p>공통 필드만 최상위에 두고 문서 전용 정보는 metadata에 모아야 회의록 외 문서가 같은 색인 파이프라인을 사용해도 필드 의미가 섞이지 않는다.
+     * 파일 문서(드라이브/공유)는 본문이 바이너리라 content 대신 storageKey/contentType을 여기에 담아, AI가 S3에서 받아 텍스트를 추출한다.
+     */
+    public record Metadata(
+            UUID meetingId,
+            Instant approvedAt,
+            UUID workspaceId,
+            UUID fileVersionId,
+            UUID mailId,
+            String storageKey,
+            String contentType) {}
 }

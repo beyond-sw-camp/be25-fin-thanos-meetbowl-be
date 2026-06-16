@@ -54,6 +54,8 @@ public class UpdateMemoUseCase {
                         saved.ownerUserId(),
                         saved.title(),
                         saved.content(),
+                        // 메모는 회의·워크스페이스·파일에 속하지 않는 단독 텍스트라 문서 전용 metadata가 없다.
+                        null,
                         List.of(saved.ownerUserId()),
                         List.of(),
                         List.of()));

@@ -142,7 +142,7 @@ X-Internal-Token: {internalToken}
 | POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
-| POST | `/admin/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
+| POST | `/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
 로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
@@ -150,9 +150,13 @@ X-Internal-Token: {internalToken}
 - Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
 - Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
 - 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- Access Token은 서명, 만료 시간과 함께 `issuer=meetbowl`을 검증하며 `iat`가 없는 토큰은 허용하지 않는다.
+- 관리자에 의한 사용자 상태 변경과 비밀번호 초기화 시 해당 사용자의 모든 Refresh Token을 폐기하고, 변경 시각 이전에 발급된 Access Token을 거부한다.
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
 - 관리자 비밀번호 초기화 응답에는 임시 비밀번호 원문이 1회 포함되며, 이후에는 저장되지 않는다.
+- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
 - 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.
@@ -196,9 +200,23 @@ X-Internal-Token: {internalToken}
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
 | GET | `/settings/me` | 개인 설정 조회 | User/Admin |
-| PATCH | `/settings/me` | 회의 알림 시간, 자동 백업 여부, 자동 백업 시각 수정 | User/Admin |
+| PATCH | `/settings/me` | 회의 알림 시간, 회의록 미검토 알림 주기 수정 | User/Admin |
 
 ---
+
+### `/settings/me` fields
+
+`GET /api/v1/users/me/settings` and `PATCH /api/v1/users/me/settings` use the fields below.
+
+```json
+{
+  "meetingStartReminderMinutes": 10,
+  "minutesReviewReminderMinutes": 60
+}
+```
+
+- `minutesReviewReminderMinutes` is the reminder interval for unreviewed meeting minutes.
+- Allowed values are `60`, `120`, `180`, `240`.
 
 ## 7. Meeting Room API
 
@@ -234,7 +252,7 @@ X-Internal-Token: {internalToken}
 | GET | `/meetings/{meetingId}` | 회의 상세 조회 | Participant/Admin |
 | PATCH | `/meetings/{meetingId}` | 회의 일정, 회의실, 참석자, 검토자 수정 | Host/Admin |
 | DELETE | `/meetings/{meetingId}` | 회의 취소 | Host/Admin |
-| POST | `/meetings/{meetingId}/join` | 회의 참여 정보 조회 | Participant/Guest |
+| POST | `/meetings/{meetingId}/join` | LiveKit 회의 참여 정보 조회 | Participant/Guest |
 | POST | `/meetings/{meetingId}/invite-link` | 회의 초대 코드/URL 생성 | Host |
 | POST | `/meetings/guest-join` | 게스트 초대 코드로 회의 참여 | Public |
 
@@ -243,6 +261,43 @@ X-Internal-Token: {internalToken}
 회의 일정 수정 시 기존 참석자와 새 참석자에게 알림을 발송한다.
 
 Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
+
+### POST `/meetings/{meetingId}/join`
+
+프론트엔드는 이 API를 통해서만 LiveKit join info/token을 발급받는다.
+
+- 브라우저는 LiveKit API Secret을 보유하지 않는다.
+- 응답 `livekitUrl`, `token`, `roomName`을 그대로 사용해 `room.connect()`를 호출한다.
+- 인증 사용자가 있으면 서버가 `user-{userId}` 규칙으로 participant identity를 결정한다.
+- 인증 연동 전 개발 화면에서는 요청 `participantIdentity`를 fallback 값으로 사용할 수 있다.
+
+요청 예시:
+
+```json
+{
+  "displayName": "이지연",
+  "participantIdentity": "u-user"
+}
+```
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "roomName": "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "livekitUrl": "http://localhost:7880",
+    "participantIdentity": "u-user",
+    "participantName": "이지연",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "issuedAt": "2026-06-12T01:00:00Z",
+    "expiresAt": "2026-06-12T02:00:00Z"
+  },
+  "message": null
+}
+```
 
 ---
 
@@ -254,6 +309,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 |---|---|---|---|
 | GET | `/meetings/{meetingId}/transcripts` | 회의 STT 원문 조회 | Participant/Admin |
 | POST | `/internal/meetings/{meetingId}/transcripts/final` | STT Final Transcript 저장 | Internal |
+| POST | `/internal/meetings/{meetingId}/end` | STT/시스템 기준 회의 종료 처리 | Internal |
 
 Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본 경로는 RabbitMQ 이벤트 소비다.
 
@@ -261,6 +317,54 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 - 녹음 파일 메타데이터 저장: `recording.completed`
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
+
+### GET `/meetings/{meetingId}/transcripts`
+
+한 회의의 최종 STT 원문을 sequence 순서대로 조회한다.
+
+- `segments`는 발화 단위 리스트다.
+- `fullText`는 같은 회의의 `sourceText`를 순서대로 이어 붙인 전체 원문이다.
+- 중간 `STREAMING`은 저장되지 않고 `FINALIZED`만 내려간다.
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "fullText": "첫 문장\n둘째 문장",
+    "segments": [
+      {
+        "segmentId": "segment-1",
+        "sequence": 1,
+        "language": "KO",
+        "sourceText": "첫 문장",
+        "startedAtMs": 0,
+        "endedAtMs": 500
+      },
+      {
+        "segmentId": "segment-2",
+        "sequence": 2,
+        "language": "KO",
+        "sourceText": "둘째 문장",
+        "startedAtMs": 600,
+        "endedAtMs": 1000
+      }
+    ]
+  },
+  "message": null
+}
+```
+
+### POST `/internal/meetings/{meetingId}/end`
+
+STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료 상태로 정리할 때 사용한다.
+
+- 내부 토큰 인증이 필요하다.
+- 회의 상태를 먼저 `ENDED`로 정리한다.
+- 이후 `meeting.ended`를 RabbitMQ로 발행해 AI 회의록 생성 같은 후속 처리를 시작한다.
+- 이미 종료된 회의는 멱등하게 처리하고 이벤트를 다시 발행하지 않는다.
 
 ---
 
@@ -270,7 +374,7 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 |---|---|---|---|
 | POST | `/meetings/{meetingId}/minutes/generate` | AI 회의록 초안 생성 요청 | Host/Admin |
 | GET | `/meetings/{meetingId}/minutes` | 회의록 조회 | Participant/Admin |
-| PATCH | `/meetings/{meetingId}/minutes` | 회의록 검토 및 수정 | Reviewer |
+| PATCH | `/meetings/{meetingId}/minutes` | 회의록 요약/본문 검토 및 수정 | Reviewer |
 | POST | `/meetings/{meetingId}/minutes/approve` | 회의록 승인 및 AI 색인 요청 | Reviewer |
 | POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
 | POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
@@ -295,6 +399,7 @@ DELETION_SCHEDULED
 `POST /meetings/{meetingId}/minutes/approve` 성공 시 `meetbowl-be`는 승인된 회의록 본문을 담은 RabbitMQ
 `document.index.requested` 이벤트를 발행한다. 회의·참석자 테이블이 구현되기 전에는 임시 제목 `회의록`을 사용하고,
 `accessScope.userIds`에는 지정 검토자만 포함해 권한 없는 AI 검색 노출을 방지한다.
+문서 타입 분리를 위해 회의록 이벤트에는 `metadata.meetingId`, `metadata.approvedAt`를 함께 담는다.
 
 ---
 

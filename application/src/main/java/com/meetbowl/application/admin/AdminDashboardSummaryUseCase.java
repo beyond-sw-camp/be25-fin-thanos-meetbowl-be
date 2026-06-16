@@ -1,0 +1,208 @@
+package com.meetbowl.application.admin;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.meetbowl.application.mail.MailRetentionPolicyUseCase;
+import com.meetbowl.application.meetingroom.GetMeetingRoomStatusUseCase;
+import com.meetbowl.application.meetingroom.RoomAvailabilityStatus;
+import com.meetbowl.application.meetingroom.RoomStatusQuery;
+import com.meetbowl.application.meetingroom.RoomStatusResult;
+import com.meetbowl.domain.meeting.Meeting;
+import com.meetbowl.domain.meeting.MeetingRepositoryPort;
+
+@Service
+public class AdminDashboardSummaryUseCase {
+
+    private static final int RECENT_AUDIT_LOG_LIMIT = 5;
+    private static final int HOURS_PER_DAY = 24;
+
+    private final AdminAuditLogQueryUseCase adminAuditLogQueryUseCase;
+    private final MailRetentionPolicyUseCase mailRetentionPolicyUseCase;
+    private final GetMeetingRoomStatusUseCase getMeetingRoomStatusUseCase;
+    private final MeetingRepositoryPort meetingRepositoryPort;
+    private final Clock clock;
+
+    public AdminDashboardSummaryUseCase(
+            AdminAuditLogQueryUseCase adminAuditLogQueryUseCase,
+            MailRetentionPolicyUseCase mailRetentionPolicyUseCase,
+            GetMeetingRoomStatusUseCase getMeetingRoomStatusUseCase,
+            MeetingRepositoryPort meetingRepositoryPort,
+            Clock clock) {
+        this.adminAuditLogQueryUseCase = adminAuditLogQueryUseCase;
+        this.mailRetentionPolicyUseCase = mailRetentionPolicyUseCase;
+        this.getMeetingRoomStatusUseCase = getMeetingRoomStatusUseCase;
+        this.meetingRepositoryPort = meetingRepositoryPort;
+        this.clock = clock;
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDashboardSummaryResult get() {
+        Instant now = Instant.now(clock);
+        // 현재 회의실 상태는 "지금 이 순간" 기준으로만 판단하면 되므로 아주 짧은 조회 구간만 사용한다.
+        Instant currentWindowEnd = now.plusSeconds(1);
+        Instant todayStart = todayStart(now);
+        Instant tomorrowStart = todayStart.plusSeconds(24L * 60L * 60L);
+
+        List<RoomStatusResult> roomStatuses =
+                getMeetingRoomStatusUseCase.execute(
+                        new RoomStatusQuery(now, currentWindowEnd, null, null));
+        List<Meeting> todayMeetings =
+                meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
+                        todayStart, tomorrowStart);
+
+        return new AdminDashboardSummaryResult(
+                recentAuditLogs(),
+                mailRetentionPolicyUseCase.get(),
+                new AdminDashboardSummaryResult.MeetingRoomSummaryResult(
+                        todayReservationCount(todayMeetings, todayStart, tomorrowStart),
+                        inUseMeetingRoomCount(roomStatuses),
+                        availableMeetingRoomCount(roomStatuses),
+                        timeSlotUsage(todayMeetings, todayStart),
+                        siteBuildingUsage(roomStatuses)));
+    }
+
+    private List<AdminDashboardSummaryResult.RecentAuditLogSummaryResult> recentAuditLogs() {
+        return adminAuditLogQueryUseCase
+                .search(
+                        new AdminAuditLogSearchCommand(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                1,
+                                RECENT_AUDIT_LOG_LIMIT))
+                .items()
+                .stream()
+                .limit(RECENT_AUDIT_LOG_LIMIT)
+                .map(
+                        item ->
+                                new AdminDashboardSummaryResult.RecentAuditLogSummaryResult(
+                                        item.auditLogId(),
+                                        item.actorName(),
+                                        item.actionType(),
+                                        item.targetType(),
+                                        item.targetId(),
+                                        item.result(),
+                                        item.createdAt()))
+                .toList();
+    }
+
+    private int todayReservationCount(
+            List<Meeting> meetings, Instant todayStart, Instant tomorrowStart) {
+        // "오늘 예약 수"는 오늘 시작한 예약 건수 기준이므로, 자정을 걸쳐 이어지는 어제 예약은 제외한다.
+        return (int)
+                meetings.stream()
+                        .filter(meeting -> !meeting.scheduledAt().isBefore(todayStart))
+                        .filter(meeting -> meeting.scheduledAt().isBefore(tomorrowStart))
+                        .count();
+    }
+
+    private int inUseMeetingRoomCount(List<RoomStatusResult> roomStatuses) {
+        return (int)
+                roomStatuses.stream()
+                        .filter(room -> room.status() == RoomAvailabilityStatus.IN_USE)
+                        .count();
+    }
+
+    private int availableMeetingRoomCount(List<RoomStatusResult> roomStatuses) {
+        return (int)
+                roomStatuses.stream()
+                        .filter(room -> room.status() == RoomAvailabilityStatus.AVAILABLE)
+                        .count();
+    }
+
+    private List<AdminDashboardSummaryResult.TimeSlotUsageResult> timeSlotUsage(
+            List<Meeting> meetings, Instant todayStart) {
+        // 프런트가 바로 그릴 수 있도록 오늘 24개 슬롯을 빠짐없이 내려준다.
+        return IntStream.range(0, HOURS_PER_DAY)
+                .mapToObj(hour -> slotUsage(meetings, todayStart.plusSeconds(hour * 3600L)))
+                .toList();
+    }
+
+    private AdminDashboardSummaryResult.TimeSlotUsageResult slotUsage(
+            List<Meeting> meetings, Instant slotStart) {
+        Instant slotEnd = slotStart.plusSeconds(3600);
+        // 한 슬롯 안에 조금이라도 걸치면 해당 시간대 사용으로 본다.
+        int reservationCount =
+                (int)
+                        meetings.stream()
+                                .filter(meeting -> overlaps(meeting, slotStart, slotEnd))
+                                .count();
+        return new AdminDashboardSummaryResult.TimeSlotUsageResult(slotStart, reservationCount);
+    }
+
+    private List<AdminDashboardSummaryResult.SiteBuildingUsageResult> siteBuildingUsage(
+            List<RoomStatusResult> roomStatuses) {
+        // 사용률은 현재 시점 상태 집계이므로 site/building 기준으로 먼저 묶은 뒤 계산한다.
+        Map<SiteBuildingKey, List<RoomStatusResult>> grouped =
+                roomStatuses.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        room ->
+                                                new SiteBuildingKey(
+                                                        room.siteId(),
+                                                        room.siteName(),
+                                                        room.buildingId(),
+                                                        room.buildingName())));
+
+        return grouped.entrySet().stream()
+                .map(entry -> toSiteBuildingUsage(entry.getKey(), entry.getValue()))
+                .sorted(
+                        java.util.Comparator.comparing(
+                                        AdminDashboardSummaryResult.SiteBuildingUsageResult
+                                                ::siteName,
+                                        java.util.Comparator.nullsLast(String::compareTo))
+                                .thenComparing(
+                                        AdminDashboardSummaryResult.SiteBuildingUsageResult
+                                                ::buildingName,
+                                        java.util.Comparator.nullsLast(String::compareTo)))
+                .toList();
+    }
+
+    private AdminDashboardSummaryResult.SiteBuildingUsageResult toSiteBuildingUsage(
+            SiteBuildingKey key, List<RoomStatusResult> rooms) {
+        int totalRooms = rooms.size();
+        int usedRooms =
+                (int)
+                        rooms.stream()
+                                .filter(room -> room.status() == RoomAvailabilityStatus.IN_USE)
+                                .count();
+        double usageRate = totalRooms == 0 ? 0.0 : (double) usedRooms / totalRooms;
+        return new AdminDashboardSummaryResult.SiteBuildingUsageResult(
+                key.siteId(),
+                key.siteName(),
+                key.buildingId(),
+                key.buildingName(),
+                totalRooms,
+                usedRooms,
+                usageRate);
+    }
+
+    private boolean overlaps(Meeting meeting, Instant from, Instant to) {
+        return meeting.scheduledAt().isBefore(to) && meeting.scheduledEndAt().isAfter(from);
+    }
+
+    private Instant todayStart(Instant now) {
+        // 서버 저장/집계 기준이 UTC이므로 대시보드 요약도 UTC 자정 경계를 그대로 사용한다.
+        LocalDate today = now.atZone(ZoneOffset.UTC).toLocalDate();
+        return today.atStartOfDay().toInstant(ZoneOffset.UTC);
+    }
+
+    private record SiteBuildingKey(
+            UUID siteId, String siteName, UUID buildingId, String buildingName) {}
+}

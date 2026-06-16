@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
@@ -32,11 +33,14 @@ import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final String JWT_ISSUER = "meetbowl";
+
     private static final String[] PUBLIC_ENDPOINTS = {
         "/error",
         "/api/v1/health",
         "/api/v1/auth/login",
         "/api/v1/auth/token/refresh",
+        "/api/v1/meetings/*/join",
         "/api/v1/meetings/guest-join",
         "/swagger-ui.html",
         "/swagger-ui/**",
@@ -52,7 +56,12 @@ public class SecurityConfig {
     };
 
     private static final String[] USER_OR_ADMIN_USER_ENDPOINTS = {
-        "/api/v1/users/me", "/api/v1/users/recipients/search", "/api/v1/users/*/simple-profile"
+        "/api/v1/users/me",
+        "/api/v1/users/me/settings",
+        "/api/v1/users/search",
+        "/api/v1/users/recipients/search",
+        "/api/v1/users/*/simple-profile",
+        "/api/v1/organization/users/*/summary"
     };
 
     @Bean
@@ -76,8 +85,6 @@ public class SecurityConfig {
                                 authorize
                                         .requestMatchers(PUBLIC_ENDPOINTS)
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.POST, "/api/v1/meetings/*/join")
-                                        .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(SYSTEM_ENDPOINTS)
                                         .hasRole("SYSTEM")
                                         .requestMatchers(ADMIN_ENDPOINTS)
@@ -88,6 +95,9 @@ public class SecurityConfig {
                                         .hasRole("USER")
                                         .requestMatchers(
                                                 HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)
+                                        .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.PATCH, "/api/v1/users/me/settings")
                                         .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me")
                                         .hasAnyRole("USER", "ADMIN")
@@ -114,22 +124,20 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder(@Value("${meetbowl.security.jwt.secret}") String jwtSecret) {
+        String secret = jwtSecret;
         if (jwtSecret == null || jwtSecret.isBlank()) {
-            return NimbusJwtDecoder.withSecretKey(
-                            new SecretKeySpec(
-                                    "meetbowl-local-development-secret-key-32bytes"
-                                            .getBytes(StandardCharsets.UTF_8),
-                                    "HmacSHA256"))
-                    .macAlgorithm(MacAlgorithm.HS256)
-                    .build();
+            secret = "meetbowl-local-development-secret-key-32bytes";
         }
-        if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalArgumentException(
                     "JWT secret key (meetbowl.security.jwt.secret) must be at least 32 bytes (256 bits) long.");
         }
         SecretKeySpec secretKey =
-                new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+                new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        NimbusJwtDecoder decoder =
+                NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(JWT_ISSUER));
+        return decoder;
     }
 
     @Bean
