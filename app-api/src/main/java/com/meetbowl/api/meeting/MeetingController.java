@@ -131,6 +131,8 @@ public class MeetingController extends BaseController {
                         request.scheduledAt(),
                         request.scheduledEndAt(),
                         request.meetingRoomId(),
+                        request.attendeeUserIds(),
+                        request.reviewerUserId(),
                         request.description());
         return ok(MeetingResponse.from(updateMeetingUseCase.execute(command)));
     }

@@ -1,21 +1,14 @@
 package com.meetbowl.application.meeting;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
-import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 
 /**
@@ -33,17 +26,17 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 public class CreateMeetingUseCase {
 
     private final MeetingRepositoryPort meetingRepositoryPort;
-    private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
+    private final MeetingAttendeeWriter meetingAttendeeWriter;
     private final MeetingRoomReservationGuard reservationGuard;
     private final ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider;
 
     public CreateMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
-            MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
+            MeetingAttendeeWriter meetingAttendeeWriter,
             MeetingRoomReservationGuard reservationGuard,
             ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider) {
         this.meetingRepositoryPort = meetingRepositoryPort;
-        this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
+        this.meetingAttendeeWriter = meetingAttendeeWriter;
         this.reservationGuard = reservationGuard;
         this.meetingCalendarSyncPortProvider = meetingCalendarSyncPortProvider;
     }
@@ -70,7 +63,7 @@ public class CreateMeetingUseCase {
 
         Meeting saved = meetingRepositoryPort.save(meeting);
         List<MeetingAttendee> attendees =
-                saveAttendees(
+                meetingAttendeeWriter.save(
                         saved.id(),
                         command.hostUserId(),
                         command.attendeeUserIds(),
@@ -93,45 +86,5 @@ public class CreateMeetingUseCase {
                                         null,
                                         meeting.scheduledAt(),
                                         meeting.scheduledEndAt())));
-    }
-
-    /**
-     * 주최자(HOST), 초대 참석자(PARTICIPANT), 회의록 검토자(REVIEWER)를 저장한다.
-     *
-     * <p>참석자 출처(경계): {@code attendeeUserIds}는 유저(조직) 도메인 사용자 테이블에서 선택된 사용자다. 계열사/부서/팀 기준 참석자 "검색"은
-     * ElasticSearch 기반 조직 도메인 검색(F5)에서 처리하며, 이 UseCase는 이미 확정된 userId만 받는다. 따라서 사용자의 존재/유효성 (탈퇴·비활성
-     * 등) 검증은 조직 도메인 책임이고, 여기서는 회의 도메인 규칙(역할 배정·중복 제거·검토자 제약)만 책임진다.
-     *
-     * <p>검토자 규칙: 회의록 검토자는 반드시 "참석자 중에서" 지정한다. 검토자로 지정된 참석자만 REVIEWER 역할을 갖고 나머지는 PARTICIPANT다. 참석자
-     * 1명당 역할은 하나이므로, 주최자(HOST)는 검토자로 지정할 수 없다(participants에서 제외되어 검증에 걸린다).
-     */
-    private List<MeetingAttendee> saveAttendees(
-            UUID meetingId, UUID hostUserId, List<UUID> attendeeUserIds, UUID reviewerUserId) {
-        List<MeetingAttendee> attendees = new ArrayList<>();
-        // 주최자 = 생성 요청자. 회의당 1명, 항상 HOST로 포함한다.
-        attendees.add(MeetingAttendee.create(meetingId, hostUserId, AttendeeRole.HOST));
-
-        // 초대 참석자: 중복 제거 + 주최자 제외(이미 HOST로 포함됨).
-        Set<UUID> participants = new LinkedHashSet<>();
-        if (attendeeUserIds != null) {
-            participants.addAll(attendeeUserIds);
-        }
-        participants.remove(hostUserId);
-
-        // 검토자 제약: 검토자는 참석자(주최자 제외) 중에서만 지정할 수 있다(회의 도메인 규칙).
-        if (reviewerUserId != null && !participants.contains(reviewerUserId)) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "회의록 검토자는 참석자 중에서 지정해야 합니다.");
-        }
-
-        for (UUID userId : participants) {
-            // 검토자로 지정된 참석자만 REVIEWER, 나머지는 PARTICIPANT.
-            AttendeeRole role =
-                    userId.equals(reviewerUserId)
-                            ? AttendeeRole.REVIEWER
-                            : AttendeeRole.PARTICIPANT;
-            attendees.add(MeetingAttendee.create(meetingId, userId, role));
-        }
-        return meetingAttendeeRepositoryPort.saveAll(attendees);
     }
 }

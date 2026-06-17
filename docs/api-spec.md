@@ -120,6 +120,7 @@ X-Internal-Token: {internalToken}
 | `USER_NOT_FOUND` | 404 | 사용자 없음 |
 | `MEETING_NOT_FOUND` | 404 | 회의 없음 |
 | `MEETING_ROOM_ALREADY_RESERVED` | 409 | 회의실 중복 예약 |
+| `MEETING_ROOM_UNAVAILABLE` | 409 | 사용 제한된 회의실(isAvailable=false) 예약 불가 |
 | `MEETING_FORBIDDEN_GUEST_ACCESS` | 403 | 게스트 접근 불가 |
 | `MINUTES_REVIEW_REQUIRED` | 409 | 검토자 승인 필요 |
 | `MINUTES_ALREADY_APPROVED` | 409 | 이미 승인된 회의록 |
