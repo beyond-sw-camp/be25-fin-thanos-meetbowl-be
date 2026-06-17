@@ -43,8 +43,10 @@ class MinutesFavoriteUseCaseTest {
         AddMinutesFavoriteUseCase useCase =
                 new AddMinutesFavoriteUseCase(fixture.repository, fixture.favoriteRepository);
 
-        useCase.execute(fixture.reviewerUserId, fixture.organizationId, fixture.repository.minutes.id());
-        useCase.execute(fixture.reviewerUserId, fixture.organizationId, fixture.repository.minutes.id());
+        useCase.execute(
+                fixture.reviewerUserId, fixture.organizationId, fixture.repository.minutes.id());
+        useCase.execute(
+                fixture.reviewerUserId, fixture.organizationId, fixture.repository.minutes.id());
 
         assertEquals(1, fixture.favoriteRepository.favorites.size());
     }

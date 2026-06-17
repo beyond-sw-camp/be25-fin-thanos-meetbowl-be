@@ -31,6 +31,8 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.AccessTokenValidationService;
+import com.meetbowl.application.user.ChangeMyPasswordCommand;
+import com.meetbowl.application.user.ChangeMyPasswordUseCase;
 import com.meetbowl.application.user.MyProfileResult;
 import com.meetbowl.application.user.MyProfileUseCase;
 import com.meetbowl.application.user.MySettingsResult;
@@ -55,6 +57,7 @@ class UserMeControllerTest {
 
     @MockitoBean private MyProfileUseCase myProfileUseCase;
     @MockitoBean private MySettingsUseCase mySettingsUseCase;
+    @MockitoBean private ChangeMyPasswordUseCase changeMyPasswordUseCase;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
     @Test
@@ -208,6 +211,56 @@ class UserMeControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.role").value("ADMIN"));
+    }
+
+    @Test
+    void changePasswordSuccess() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me/password")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "currentPassword": "1234",
+                                          "newPassword": "new-password-123",
+                                          "newPasswordConfirm": "new-password-123"
+                                        }
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        ArgumentCaptor<ChangeMyPasswordCommand> commandCaptor =
+                ArgumentCaptor.forClass(ChangeMyPasswordCommand.class);
+        verify(changeMyPasswordUseCase).execute(commandCaptor.capture());
+        assertEquals(USER_ID, commandCaptor.getValue().userId());
+        assertEquals("1234", commandCaptor.getValue().currentPassword());
+        assertEquals("new-password-123", commandCaptor.getValue().newPassword());
+        assertEquals("new-password-123", commandCaptor.getValue().newPasswordConfirm());
+    }
+
+    @Test
+    void changePasswordFailsWhenConfirmationDoesNotMatch() throws Exception {
+        mockMvc.perform(
+                        patch("/api/v1/users/me/password")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "currentPassword": "1234",
+                                          "newPassword": "new-password-123",
+                                          "newPasswordConfirm": "different-password"
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+
+        verifyNoInteractions(changeMyPasswordUseCase);
     }
 
     private AuthenticatedUser authenticatedUser(AuthenticatedUserRole role) {

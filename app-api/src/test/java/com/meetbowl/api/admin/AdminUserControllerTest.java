@@ -97,7 +97,7 @@ class AdminUserControllerTest {
                                                         POSITION_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.temporaryPassword").value("Temp1234Abcd5678"))
+                .andExpect(jsonPath("$.data.temporaryPassword").value("1234"))
                 .andExpect(jsonPath("$.data.user.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.data.user.loginId").value("user01"))
                 .andExpect(jsonPath("$.data.user.role").value("ADMIN"))
@@ -303,7 +303,7 @@ class AdminUserControllerTest {
 
     private AdminUserManagementUseCase.CreateResult createResult(String role) {
         return new AdminUserManagementUseCase.CreateResult(
-                USER_ID, "Temp1234Abcd5678", userSummary(role, "ACTIVE"));
+                USER_ID, "1234", userSummary(role, "ACTIVE"));
     }
 
     private AdminUserManagementUseCase.UserSummary userSummary(String role) {

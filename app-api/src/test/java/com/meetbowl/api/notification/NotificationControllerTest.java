@@ -1,6 +1,5 @@
 package com.meetbowl.api.notification;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -72,7 +71,8 @@ class NotificationControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/notifications")
-                                .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
@@ -101,7 +101,8 @@ class NotificationControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/notifications/{id}/read", notificationId)
-                                .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.notification.read").value(true))
                 .andExpect(jsonPath("$.data.unreadCount").value(0));
@@ -116,7 +117,8 @@ class NotificationControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/notifications/{id}/read", notificationId)
-                                .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("NOTIFICATION_NOT_FOUND"));
@@ -131,7 +133,8 @@ class NotificationControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/notifications/{id}/read", notificationId)
-                                .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("NOTIFICATION_FORBIDDEN_ACCESS"));
     }
@@ -144,7 +147,8 @@ class NotificationControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/notifications/read-all")
-                                .requestAttr(AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER, user(userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.updatedCount").value(3))
                 .andExpect(jsonPath("$.data.unreadCount").value(0));

@@ -129,18 +129,12 @@ class NotificationTest {
         assertInvalid(
                 () ->
                         Notification.create(
-                                null,
-                                NotificationType.MEETING_REMINDER,
-                                "제목",
-                                "내용",
-                                null,
-                                null));
+                                null, NotificationType.MEETING_REMINDER, "제목", "내용", null, null));
     }
 
     @Test
     void rejectsNullType() {
-        assertInvalid(
-                () -> Notification.create(UUID.randomUUID(), null, "제목", "내용", null, null));
+        assertInvalid(() -> Notification.create(UUID.randomUUID(), null, "제목", "내용", null, null));
     }
 
     @Test

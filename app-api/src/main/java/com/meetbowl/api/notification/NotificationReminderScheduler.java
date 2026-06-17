@@ -12,8 +12,8 @@ import com.meetbowl.application.notification.SendMinutesReviewRemindersUseCase;
  * <p>이벤트 기반 알림(수정/취소/검토 요청)은 발생 시점에 내부 발송 엔드포인트가 즉시 보내지만, 이 둘은 "미래 특정 시각에 도래"하므로 주기적으로 발송 대상을 조회해
  * 보낸다. web 계층은 트리거만 담당하고, 발송 대상 판단·발송은 application UseCase가 수행한다(SSE 하트비트와 같은 구성).
  *
- * <p>{@code fixedDelay}라 이전 실행이 끝난 뒤에만 다음 실행이 돌아 주기 간 겹침이 없다. 한 주기에서 예외가 나도 Spring 스케줄러가 기록 후 다음 주기에
- * 재시도한다 — 발송은 알림 테이블을 원장으로 중복을 막으므로 재시도가 안전하다.
+ * <p>{@code fixedDelay}라 이전 실행이 끝난 뒤에만 다음 실행이 돌아 주기 간 겹침이 없다. 한 주기에서 예외가 나도 Spring 스케줄러가 기록 후 다음
+ * 주기에 재시도한다 — 발송은 알림 테이블을 원장으로 중복을 막으므로 재시도가 안전하다.
  */
 @Component
 public class NotificationReminderScheduler {
@@ -37,9 +37,7 @@ public class NotificationReminderScheduler {
         this.sendMinutesReviewRemindersUseCase = sendMinutesReviewRemindersUseCase;
     }
 
-    @Scheduled(
-            fixedDelay = MEETING_REMINDER_INTERVAL_MILLIS,
-            initialDelay = INITIAL_DELAY_MILLIS)
+    @Scheduled(fixedDelay = MEETING_REMINDER_INTERVAL_MILLIS, initialDelay = INITIAL_DELAY_MILLIS)
     public void sendMeetingReminders() {
         sendMeetingRemindersUseCase.run();
     }

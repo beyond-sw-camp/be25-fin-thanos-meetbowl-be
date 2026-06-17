@@ -39,7 +39,6 @@ class ResetUserPasswordUseCaseTest {
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     @Mock private TransactionOperations transactionOperations;
-    @Mock private TemporaryPasswordGenerator temporaryPasswordGenerator;
     @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -55,8 +54,6 @@ class ResetUserPasswordUseCaseTest {
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
         given(adminAuditLogRepositoryPort.save(any()))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        given(temporaryPasswordGenerator.generateDistinctFrom(any(), any()))
-                .willReturn("Temp1234Abcd5678");
 
         ResetUserPasswordResult result =
                 useCase.execute(
@@ -129,7 +126,6 @@ class ResetUserPasswordUseCaseTest {
         return new ResetUserPasswordUseCase(
                 userRepositoryPort,
                 passwordEncoder,
-                temporaryPasswordGenerator,
                 adminAuditLogRepositoryPort,
                 transactionOperations,
                 tokenStateRepositoryPort,

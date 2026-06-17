@@ -33,8 +33,7 @@ public class InternalNotificationController extends BaseController {
 
     private final DispatchNotificationUseCase dispatchNotificationUseCase;
 
-    public InternalNotificationController(
-            DispatchNotificationUseCase dispatchNotificationUseCase) {
+    public InternalNotificationController(DispatchNotificationUseCase dispatchNotificationUseCase) {
         this.dispatchNotificationUseCase = dispatchNotificationUseCase;
     }
 

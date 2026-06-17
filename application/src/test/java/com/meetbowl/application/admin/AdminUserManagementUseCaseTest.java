@@ -56,7 +56,6 @@ class AdminUserManagementUseCaseTest {
     @Mock private DepartmentRepositoryPort departmentRepositoryPort;
     @Mock private TeamRepositoryPort teamRepositoryPort;
     @Mock private PositionRepositoryPort positionRepositoryPort;
-    @Mock private TemporaryPasswordGenerator temporaryPasswordGenerator;
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
@@ -73,7 +72,6 @@ class AdminUserManagementUseCaseTest {
         stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("admin01")).willReturn(false);
         given(userRepositoryPort.findByEmail("admin01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -112,7 +110,6 @@ class AdminUserManagementUseCaseTest {
         stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -136,7 +133,7 @@ class AdminUserManagementUseCaseTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
-        assertEquals("Temp1234Abcd5678", result.temporaryPassword());
+        assertEquals("1234", result.temporaryPassword());
         assertTrue(
                 passwordEncoder.matches(
                         result.temporaryPassword(), savedUser.getValue().passwordHash()));
@@ -225,7 +222,6 @@ class AdminUserManagementUseCaseTest {
         stubTeam(teamId, departmentId, "Team");
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -433,7 +429,6 @@ class AdminUserManagementUseCaseTest {
         given(userRepositoryPort.existsByLoginId("quoted")).willReturn(false);
         given(userRepositoryPort.findByEmail("line\nbreak@example.com"))
                 .willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         useCase.create(
@@ -462,7 +457,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals("line\nbreak@example.com", jsonNode.get("email").asText());
         assertFalse(afterValue.contains("temporaryPassword"));
         assertFalse(afterValue.contains("rawPassword"));
-        assertFalse(afterValue.contains("Temp1234Abcd5678"));
+        assertFalse(afterValue.contains("1234"));
     }
 
     @Test
@@ -590,7 +585,6 @@ class AdminUserManagementUseCaseTest {
                 teamRepositoryPort,
                 positionRepositoryPort,
                 passwordEncoder,
-                temporaryPasswordGenerator,
                 adminAuditLogRepositoryPort,
                 tokenStateRepositoryPort,
                 objectMapper);

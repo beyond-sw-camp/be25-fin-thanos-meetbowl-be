@@ -24,7 +24,8 @@ import com.meetbowl.domain.storage.ObjectStoragePort;
 public class UploadSharedWorkspaceFileUseCase {
 
     private static final String STORAGE_KEY_PREFIX = "shared-workspace/";
-    private static final String SHARED_WORKSPACE_FILE_DOCUMENT_TYPE = "SHARED_WORKSPACE_FILE_VERSION";
+    private static final String SHARED_WORKSPACE_FILE_DOCUMENT_TYPE =
+            "SHARED_WORKSPACE_FILE_VERSION";
 
     private final SharedWorkspaceFileRepositoryPort fileRepositoryPort;
     private final SharedWorkspaceFileVersionRepositoryPort versionRepositoryPort;
@@ -105,7 +106,13 @@ public class UploadSharedWorkspaceFileUseCase {
                         // 파일 문서라 content 대신 S3 위치/타입을 metadata에 담고, 어느 워크스페이스 자료인지도 함께 식별한다.
                         null,
                         new DocumentIndexRequestedEvent.Metadata(
-                                null, null, command.workspaceId(), null, null, storageKey, contentType),
+                                null,
+                                null,
+                                command.workspaceId(),
+                                null,
+                                null,
+                                storageKey,
+                                contentType),
                         List.of(),
                         List.of(),
                         List.of(command.workspaceId())));

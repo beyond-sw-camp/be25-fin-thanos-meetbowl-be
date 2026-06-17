@@ -20,8 +20,7 @@ import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
 
-class
-EndMeetingUseCaseTest {
+class EndMeetingUseCaseTest {
 
     @Test
     void scheduled회의도외부세션기준으로종료할수있다() {

@@ -18,9 +18,7 @@ import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.notification.MeetingReminderTarget;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 
-/**
- * 회의 리마인더 후보 조회(JPQL 생성자 표현식 투영)를 H2로 검증한다. 시작 시각 구간·SCHEDULED 상태 한정이 의도대로 동작하는지 확인한다.
- */
+/** 회의 리마인더 후보 조회(JPQL 생성자 표현식 투영)를 H2로 검증한다. 시작 시각 구간·SCHEDULED 상태 한정이 의도대로 동작하는지 확인한다. */
 @SpringBootTest(classes = JpaMeetingReminderTargetAdapterTest.TestApplication.class)
 @TestPropertySource(
         properties = {

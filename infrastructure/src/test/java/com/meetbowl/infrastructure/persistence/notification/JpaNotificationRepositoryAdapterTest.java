@@ -123,9 +123,7 @@ class JpaNotificationRepositoryAdapterTest {
         // 매칭되는 알림이 없으면 비어 있다.
         assertThat(
                         repository.findLatestByRecipientUserIdAndTypeAndResourceId(
-                                recipient,
-                                NotificationType.MINUTES_REVIEW_REMINDER,
-                                minutesId))
+                                recipient, NotificationType.MINUTES_REVIEW_REMINDER, minutesId))
                 .isEmpty();
     }
 

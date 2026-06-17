@@ -17,9 +17,9 @@ import com.meetbowl.domain.notification.NotificationType;
 /**
  * 시스템 내부 알림 발송을 처리하는 UseCase다.
  *
- * <p>알림을 DB에 먼저 저장하고, 트랜잭션 커밋이 성공한 뒤에만 접속 중인 수신자에게 SSE로 push한다. 커밋 전에 push하면 롤백 시 존재하지 않는
- * 알림을 보내게 되므로, {@link TransactionSynchronization#afterCommit()}로 미뤄 정합성을 지킨다. push는 best-effort라 실패해도
- * 발송 자체는 성공으로 본다.
+ * <p>알림을 DB에 먼저 저장하고, 트랜잭션 커밋이 성공한 뒤에만 접속 중인 수신자에게 SSE로 push한다. 커밋 전에 push하면 롤백 시 존재하지 않는 알림을 보내게
+ * 되므로, {@link TransactionSynchronization#afterCommit()}로 미뤄 정합성을 지킨다. push는 best-effort라 실패해도 발송
+ * 자체는 성공으로 본다.
  */
 @Service
 public class DispatchNotificationUseCase {

@@ -16,7 +16,8 @@ import com.meetbowl.domain.notification.NotificationType;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
 /**
- * 알림 JPA Entity다. {@code notification} 테이블과 1:1로 매핑된다. 수신자는 raw UUID로 참조하고, 연결 리소스(딥링크 - 알림의 해당 페이지로 가기 위한) 정보는 종류/식별자를 함께 보관한다.
+ * 알림 JPA Entity다. {@code notification} 테이블과 1:1로 매핑된다. 수신자는 raw UUID로 참조하고, 연결 리소스(딥링크 - 알림의 해당
+ * 페이지로 가기 위한) 정보는 종류/식별자를 함께 보관한다.
  *
  * <p>목록 조회는 항상 "특정 수신자의 알림을 최신순"으로 가져오므로 {@code (recipient_user_id, created_at)} 복합 인덱스를 둔다.
  */

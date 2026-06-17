@@ -46,7 +46,6 @@ public class AdminUserManagementUseCase {
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
     private final PasswordEncoder passwordEncoder;
-    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
     private final ObjectMapper objectMapper;
@@ -72,7 +71,6 @@ public class AdminUserManagementUseCase {
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort,
             PasswordEncoder passwordEncoder,
-            TemporaryPasswordGenerator temporaryPasswordGenerator,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TokenStateRepositoryPort tokenStateRepositoryPort,
             ObjectMapper objectMapper) {
@@ -82,7 +80,6 @@ public class AdminUserManagementUseCase {
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
         this.passwordEncoder = passwordEncoder;
-        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
         this.objectMapper = objectMapper;
@@ -108,14 +105,13 @@ public class AdminUserManagementUseCase {
         ensureLoginIdIsUnique(command.loginId());
         ensureEmailIsUnique(command.email(), null);
 
-        String temporaryPassword = temporaryPasswordGenerator.generate();
         Instant now = Instant.now();
         User savedUser =
                 userRepositoryPort.save(
                         User.of(
                                 UUID.randomUUID(),
                                 command.loginId(),
-                                passwordEncoder.encode(temporaryPassword),
+                                passwordEncoder.encode(PasswordPolicy.INITIAL_PASSWORD),
                                 command.name(),
                                 command.email(),
                                 role,
@@ -140,7 +136,7 @@ public class AdminUserManagementUseCase {
                 null,
                 snapshot(summary),
                 savedUser.id());
-        return new CreateResult(savedUser.id(), temporaryPassword, summary);
+        return new CreateResult(savedUser.id(), PasswordPolicy.INITIAL_PASSWORD, summary);
     }
 
     /**

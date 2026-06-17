@@ -50,8 +50,7 @@ class MemoUseCaseTest {
     @Test
     void deleteMemo_fail_when_nothing_deleted() {
         DeleteMemoUseCase useCase =
-                new DeleteMemoUseCase(
-                        memoPort, Mockito.mock(DocumentIndexRemovedEventPort.class));
+                new DeleteMemoUseCase(memoPort, Mockito.mock(DocumentIndexRemovedEventPort.class));
         UUID userId = UUID.randomUUID();
         UUID memoId = UUID.randomUUID();
         when(memoPort.deleteByIdAndOwnerUserId(memoId, userId)).thenReturn(false);
