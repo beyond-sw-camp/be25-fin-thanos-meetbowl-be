@@ -19,9 +19,9 @@ import com.meetbowl.application.notification.NotificationResult;
 /**
  * 알림 실시간 전달을 SSE로 구현하는 web 계층 어댑터다({@link NotificationRealtimePort}).
  *
- * <p>부트캠프 범위라 메시지 브로커 없이 단일 인스턴스 전제로, 수신자별 {@link SseEmitter}를 메모리에 보관한다. 한 사용자가 여러 탭/기기로 접속할 수 있으므로
- * 사용자당 emitter는 여러 개를 허용한다. 동작 원칙은 "DB가 원천, 전달은 best-effort"다 — 접속 중이면 push하고, 아니면 아무것도 하지 않으며 다음 접속 시
- * 목록 조회로 노출된다.
+ * <p>부트캠프 범위라 메시지 브로커 없이 단일 인스턴스 전제로, 수신자별 {@link SseEmitter}를 메모리에 보관한다. 한 사용자가 여러 탭/기기로 접속할 수
+ * 있으므로 사용자당 emitter는 여러 개를 허용한다. 동작 원칙은 "DB가 원천, 전달은 best-effort"다 — 접속 중이면 push하고, 아니면 아무것도 하지 않으며
+ * 다음 접속 시 목록 조회로 노출된다.
  *
  * <p>전송 실패(클라이언트가 끊긴 emitter)는 즉시 정리하고, 프록시/방화벽이 유휴 연결을 끊지 않도록 {@value #HEARTBEAT_MILLIS}ms마다 ping
  * 이벤트를 보낸다.
@@ -42,9 +42,7 @@ public class NotificationSseService implements NotificationRealtimePort {
 
     private final Map<UUID, Collection<SseEmitter>> emittersByUser = new ConcurrentHashMap<>();
 
-    /**
-     * 수신자의 SSE 구독을 등록하고 emitter를 돌려준다. 완료/타임아웃/오류 시 자동으로 목록에서 제거해 끊긴 연결이 쌓이지 않게 한다.
-     */
+    /** 수신자의 SSE 구독을 등록하고 emitter를 돌려준다. 완료/타임아웃/오류 시 자동으로 목록에서 제거해 끊긴 연결이 쌓이지 않게 한다. */
     public SseEmitter subscribe(UUID recipientUserId) {
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MILLIS);
         Collection<SseEmitter> emitters =

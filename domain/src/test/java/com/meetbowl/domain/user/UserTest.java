@@ -56,6 +56,16 @@ class UserTest {
         assertTrue(changed.initialPasswordChangeRequired());
     }
 
+    @Test
+    void changePassword_updatesHashAndClearsRequiredFlag() {
+        User user = initialPasswordUser();
+
+        User changed = user.changePassword("changedPasswordHash");
+
+        assertEquals("changedPasswordHash", changed.passwordHash());
+        assertFalse(changed.initialPasswordChangeRequired());
+    }
+
     private static User user(UserStatus status, Instant activeFrom, Instant activeUntil) {
         return User.of(
                 UUID.randomUUID(),

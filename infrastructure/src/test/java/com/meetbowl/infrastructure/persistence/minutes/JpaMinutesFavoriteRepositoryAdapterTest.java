@@ -50,15 +50,13 @@ class JpaMinutesFavoriteRepositoryAdapterTest {
         UUID userId = UUID.randomUUID();
         Minutes savedMinutes = minutesAdapter.save(minutes(UUID.randomUUID(), UUID.randomUUID()));
         MinutesFavorite savedFavorite =
-                favoriteAdapter.save(
-                        MinutesFavorite.create(userId, savedMinutes.id()));
+                favoriteAdapter.save(MinutesFavorite.create(userId, savedMinutes.id()));
 
         assertThat(savedFavorite.id()).isNotNull();
         assertThat(favoriteAdapter.findByUserId(userId))
                 .extracting(MinutesFavorite::minutesId)
                 .containsExactly(savedMinutes.id());
-        assertThat(favoriteAdapter.findByUserIdAndMinutesId(userId, savedMinutes.id()))
-                .isPresent();
+        assertThat(favoriteAdapter.findByUserIdAndMinutesId(userId, savedMinutes.id())).isPresent();
 
         favoriteAdapter.deleteByUserIdAndMinutesId(userId, savedMinutes.id());
 

@@ -107,6 +107,9 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 HttpMethod.PATCH, "/api/v1/users/me/settings")
                                         .hasAnyRole("USER", "ADMIN")
+                                        .requestMatchers(
+                                                HttpMethod.PATCH, "/api/v1/users/me/password")
+                                        .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers(HttpMethod.PATCH, "/api/v1/users/me")
                                         .hasAnyRole("USER", "ADMIN")
                                         .requestMatchers("/api/v1/users/**")

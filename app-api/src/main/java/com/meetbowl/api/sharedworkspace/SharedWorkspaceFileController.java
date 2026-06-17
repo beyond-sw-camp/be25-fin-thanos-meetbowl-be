@@ -43,8 +43,8 @@ import com.meetbowl.common.response.ApiResponse;
 /**
  * 공유 자료와 버전 이력 API다. 모든 자료 접근은 멤버 권한을 요구한다.
  *
- * <p>업로드와 새 버전 업로드는 multipart로 파일 원본을 받아 S3에 저장하고, 저장 후 AI 색인 이벤트를 발행한다. 다운로드는 권한 검증을 통과한 뒤
- * 저장 경로 메타데이터까지만 노출하며, 실제 원본 스트림 전송(presigned URL 등)은 후속 작업으로 남겨둔다.
+ * <p>업로드와 새 버전 업로드는 multipart로 파일 원본을 받아 S3에 저장하고, 저장 후 AI 색인 이벤트를 발행한다. 다운로드는 권한 검증을 통과한 뒤 저장 경로
+ * 메타데이터까지만 노출하며, 실제 원본 스트림 전송(presigned URL 등)은 후속 작업으로 남겨둔다.
  */
 @RequireUserOrAdmin
 @RestController

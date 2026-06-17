@@ -55,11 +55,9 @@ class WorkspaceDriveControllerTest {
         UUID fileId = UUID.randomUUID();
         byte[] content = "sample pdf".getBytes();
         AuthenticatedUser user =
-                new AuthenticatedUser(
-                        userId, organizationId, AuthenticatedUserRole.USER, "사용자");
+                new AuthenticatedUser(userId, organizationId, AuthenticatedUserRole.USER, "사용자");
         MockMultipartFile file =
-                new MockMultipartFile(
-                        "file", "sample.pdf", "application/pdf", content);
+                new MockMultipartFile("file", "sample.pdf", "application/pdf", content);
         when(registerDriveFileUseCase.execute(any()))
                 .thenReturn(
                         new DriveFileResult(

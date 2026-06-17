@@ -25,7 +25,6 @@ public class ResetUserPasswordUseCase {
 
     private final UserRepositoryPort userRepositoryPort;
     private final PasswordEncoder passwordEncoder;
-    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TransactionOperations transactionOperations;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
@@ -34,14 +33,12 @@ public class ResetUserPasswordUseCase {
     public ResetUserPasswordUseCase(
             UserRepositoryPort userRepositoryPort,
             PasswordEncoder passwordEncoder,
-            TemporaryPasswordGenerator temporaryPasswordGenerator,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TransactionOperations transactionOperations,
             TokenStateRepositoryPort tokenStateRepositoryPort,
             ObjectMapper objectMapper) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
-        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.transactionOperations = transactionOperations;
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
@@ -64,16 +61,15 @@ public class ResetUserPasswordUseCase {
                                                                                     .USER_NOT_FOUND));
                                     ensureManagedUser(user);
 
-                                    String temporaryPassword =
-                                            temporaryPasswordGenerator.generateDistinctFrom(
-                                                    user.passwordHash(), passwordEncoder);
                                     User updatedUser =
                                             user.resetPasswordByAdmin(
-                                                    passwordEncoder.encode(temporaryPassword));
+                                                    passwordEncoder.encode(
+                                                            PasswordPolicy.INITIAL_PASSWORD));
                                     userRepositoryPort.save(updatedUser);
 
                                     logAudit(command, AuditResult.SUCCESS, null);
-                                    return new ResetUserPasswordResult(temporaryPassword);
+                                    return new ResetUserPasswordResult(
+                                            PasswordPolicy.INITIAL_PASSWORD);
                                 }));
         // 비밀번호 초기화 트랜잭션이 성공한 뒤 탈취 가능성이 있는 기존 세션을 모두 폐기한다.
         tokenStateRepositoryPort.revokeUserSessions(command.userId(), Instant.now());

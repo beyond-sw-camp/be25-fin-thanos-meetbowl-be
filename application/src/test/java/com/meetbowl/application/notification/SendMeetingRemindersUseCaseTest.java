@@ -30,9 +30,7 @@ import com.meetbowl.domain.notification.NotificationType;
 import com.meetbowl.domain.user.UserSetting;
 import com.meetbowl.domain.user.UserSettingRepositoryPort;
 
-/**
- * 회의 시작 전 리마인더 발송 스케줄러 로직을 확인한다. 발송 시각 도래·중복 방지·개인 설정 적용을 시간 고정 Clock으로 결정적으로 검증한다.
- */
+/** 회의 시작 전 리마인더 발송 스케줄러 로직을 확인한다. 발송 시각 도래·중복 방지·개인 설정 적용을 시간 고정 Clock으로 결정적으로 검증한다. */
 class SendMeetingRemindersUseCaseTest {
 
     private static final Instant NOW = Instant.parse("2026-06-16T09:00:00Z");
@@ -40,8 +38,7 @@ class SendMeetingRemindersUseCaseTest {
     private final MeetingReminderTargetPort meetingPort = mock(MeetingReminderTargetPort.class);
     private final MeetingAttendeeRepositoryPort attendeePort =
             mock(MeetingAttendeeRepositoryPort.class);
-    private final UserSettingRepositoryPort userSettingPort =
-            mock(UserSettingRepositoryPort.class);
+    private final UserSettingRepositoryPort userSettingPort = mock(UserSettingRepositoryPort.class);
     private final NotificationRepositoryPort notificationPort =
             mock(NotificationRepositoryPort.class);
     private final DispatchNotificationUseCase dispatch = mock(DispatchNotificationUseCase.class);
@@ -142,8 +139,7 @@ class SendMeetingRemindersUseCaseTest {
         UUID notDueUser = UUID.randomUUID();
         // 30분 뒤 시작. dueUser는 30분 전 알림(=지금 도래), notDueUser는 10분 전 알림(아직 20분 남음).
         givenMeetingStartingAt(meetingId, NOW.plus(Duration.ofMinutes(30)));
-        givenAttendees(
-                meetingId, attendee(meetingId, dueUser), attendee(meetingId, notDueUser));
+        givenAttendees(meetingId, attendee(meetingId, dueUser), attendee(meetingId, notDueUser));
         givenReminderMinutesBefore(dueUser, 30);
         givenReminderMinutesBefore(notDueUser, 10);
         givenNoPreviousReminder(dueUser, meetingId);

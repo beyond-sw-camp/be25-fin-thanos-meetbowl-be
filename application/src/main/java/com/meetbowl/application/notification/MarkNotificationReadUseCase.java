@@ -41,8 +41,7 @@ public class MarkNotificationReadUseCase {
         Notification notification =
                 notificationRepositoryPort
                         .findById(notificationId)
-                        .orElseThrow(
-                                () -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
         if (!notification.isOwnedBy(recipientUserId)) {
             throw new BusinessException(ErrorCode.NOTIFICATION_FORBIDDEN_ACCESS);
         }
@@ -50,8 +49,7 @@ public class MarkNotificationReadUseCase {
         notification.markRead(Instant.now(clock));
         Notification saved = notificationRepositoryPort.save(notification);
 
-        long unreadCount =
-                notificationRepositoryPort.countUnreadByRecipientUserId(recipientUserId);
+        long unreadCount = notificationRepositoryPort.countUnreadByRecipientUserId(recipientUserId);
         return new MarkNotificationReadResult(NotificationResult.from(saved), unreadCount);
     }
 }

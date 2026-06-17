@@ -31,8 +31,7 @@ class MarkAllNotificationsReadUseCaseTest {
         UUID userId = UUID.randomUUID();
         Notification first = unread(userId, "알림1");
         Notification second = unread(userId, "알림2");
-        when(repository.findUnreadByRecipientUserId(userId))
-                .thenReturn(List.of(first, second));
+        when(repository.findUnreadByRecipientUserId(userId)).thenReturn(List.of(first, second));
         when(repository.countUnreadByRecipientUserId(userId)).thenReturn(0L);
 
         MarkAllNotificationsReadResult result = useCase.execute(userId);

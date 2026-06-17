@@ -35,8 +35,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 /**
  * 사용자 알림 API Controller다.
  *
- * <p>목록 조회, 단건/전체 읽음 처리, 그리고 실시간 수신용 SSE 구독을 제공한다. 사용자 식별자는 본문/쿼리가 아닌 @CurrentUser에서만 채워 다른 사용자의 알림을
- * 건드리지 못하게 하고, 권한 검증은 어노테이션과 SecurityConfig가 맡는다.
+ * <p>목록 조회, 단건/전체 읽음 처리, 그리고 실시간 수신용 SSE 구독을 제공한다. 사용자 식별자는 본문/쿼리가 아닌 @CurrentUser에서만 채워 다른 사용자의
+ * 알림을 건드리지 못하게 하고, 권한 검증은 어노테이션과 SecurityConfig가 맡는다.
  */
 @Validated
 @RestController
@@ -91,13 +91,12 @@ public class NotificationController extends BaseController {
     /**
      * 실시간 알림 수신용 SSE 구독이다.
      *
-     * <p>EventSource는 커스텀 헤더(Authorization)를 붙일 수 없어, 이 엔드포인트에 한해 access token을 {@code ?token=}
-     * 쿼리 파라미터로 받는다(SecurityConfig의 BearerTokenResolver 참고). 응답은 {@code text/event-stream}이라 공통 응답
+     * <p>EventSource는 커스텀 헤더(Authorization)를 붙일 수 없어, 이 엔드포인트에 한해 access token을 {@code ?token=} 쿼리
+     * 파라미터로 받는다(SecurityConfig의 BearerTokenResolver 참고). 응답은 {@code text/event-stream}이라 공통 응답
      * 엔벨로프(ApiResponse)로 감싸지 않고 emitter를 그대로 반환한다.
      */
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(
-            @Parameter(hidden = true) @CurrentUser AuthenticatedUser user) {
+    public SseEmitter subscribe(@Parameter(hidden = true) @CurrentUser AuthenticatedUser user) {
         return notificationSseService.subscribe(user.userId());
     }
 }

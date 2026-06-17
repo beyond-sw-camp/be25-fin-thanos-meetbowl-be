@@ -31,8 +31,8 @@ public record DocumentIndexRequestedMessage(
     }
 
     /**
-     * sourceType만으로는 부족한 문서별 추가 식별자와 시점을 전달한다. 파일 문서는 본문 대신 storageKey/contentType을 담아 AI가 S3에서
-     * 받아 추출하도록 한다.
+     * sourceType만으로는 부족한 문서별 추가 식별자와 시점을 전달한다. 파일 문서는 본문 대신 storageKey/contentType을 담아 AI가 S3에서 받아
+     * 추출하도록 한다.
      */
     public record Metadata(
             UUID meetingId,

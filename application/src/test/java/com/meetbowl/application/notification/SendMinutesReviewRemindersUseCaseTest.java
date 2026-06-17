@@ -30,9 +30,7 @@ import com.meetbowl.domain.notification.NotificationType;
 import com.meetbowl.domain.user.UserSetting;
 import com.meetbowl.domain.user.UserSettingRepositoryPort;
 
-/**
- * 회의록 검토 미완료 재알림(방법 A) 로직을 확인한다. 기준시각 재사용·검토 완료 시 중단·주기 도래 판단을 시간 고정 Clock으로 검증한다.
- */
+/** 회의록 검토 미완료 재알림(방법 A) 로직을 확인한다. 기준시각 재사용·검토 완료 시 중단·주기 도래 판단을 시간 고정 Clock으로 검증한다. */
 class SendMinutesReviewRemindersUseCaseTest {
 
     private static final Instant NOW = Instant.parse("2026-06-16T09:00:00Z");
@@ -40,8 +38,7 @@ class SendMinutesReviewRemindersUseCaseTest {
     private final NotificationRepositoryPort notificationPort =
             mock(NotificationRepositoryPort.class);
     private final MinutesRepositoryPort minutesPort = mock(MinutesRepositoryPort.class);
-    private final UserSettingRepositoryPort userSettingPort =
-            mock(UserSettingRepositoryPort.class);
+    private final UserSettingRepositoryPort userSettingPort = mock(UserSettingRepositoryPort.class);
     private final DispatchNotificationUseCase dispatch = mock(DispatchNotificationUseCase.class);
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 

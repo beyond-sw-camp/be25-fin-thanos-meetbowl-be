@@ -17,8 +17,8 @@ import com.meetbowl.domain.sharedworkspace.SharedWorkspaceMember;
 
 /**
  * 공유 자료를 삭제한다. 버전 이력과 다른 멤버의 참조를 보존하기 위해 deletedAt 기반 soft delete로 처리한다. 자료를 올린 본인 또는 워크스페이스 소유자만
- * 지울 수 있어, 임의 멤버가 남의 자료를 제거하지 못하도록 업로더와 소유자 두 경우만 통과시킨다. 원본·버전 이력은 보존하되, 챗봇 검색에는 더 이상 나오지 않도록
- * 색인 제거 이벤트를 발행한다.
+ * 지울 수 있어, 임의 멤버가 남의 자료를 제거하지 못하도록 업로더와 소유자 두 경우만 통과시킨다. 원본·버전 이력은 보존하되, 챗봇 검색에는 더 이상 나오지 않도록 색인 제거
+ * 이벤트를 발행한다.
  */
 @Service
 public class DeleteSharedWorkspaceFileUseCase {

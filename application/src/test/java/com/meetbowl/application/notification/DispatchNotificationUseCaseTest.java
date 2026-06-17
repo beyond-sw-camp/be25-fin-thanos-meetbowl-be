@@ -67,7 +67,8 @@ class DispatchNotificationUseCaseTest {
 
         assertThat(result.id()).isEqualTo(savedId);
         assertThat(result.type()).isEqualTo(NotificationType.MINUTES_REVIEW_REQUEST.name());
-        assertThat(result.resourceType()).isEqualTo(NotificationResourceType.MEETING_MINUTES.name());
+        assertThat(result.resourceType())
+                .isEqualTo(NotificationResourceType.MEETING_MINUTES.name());
         assertThat(result.read()).isFalse();
         verify(realtimePort).publish(eq(recipientId), any(NotificationResult.class));
     }

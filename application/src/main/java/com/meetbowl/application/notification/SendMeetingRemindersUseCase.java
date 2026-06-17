@@ -21,9 +21,9 @@ import com.meetbowl.domain.user.UserSettingRepositoryPort;
 /**
  * 회의 시작 전 리마인더(MEETING_REMINDER) 발송 스케줄러 로직이다.
  *
- * <p>각 참석자는 개인 설정의 알림 시간(분)이 달라 발송 시각도 제각각이므로, 곧 시작할 예약 회의를 한 번 모은 뒤 참석자별로 {@code 발송시각 =
- * 회의 예정시작 − 알림시간(분)}을 계산해 도래한 사람에게만 보낸다. 같은 회의·같은 사람에게 두 번 보내지 않도록, 이미 발송된 MEETING_REMINDER가 있으면
- * 건너뛴다(알림 테이블이 발송 원장 역할을 겸한다).
+ * <p>각 참석자는 개인 설정의 알림 시간(분)이 달라 발송 시각도 제각각이므로, 곧 시작할 예약 회의를 한 번 모은 뒤 참석자별로 {@code 발송시각 = 회의 예정시작 −
+ * 알림시간(분)}을 계산해 도래한 사람에게만 보낸다. 같은 회의·같은 사람에게 두 번 보내지 않도록, 이미 발송된 MEETING_REMINDER가 있으면 건너뛴다(알림 테이블이
+ * 발송 원장 역할을 겸한다).
  *
  * <p>개인 설정이 없는 사용자는 {@link UserSetting#DEFAULT_MEETING_REMINDER_MINUTES_BEFORE} 기본값을 적용한다. 발송 자체는
  * {@link DispatchNotificationUseCase}에 위임해 저장·실시간 전달·트랜잭션 경계를 일관되게 처리한다.
@@ -32,8 +32,8 @@ import com.meetbowl.domain.user.UserSettingRepositoryPort;
 public class SendMeetingRemindersUseCase {
 
     /**
-     * 한 번에 미리 가져오는 회의의 시작 시각 상한(현재 시각 기준). 참석자 알림 시간(분)이 이 범위를 넘으면 그만큼 일찍은 알릴 수 없으나, 실제 설정값은 분~수십
-     * 분 단위라 하루면 충분하다. 범위를 넓힐수록 매 주기 조회량이 늘어난다.
+     * 한 번에 미리 가져오는 회의의 시작 시각 상한(현재 시각 기준). 참석자 알림 시간(분)이 이 범위를 넘으면 그만큼 일찍은 알릴 수 없으나, 실제 설정값은 분~수십 분
+     * 단위라 하루면 충분하다. 범위를 넓힐수록 매 주기 조회량이 늘어난다.
      */
     private static final Duration LOOKAHEAD = Duration.ofDays(1);
 

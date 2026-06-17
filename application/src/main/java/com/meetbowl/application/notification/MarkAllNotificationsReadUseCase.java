@@ -46,8 +46,7 @@ public class MarkAllNotificationsReadUseCase {
                     notificationRepositoryPort.save(notification);
                 });
 
-        long unreadCount =
-                notificationRepositoryPort.countUnreadByRecipientUserId(recipientUserId);
+        long unreadCount = notificationRepositoryPort.countUnreadByRecipientUserId(recipientUserId);
         return new MarkAllNotificationsReadResult(unread.size(), unreadCount);
     }
 }
