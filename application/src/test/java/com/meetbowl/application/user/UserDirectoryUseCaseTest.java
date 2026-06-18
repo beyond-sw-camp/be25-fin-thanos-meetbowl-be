@@ -307,6 +307,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public List<User> findAllForExcelExportByRoles(java.util.Set<UserRole> roles) {
+            return users.values().stream().filter(user -> roles.contains(user.role())).toList();
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return users.values().stream()
                     .filter(user -> user.loginId().equals(loginId))
@@ -451,6 +456,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public List<Affiliate> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Affiliate> findAllByIds(Collection<UUID> affiliateIds) {
             return affiliateIds.stream()
                     .map(affiliates::get)
@@ -499,6 +509,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public List<Department> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Department> findAllByIds(Collection<UUID> departmentIds) {
             return departmentIds.stream()
                     .map(departments::get)
@@ -538,6 +553,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public List<Team> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).filter(java.util.Objects::nonNull).toList();
         }
@@ -571,6 +591,11 @@ class UserDirectoryUseCaseTest {
         @Override
         public List<Position> findAll() {
             return List.copyOf(positions.values());
+        }
+
+        @Override
+        public List<Position> findAllForExcelExport() {
+            return findAll();
         }
 
         @Override

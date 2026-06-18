@@ -34,6 +34,11 @@ public class JpaDepartmentRepositoryAdapter implements DepartmentRepositoryPort 
     }
 
     @Override
+    public List<Department> findAllForExcelExport() {
+        return repository.findAllForExcelExport().stream().map(DepartmentEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Department> findAllByIds(Collection<UUID> departmentIds) {
         return repository.findAllById(departmentIds).stream()
                 .map(DepartmentEntity::toDomain)

@@ -3,6 +3,7 @@ package com.meetbowl.infrastructure.persistence.user;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -11,9 +12,19 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 
 public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID> {
+
+    @Query(
+            """
+            select u
+            from UserEntity u
+            where u.role in :roles
+            order by lower(u.name) asc, lower(u.email) asc, lower(u.loginId) asc, u.id asc
+            """)
+    List<UserEntity> findAllForExcelExportByRoles(@Param("roles") Set<UserRole> roles);
 
     Optional<UserEntity> findByLoginId(String loginId);
 

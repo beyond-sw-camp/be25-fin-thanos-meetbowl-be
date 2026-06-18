@@ -6,9 +6,9 @@ import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.TeamRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.UserRow;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -63,22 +63,14 @@ public class AdminOrganizationMembersExcelUseCase {
 
     @Transactional(readOnly = true)
     public ExportResult export() {
-        // 다운로드는 현재 DB를 그대로 투영하되, 검색 대상이 아닌 권한(GUEST/SYSTEM 등)은 템플릿에서 제외한다.
-        List<Affiliate> affiliates =
-                affiliateRepositoryPort.findAll().stream().sorted(affiliateSort()).toList();
-        List<Department> departments =
-                departmentRepositoryPort.findAll().stream().sorted(departmentSort()).toList();
-        List<Team> teams = teamRepositoryPort.findAll().stream().sorted(teamSort()).toList();
-        List<Position> positions =
-                positionRepositoryPort.findAll().stream().sorted(positionSort()).toList();
+        // 엑셀 export는 메모리 정렬이 아니라 DB 정렬 조회 결과를 그대로 사용한다.
+        List<Affiliate> affiliates = affiliateRepositoryPort.findAllForExcelExport();
+        List<Department> departments = departmentRepositoryPort.findAllForExcelExport();
+        List<Team> teams = teamRepositoryPort.findAllForExcelExport();
+        List<Position> positions = positionRepositoryPort.findAllForExcelExport();
         List<User> users =
-                userRepositoryPort.findAll().stream()
-                        .filter(
-                                user ->
-                                        user.role() == UserRole.ADMIN
-                                                || user.role() == UserRole.USER)
-                        .sorted(userSort())
-                        .toList();
+                userRepositoryPort.findAllForExcelExportByRoles(
+                        Set.of(UserRole.ADMIN, UserRole.USER));
 
         Map<UUID, String> affiliateNames =
                 affiliates.stream().collect(Collectors.toMap(Affiliate::id, Affiliate::name));
@@ -197,35 +189,6 @@ public class AdminOrganizationMembersExcelUseCase {
                     exception.getMessage());
             throw exception;
         }
-    }
-
-    private Comparator<Affiliate> affiliateSort() {
-        return Comparator.comparing(Affiliate::sortOrder, Comparator.nullsLast(Integer::compareTo))
-                .thenComparing(Affiliate::name, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(Affiliate::id);
-    }
-
-    private Comparator<Department> departmentSort() {
-        return Comparator.comparing(Department::sortOrder, Comparator.nullsLast(Integer::compareTo))
-                .thenComparing(Department::name, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(Department::id);
-    }
-
-    private Comparator<Team> teamSort() {
-        return Comparator.comparing(Team::sortOrder, Comparator.nullsLast(Integer::compareTo))
-                .thenComparing(Team::name, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(Team::id);
-    }
-
-    private Comparator<Position> positionSort() {
-        return Comparator.comparing(Position::sortOrder, Comparator.nullsLast(Integer::compareTo))
-                .thenComparing(Position::name, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(Position::id);
-    }
-
-    private Comparator<User> userSort() {
-        return Comparator.comparing(User::loginId, String.CASE_INSENSITIVE_ORDER)
-                .thenComparing(User::id);
     }
 
     private String resolveTeamName(List<Team> teams, UUID teamId) {

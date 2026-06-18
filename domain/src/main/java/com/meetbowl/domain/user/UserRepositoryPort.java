@@ -2,6 +2,7 @@ package com.meetbowl.domain.user;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import com.meetbowl.domain.common.Paged;
@@ -21,6 +22,8 @@ public interface UserRepositoryPort {
     boolean existsByLoginId(String loginId);
 
     boolean existsByEmail(String email);
+
+    List<User> findAllForExcelExportByRoles(Set<UserRole> roles);
 
     Paged<User> findPage(String keyword, int page, int size);
 

@@ -254,6 +254,11 @@ final class SharedWorkspaceFakes {
         }
 
         @Override
+        public List<User> findAllForExcelExportByRoles(java.util.Set<UserRole> roles) {
+            return store.values().stream().filter(user -> roles.contains(user.role())).toList();
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return store.values().stream()
                     .filter(user -> user.loginId().equals(loginId))
