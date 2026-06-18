@@ -319,13 +319,14 @@ class AdminUserManagementUseCaseTest {
         stubBatchOrganizationReferences(List.of(first, second));
 
         AdminUserManagementUseCase.PageResult result =
-                useCase.search(new AdminUserManagementUseCase.SearchCommand("name", 1, 1));
+                useCase.search(new AdminUserManagementUseCase.SearchCommand(" name ", 1, 1));
 
         assertEquals(2, result.items().size());
         assertEquals(2, result.totalElements());
         assertEquals(2, result.totalPages());
         assertEquals("first", result.items().get(0).loginId());
         assertEquals("ADMIN", result.items().get(1).role());
+        verify(userRepositoryPort).findPage("name", 1, 1);
         verify(affiliateRepositoryPort).findAllByIds(any());
         verify(departmentRepositoryPort).findAllByIds(any());
         verify(teamRepositoryPort).findAllByIds(any());

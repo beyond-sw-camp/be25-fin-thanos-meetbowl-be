@@ -42,6 +42,13 @@ class UserDirectoryUseCaseTest {
             UUID.fromString("00000000-0000-0000-0000-000000000012");
     private static final UUID TEAM_ID = UUID.fromString("00000000-0000-0000-0000-000000000013");
     private static final UUID POSITION_ID = UUID.fromString("00000000-0000-0000-0000-000000000014");
+    private static final UUID AFFILIATE2_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000021");
+    private static final UUID DEPARTMENT2_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000022");
+    private static final UUID TEAM2_ID = UUID.fromString("00000000-0000-0000-0000-000000000023");
+    private static final UUID POSITION2_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000024");
     private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
 
     private FakeUserRepository userRepository;
@@ -81,19 +88,79 @@ class UserDirectoryUseCaseTest {
                         NOW));
         positionRepository.save(
                 new Position(POSITION_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
+        affiliateRepository.save(
+                new Affiliate(
+                        AFFILIATE2_ID,
+                        "Platform Affiliate",
+                        "PLA",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+        departmentRepository.save(
+                new Department(
+                        DEPARTMENT2_ID,
+                        AFFILIATE2_ID,
+                        null,
+                        "Service Development",
+                        "SVC",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+        teamRepository.save(
+                new Team(
+                        TEAM2_ID,
+                        DEPARTMENT2_ID,
+                        "Core Platform Team",
+                        "CORE",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+        positionRepository.save(
+                new Position(
+                        POSITION2_ID,
+                        "Assistant Manager",
+                        "AM",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
 
         userRepository.save(
                 createUser(
-                        USER_ID, "hong", "Hong Gil Dong", "hong@example.com", UserStatus.ACTIVE));
+                        USER_ID,
+                        "hong",
+                        "Hong Gil Dong",
+                        "hong@example.com",
+                        UserStatus.ACTIVE,
+                        AFFILIATE_ID,
+                        DEPARTMENT_ID,
+                        TEAM_ID,
+                        POSITION_ID));
         userRepository.save(
-                createUser(USER2_ID, "kim", "Kim Tester", "kim@example.com", UserStatus.INACTIVE));
+                createUser(
+                        USER2_ID,
+                        "kim",
+                        "Kim Tester",
+                        "kim@example.com",
+                        UserStatus.INACTIVE,
+                        AFFILIATE_ID,
+                        DEPARTMENT_ID,
+                        TEAM_ID,
+                        POSITION_ID));
         userRepository.save(
                 createUser(
                         USER3_ID,
                         "emailuser",
                         "Lee User",
                         "recipient@example.com",
-                        UserStatus.ACTIVE));
+                        UserStatus.ACTIVE,
+                        AFFILIATE2_ID,
+                        DEPARTMENT2_ID,
+                        TEAM2_ID,
+                        POSITION2_ID));
 
         useCase =
                 new UserDirectoryUseCase(
@@ -145,6 +212,18 @@ class UserDirectoryUseCaseTest {
     }
 
     @Test
+    void searchByOrganizationNamePartialSuccess() {
+        UserDirectoryUseCase.PageResult result =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                " service ", null, null, null, null, null, 1, 20));
+
+        assertEquals(1, result.items().size());
+        assertEquals(USER3_ID, result.items().get(0).userId());
+        assertEquals("Service Development", result.items().get(0).department());
+    }
+
+    @Test
     void searchDefaultsToActiveUsers() {
         UserDirectoryUseCase.PageResult result =
                 useCase.search(
@@ -179,7 +258,16 @@ class UserDirectoryUseCaseTest {
         assertEquals(ErrorCode.USER_NOT_FOUND, exception.errorCode());
     }
 
-    private User createUser(UUID id, String loginId, String name, String email, UserStatus status) {
+    private User createUser(
+            UUID id,
+            String loginId,
+            String name,
+            String email,
+            UserStatus status,
+            UUID affiliateId,
+            UUID departmentId,
+            UUID teamId,
+            UUID positionId) {
         return User.of(
                 id,
                 loginId,
@@ -188,10 +276,10 @@ class UserDirectoryUseCaseTest {
                 email,
                 UserRole.USER,
                 status,
-                AFFILIATE_ID,
-                DEPARTMENT_ID,
-                POSITION_ID,
-                TEAM_ID,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
                 false,
                 Instant.parse("2026-06-01T00:00:00Z"),
                 Instant.parse("2026-12-31T23:59:59Z"),
@@ -276,7 +364,39 @@ class UserDirectoryUseCaseTest {
             String normalized = keyword.toLowerCase();
             return user.name().toLowerCase().contains(normalized)
                     || user.email().toLowerCase().contains(normalized)
-                    || user.loginId().toLowerCase().contains(normalized);
+                    || user.loginId().toLowerCase().contains(normalized)
+                    || organizationName(user.affiliateId()).contains(normalized)
+                    || organizationName(user.departmentId()).contains(normalized)
+                    || organizationName(user.teamId()).contains(normalized)
+                    || organizationName(user.positionId()).contains(normalized);
+        }
+
+        private String organizationName(UUID id) {
+            if (AFFILIATE_ID.equals(id)) {
+                return "affiliate";
+            }
+            if (DEPARTMENT_ID.equals(id)) {
+                return "department";
+            }
+            if (TEAM_ID.equals(id)) {
+                return "team";
+            }
+            if (POSITION_ID.equals(id)) {
+                return "position";
+            }
+            if (AFFILIATE2_ID.equals(id)) {
+                return "platform affiliate";
+            }
+            if (DEPARTMENT2_ID.equals(id)) {
+                return "service development";
+            }
+            if (TEAM2_ID.equals(id)) {
+                return "core platform team";
+            }
+            if (POSITION2_ID.equals(id)) {
+                return "assistant manager";
+            }
+            return "";
         }
 
         @Override

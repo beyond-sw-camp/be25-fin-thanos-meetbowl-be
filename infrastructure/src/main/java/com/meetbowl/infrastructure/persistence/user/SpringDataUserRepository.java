@@ -22,26 +22,58 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
 
     boolean existsByEmail(String email);
 
+    // 사용자 이름/이메일/로그인 ID뿐 아니라 조직명과 권한 표시명까지 부분검색한다.
     @Query(
             """
             select u
             from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
             where (:keyword is null or :keyword = ''
                 or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                 or lower(u.name) like lower(concat('%', :keyword, '%'))
-                or lower(u.email) like lower(concat('%', :keyword, '%')))
+                or lower(u.email) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(affiliate.name, '')) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(department.name, '')) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(team.name, '')) like lower(concat('%', :keyword, '%'))
+                or lower(coalesce(position.name, '')) like lower(concat('%', :keyword, '%'))
+                or lower(
+                        case
+                            when u.role = com.meetbowl.domain.user.UserRole.ADMIN then 'ADMIN'
+                            when u.role = com.meetbowl.domain.user.UserRole.USER then 'USER'
+                            else ''
+                        end)
+                    like lower(concat('%', :keyword, '%'))
+                or lower(
+                        case
+                            when u.role = com.meetbowl.domain.user.UserRole.ADMIN then '관리자'
+                            when u.role = com.meetbowl.domain.user.UserRole.USER then '일반 사용자'
+                            else ''
+                        end)
+                    like lower(concat('%', :keyword, '%')))
             """)
     Page<UserEntity> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
+    // 일반 사용자 검색은 관리자 전용 정보를 노출하지 않으면서 조직명까지 같이 검색한다.
     @Query(
             """
             select u
             from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
             where u.role in ('USER', 'ADMIN')
               and (:keyword is null or :keyword = ''
                     or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                     or lower(u.name) like lower(concat('%', :keyword, '%'))
-                    or lower(u.email) like lower(concat('%', :keyword, '%')))
+                    or lower(u.email) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(affiliate.name, '')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(department.name, '')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(team.name, '')) like lower(concat('%', :keyword, '%'))
+                    or lower(coalesce(position.name, '')) like lower(concat('%', :keyword, '%')))
               and (:affiliateId is null or u.affiliateId = :affiliateId)
               and (:departmentId is null or u.departmentId = :departmentId)
               and (:teamId is null or u.teamId = :teamId)

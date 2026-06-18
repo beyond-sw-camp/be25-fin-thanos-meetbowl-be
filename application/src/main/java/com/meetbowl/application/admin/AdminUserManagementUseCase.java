@@ -147,8 +147,10 @@ public class AdminUserManagementUseCase {
      */
     @Transactional(readOnly = true)
     public PageResult search(SearchCommand command) {
+        // 검색어는 앞뒤 공백만 정리하고, 빈 값이면 기존 동작처럼 null로 넘겨 전체 조회를 유지한다.
         Paged<User> page =
-                userRepositoryPort.findPage(command.keyword(), command.page(), command.size());
+                userRepositoryPort.findPage(
+                        normalizeKeyword(command.keyword()), command.page(), command.size());
         NameLookups lookups = loadNameLookups(page.content());
         List<UserSummary> items =
                 page.content().stream().map(user -> resolveSummary(user, lookups)).toList();
@@ -158,6 +160,14 @@ public class AdminUserManagementUseCase {
                 command.page(),
                 command.size(),
                 calculateTotalPages(page.totalElements(), command.size()));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        // 관리자 목록 검색은 부분검색이므로 공백만 제거한 원문을 넘긴다.
+        return keyword.trim();
     }
 
     /**

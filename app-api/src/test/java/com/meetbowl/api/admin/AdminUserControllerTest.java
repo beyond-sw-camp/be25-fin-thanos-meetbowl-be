@@ -120,6 +120,7 @@ class AdminUserControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/admin/users")
+                                .param("keyword", " admin ")
                                 .requestAttr(
                                         AuthenticatedUserAttributes.CURRENT_USER,
                                         authenticatedUser(AuthenticatedUserRole.ADMIN)))
@@ -128,6 +129,13 @@ class AdminUserControllerTest {
                 .andExpect(jsonPath("$.data.items[0].role").value("USER"))
                 .andExpect(jsonPath("$.data.totalElements").value(3))
                 .andExpect(jsonPath("$.data.totalPages").value(2));
+
+        ArgumentCaptor<AdminUserManagementUseCase.SearchCommand> commandCaptor =
+                ArgumentCaptor.forClass(AdminUserManagementUseCase.SearchCommand.class);
+        verify(adminUserManagementUseCase).search(commandCaptor.capture());
+        assertEquals(1, commandCaptor.getValue().page());
+        assertEquals(20, commandCaptor.getValue().size());
+        assertEquals(" admin ", commandCaptor.getValue().keyword());
     }
 
     @Test
