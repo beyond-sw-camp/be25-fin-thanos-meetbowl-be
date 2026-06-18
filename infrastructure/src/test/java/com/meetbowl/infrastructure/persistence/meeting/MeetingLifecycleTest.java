@@ -173,6 +173,37 @@ class MeetingLifecycleTest {
     }
 
     @Test
+    void listMeetingsIncludesAttendeesAndReviewer() {
+        UUID host = UUID.randomUUID();
+        UUID invitee = UUID.randomUUID();
+        UUID reviewer = UUID.randomUUID();
+        createMeetingUseCase.execute(
+                new CreateMeetingCommand(
+                        "참석자 회의",
+                        START,
+                        END,
+                        host,
+                        null,
+                        null,
+                        null,
+                        List.of(invitee, reviewer),
+                        reviewer,
+                        null));
+
+        List<MeetingResult> meetings =
+                getMeetingUseCase.getMyMeetings(host, MeetingListFilter.HOST, null, null);
+
+        // 목록 응답이 상세와 동일하게 참석자·검토자를 싣는다(빈 배열이 아니다).
+        assertThat(meetings).hasSize(1);
+        assertThat(meetings.get(0).attendees())
+                .extracting(a -> a.userId())
+                .containsExactlyInAnyOrder(host, invitee, reviewer);
+        assertThat(meetings.get(0).attendees())
+                .extracting(a -> a.role())
+                .contains("HOST", "REVIEWER");
+    }
+
+    @Test
     void hostCanUpdateTitleAndTime() {
         UUID host = UUID.randomUUID();
         UUID roomId = givenRoom();
