@@ -20,6 +20,7 @@ public class RabbitMqMessagingConfig {
     public static final String TOPIC_EXCHANGE = "meetbowl.topic";
     public static final String DLX_EXCHANGE = "meetbowl.dlx";
     public static final String TRANSCRIPT_FINAL_SAVE_QUEUE = "api.transcript.final.save";
+    public static final String USER_SEARCH_REINDEX_QUEUE = "api.user.search.reindex";
 
     @Bean
     TopicExchange meetbowlTopicExchange() {
@@ -55,5 +56,31 @@ public class RabbitMqMessagingConfig {
         return BindingBuilder.bind(transcriptFinalSaveQueue)
                 .to(meetbowlTopicExchange)
                 .with("transcript.final.created");
+    }
+
+    @Bean
+    Queue userSearchReindexQueue() {
+        return new Queue(
+                USER_SEARCH_REINDEX_QUEUE,
+                true,
+                false,
+                false,
+                Map.of(
+                        "x-queue-type",
+                        "quorum",
+                        "x-delivery-limit",
+                        3,
+                        "x-dead-letter-exchange",
+                        DLX_EXCHANGE,
+                        "x-dead-letter-routing-key",
+                        "dlq.user.search.reindex.requested"));
+    }
+
+    @Bean
+    Binding userSearchReindexBinding(
+            Queue userSearchReindexQueue, TopicExchange meetbowlTopicExchange) {
+        return BindingBuilder.bind(userSearchReindexQueue)
+                .to(meetbowlTopicExchange)
+                .with("user.search.reindex.requested");
     }
 }

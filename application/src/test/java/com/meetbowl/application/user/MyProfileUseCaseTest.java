@@ -29,6 +29,8 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchReindexEventPublisherPort;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 import com.meetbowl.domain.user.UserStatus;
 
 class MyProfileUseCaseTest {
@@ -45,6 +47,8 @@ class MyProfileUseCaseTest {
     private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
 
     private FakeUserRepository userRepository;
+    private FakeUserSearchReindexEventPublisherPort userSearchReindexEventPublisherPort;
+    private UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
     private MyProfileUseCase useCase;
 
     @BeforeEach
@@ -54,6 +58,9 @@ class MyProfileUseCaseTest {
         FakeDepartmentRepository departmentRepository = new FakeDepartmentRepository();
         FakeTeamRepository teamRepository = new FakeTeamRepository();
         FakePositionRepository positionRepository = new FakePositionRepository();
+        userSearchReindexEventPublisherPort = new FakeUserSearchReindexEventPublisherPort();
+        userSearchReindexRequestDispatcher =
+                new UserSearchReindexRequestDispatcher(userSearchReindexEventPublisherPort);
 
         affiliateRepository.save(
                 new Affiliate(
@@ -89,7 +96,8 @@ class MyProfileUseCaseTest {
                         affiliateRepository,
                         departmentRepository,
                         teamRepository,
-                        positionRepository);
+                        positionRepository,
+                        userSearchReindexRequestDispatcher);
     }
 
     @Test
@@ -124,6 +132,8 @@ class MyProfileUseCaseTest {
         assertEquals(POSITION_ID, saved.positionId());
         assertEquals(Instant.parse("2026-06-01T00:00:00Z"), saved.activeFrom());
         assertEquals(Instant.parse("2026-12-31T23:59:59Z"), saved.activeUntil());
+        assertEquals(USER_ID, userSearchReindexEventPublisherPort.lastEvent.userIds().get(0));
+        assertEquals("MY_PROFILE_UPDATED", userSearchReindexEventPublisherPort.lastEvent.reason());
     }
 
     @Test
@@ -221,6 +231,35 @@ class MyProfileUseCaseTest {
             return users.values().stream()
                     .filter(user -> affiliateId.equals(user.affiliateId()))
                     .toList();
+        }
+
+        @Override
+        public List<User> findAllByDepartmentId(UUID departmentId) {
+            return users.values().stream()
+                    .filter(user -> departmentId.equals(user.departmentId()))
+                    .toList();
+        }
+
+        @Override
+        public List<User> findAllByTeamId(UUID teamId) {
+            return users.values().stream().filter(user -> teamId.equals(user.teamId())).toList();
+        }
+
+        @Override
+        public List<User> findAllByPositionId(UUID positionId) {
+            return users.values().stream()
+                    .filter(user -> positionId.equals(user.positionId()))
+                    .toList();
+        }
+    }
+
+    private static final class FakeUserSearchReindexEventPublisherPort
+            implements UserSearchReindexEventPublisherPort {
+        private UserSearchReindexRequestedEvent lastEvent;
+
+        @Override
+        public void publish(UserSearchReindexRequestedEvent event) {
+            lastEvent = event;
         }
     }
 

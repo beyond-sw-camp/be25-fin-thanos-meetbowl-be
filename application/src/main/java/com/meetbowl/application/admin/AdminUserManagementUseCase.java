@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
@@ -34,6 +35,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 import com.meetbowl.domain.user.UserStatus;
 
 /** 관리자 회원 관리 유스케이스 회원 생성, 조회, 수정, 상태 관리 기능을 제공합니다. 모든 관리 작업은 감사 로그(Audit Log)에 기록됩니다. */
@@ -49,6 +51,7 @@ public class AdminUserManagementUseCase {
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
     private final ObjectMapper objectMapper;
+    private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
 
     /**
      * AdminUserManagementUseCase 생성자
@@ -73,7 +76,8 @@ public class AdminUserManagementUseCase {
             PasswordEncoder passwordEncoder,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TokenStateRepositoryPort tokenStateRepositoryPort,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
@@ -83,6 +87,7 @@ public class AdminUserManagementUseCase {
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
         this.objectMapper = objectMapper;
+        this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
     }
 
     /**
@@ -136,6 +141,8 @@ public class AdminUserManagementUseCase {
                 null,
                 snapshot(summary),
                 savedUser.id());
+        // 회원 저장 이후 바로 색인을 갱신해 관리자/사용자 검색 결과가 지연되지 않게 맞춘다.
+        publishUserReindex(savedUser.id(), command.adminId(), "USER_CREATED");
         return new CreateResult(savedUser.id(), PasswordPolicy.INITIAL_PASSWORD, summary);
     }
 
@@ -147,8 +154,10 @@ public class AdminUserManagementUseCase {
      */
     @Transactional(readOnly = true)
     public PageResult search(SearchCommand command) {
+        // 검색어는 앞뒤 공백만 정리하고, 빈 값이면 기존 동작처럼 null로 넘겨 전체 조회를 유지한다.
         Paged<User> page =
-                userRepositoryPort.findPage(command.keyword(), command.page(), command.size());
+                userRepositoryPort.findPage(
+                        normalizeKeyword(command.keyword()), command.page(), command.size());
         NameLookups lookups = loadNameLookups(page.content());
         List<UserSummary> items =
                 page.content().stream().map(user -> resolveSummary(user, lookups)).toList();
@@ -158,6 +167,14 @@ public class AdminUserManagementUseCase {
                 command.page(),
                 command.size(),
                 calculateTotalPages(page.totalElements(), command.size()));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        // 관리자 목록 검색은 부분검색이므로 공백만 제거한 원문을 넘긴다.
+        return keyword.trim();
     }
 
     /**
@@ -214,6 +231,8 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        // 관리자 수정은 이름, 이메일, 권한, 조직 표시값을 바꿀 수 있어 검색 문서도 즉시 맞춘다.
+        publishUserReindex(saved.id(), command.adminId(), "USER_UPDATED");
         return summary;
     }
 
@@ -241,6 +260,8 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        // 상태값은 관리자/일반 사용자 검색 필터에 바로 쓰이므로 저장 직후 재색인한다.
+        publishUserReindex(saved.id(), command.adminId(), "USER_STATUS_UPDATED");
         return summary;
     }
 
@@ -711,6 +732,13 @@ public class AdminUserManagementUseCase {
                         ipAddress,
                         userAgent,
                         Instant.now()));
+    }
+
+    private void publishUserReindex(UUID userId, UUID requestedByUserId, String reason) {
+        // 회원 문서는 사용자명/이메일/권한/상태/조직 표시값이 섞여 있어 수정 API가 끝난 뒤 사용자 단위 비동기 upsert로 맞춘다.
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        reason, false, List.of(userId), null, null, null, null, requestedByUserId));
     }
 
     /** 회원 생성 명령 */

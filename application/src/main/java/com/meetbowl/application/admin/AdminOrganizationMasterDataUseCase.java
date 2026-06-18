@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.organization.Affiliate;
@@ -19,6 +20,7 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 
 @Service
 public class AdminOrganizationMasterDataUseCase {
@@ -48,16 +50,19 @@ public class AdminOrganizationMasterDataUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
+    private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
 
     public AdminOrganizationMasterDataUseCase(
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
-            PositionRepositoryPort positionRepositoryPort) {
+            PositionRepositoryPort positionRepositoryPort,
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
+        this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
     }
 
     @Transactional(readOnly = true)
@@ -92,7 +97,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Affiliate name is required.");
         String code = requiredText(command.code(), "Affiliate code is required.");
         ensureAffiliateUnique(name, code, affiliate.id());
-        return toAffiliateResult(
+        Affiliate saved =
                 affiliateRepositoryPort.save(
                         new Affiliate(
                                 affiliate.id(),
@@ -101,7 +106,12 @@ public class AdminOrganizationMasterDataUseCase {
                                 affiliate.status(),
                                 command.sortOrder(),
                                 affiliate.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        // 조직 표시명 변경은 사용자 검색 문서의 노출값에도 반영돼야 하므로 관련 문서를 함께 재색인한다.
+        if (isAffiliateSearchDocumentChanged(affiliate, saved)) {
+            publishAffiliateReindex(saved.id(), command.adminId(), "AFFILIATE_UPDATED");
+        }
+        return toAffiliateResult(saved);
     }
 
     @Transactional
@@ -156,7 +166,7 @@ public class AdminOrganizationMasterDataUseCase {
         String code = requiredText(command.code(), "Department code is required.");
         loadAffiliate(command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
-        return toDepartmentResult(
+        Department saved =
                 departmentRepositoryPort.save(
                         new Department(
                                 department.id(),
@@ -167,7 +177,11 @@ public class AdminOrganizationMasterDataUseCase {
                                 department.status(),
                                 command.sortOrder(),
                                 department.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        if (isDepartmentSearchDocumentChanged(department, saved)) {
+            publishDepartmentReindex(saved.id(), command.adminId(), "DEPARTMENT_UPDATED");
+        }
+        return toDepartmentResult(saved);
     }
 
     @Transactional
@@ -223,7 +237,7 @@ public class AdminOrganizationMasterDataUseCase {
         String code = requiredText(command.code(), "Team code is required.");
         loadDepartment(command.departmentId());
         ensureTeamNameUnique(command.departmentId(), name, team.id());
-        return toTeamResult(
+        Team saved =
                 teamRepositoryPort.save(
                         new Team(
                                 team.id(),
@@ -233,7 +247,11 @@ public class AdminOrganizationMasterDataUseCase {
                                 team.status(),
                                 command.sortOrder(),
                                 team.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        if (isTeamSearchDocumentChanged(team, saved)) {
+            publishTeamReindex(saved.id(), command.adminId(), "TEAM_UPDATED");
+        }
+        return toTeamResult(saved);
     }
 
     @Transactional
@@ -284,7 +302,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Position name is required.");
         String code = requiredText(command.code(), "Position code is required.");
         ensurePositionUnique(name, code, position.id());
-        return toPositionResult(
+        Position saved =
                 positionRepositoryPort.save(
                         new Position(
                                 position.id(),
@@ -293,7 +311,11 @@ public class AdminOrganizationMasterDataUseCase {
                                 position.status(),
                                 command.sortOrder(),
                                 position.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        if (isPositionSearchDocumentChanged(position, saved)) {
+            publishPositionReindex(saved.id(), command.adminId(), "POSITION_UPDATED");
+        }
+        return toPositionResult(saved);
     }
 
     @Transactional
@@ -441,6 +463,64 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
+    private boolean isAffiliateSearchDocumentChanged(Affiliate before, Affiliate after) {
+        return !before.name().equals(after.name());
+    }
+
+    private boolean isDepartmentSearchDocumentChanged(Department before, Department after) {
+        return !before.name().equals(after.name())
+                || !before.affiliateId().equals(after.affiliateId());
+    }
+
+    private boolean isTeamSearchDocumentChanged(Team before, Team after) {
+        return !before.name().equals(after.name())
+                || !before.departmentId().equals(after.departmentId());
+    }
+
+    private boolean isPositionSearchDocumentChanged(Position before, Position after) {
+        return !before.name().equals(after.name());
+    }
+
+    private void publishAffiliateReindex(UUID affiliateId, UUID requestedByUserId, String reason) {
+        // 계열사명 변경은 소속 사용자 문서의 affiliateName 필드 전체에 영향을 주므로 사용자별 동기 호출 대신 범위 이벤트로 넘긴다.
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        reason,
+                        false,
+                        List.of(),
+                        affiliateId,
+                        null,
+                        null,
+                        null,
+                        requestedByUserId));
+    }
+
+    private void publishDepartmentReindex(
+            UUID departmentId, UUID requestedByUserId, String reason) {
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        reason,
+                        false,
+                        List.of(),
+                        null,
+                        departmentId,
+                        null,
+                        null,
+                        requestedByUserId));
+    }
+
+    private void publishTeamReindex(UUID teamId, UUID requestedByUserId, String reason) {
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        reason, false, List.of(), null, null, teamId, null, requestedByUserId));
+    }
+
+    private void publishPositionReindex(UUID positionId, UUID requestedByUserId, String reason) {
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        reason, false, List.of(), null, null, null, positionId, requestedByUserId));
+    }
+
     private static AffiliateResult toAffiliateResult(Affiliate affiliate) {
         return new AffiliateResult(
                 affiliate.id(),
@@ -491,7 +571,7 @@ public class AdminOrganizationMasterDataUseCase {
             String name, String code, String status, Integer sortOrder) {}
 
     public record UpdateAffiliateCommand(
-            UUID affiliateId, String name, String code, Integer sortOrder) {}
+            UUID affiliateId, String name, String code, Integer sortOrder, UUID adminId) {}
 
     public record UpdateAffiliateStatusCommand(UUID affiliateId, String status) {}
 
@@ -499,7 +579,12 @@ public class AdminOrganizationMasterDataUseCase {
             UUID affiliateId, String name, String code, String status, Integer sortOrder) {}
 
     public record UpdateDepartmentCommand(
-            UUID departmentId, UUID affiliateId, String name, String code, Integer sortOrder) {}
+            UUID departmentId,
+            UUID affiliateId,
+            String name,
+            String code,
+            Integer sortOrder,
+            UUID adminId) {}
 
     public record UpdateDepartmentStatusCommand(UUID departmentId, String status) {}
 
@@ -507,7 +592,12 @@ public class AdminOrganizationMasterDataUseCase {
             UUID departmentId, String name, String code, String status, Integer sortOrder) {}
 
     public record UpdateTeamCommand(
-            UUID teamId, UUID departmentId, String name, String code, Integer sortOrder) {}
+            UUID teamId,
+            UUID departmentId,
+            String name,
+            String code,
+            Integer sortOrder,
+            UUID adminId) {}
 
     public record UpdateTeamStatusCommand(UUID teamId, String status) {}
 
@@ -515,7 +605,7 @@ public class AdminOrganizationMasterDataUseCase {
             String name, String code, String status, Integer sortOrder) {}
 
     public record UpdatePositionCommand(
-            UUID positionId, String name, String code, Integer sortOrder) {}
+            UUID positionId, String name, String code, Integer sortOrder, UUID adminId) {}
 
     public record UpdatePositionStatusCommand(UUID positionId, String status) {}
 

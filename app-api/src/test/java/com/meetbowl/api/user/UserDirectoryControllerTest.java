@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -60,13 +61,18 @@ class UserDirectoryControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/users/search")
-                                .param("keyword", "Hong")
+                                .param("keyword", " Hong ")
                                 .requestAttr(
                                         AuthenticatedUserAttributes.CURRENT_USER,
                                         authenticatedUser(AuthenticatedUserRole.USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].name").value("Hong Gil Dong"))
                 .andExpect(jsonPath("$.data.items[0].passwordHash").doesNotExist());
+
+        ArgumentCaptor<UserDirectoryUseCase.SearchCommand> commandCaptor =
+                ArgumentCaptor.forClass(UserDirectoryUseCase.SearchCommand.class);
+        org.mockito.Mockito.verify(userDirectoryUseCase).search(commandCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(" Hong ", commandCaptor.getValue().keyword());
     }
 
     @Test

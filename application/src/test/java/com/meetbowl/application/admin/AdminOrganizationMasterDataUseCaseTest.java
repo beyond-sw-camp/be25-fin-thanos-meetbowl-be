@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.organization.Affiliate;
@@ -25,6 +26,8 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.UserSearchReindexEventPublisherPort;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 
 class AdminOrganizationMasterDataUseCaseTest {
 
@@ -40,6 +43,8 @@ class AdminOrganizationMasterDataUseCaseTest {
     private FakeDepartmentRepository departmentRepository;
     private FakeTeamRepository teamRepository;
     private FakePositionRepository positionRepository;
+    private FakeUserSearchReindexEventPublisherPort userSearchReindexEventPublisherPort;
+    private UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
     private AdminOrganizationMasterDataUseCase useCase;
 
     @BeforeEach
@@ -48,12 +53,16 @@ class AdminOrganizationMasterDataUseCaseTest {
         departmentRepository = new FakeDepartmentRepository();
         teamRepository = new FakeTeamRepository();
         positionRepository = new FakePositionRepository();
+        userSearchReindexEventPublisherPort = new FakeUserSearchReindexEventPublisherPort();
+        userSearchReindexRequestDispatcher =
+                new UserSearchReindexRequestDispatcher(userSearchReindexEventPublisherPort);
         useCase =
                 new AdminOrganizationMasterDataUseCase(
                         affiliateRepository,
                         departmentRepository,
                         teamRepository,
-                        positionRepository);
+                        positionRepository,
+                        userSearchReindexRequestDispatcher);
     }
 
     @Test
@@ -66,7 +75,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.AffiliateResult updated =
                 useCase.updateAffiliate(
                         new AdminOrganizationMasterDataUseCase.UpdateAffiliateCommand(
-                                created.affiliateId(), "Platform Lab", "PLT-LAB", 2));
+                                created.affiliateId(),
+                                "Platform Lab",
+                                "PLT-LAB",
+                                2,
+                                UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.AffiliateResult changedStatus =
                 useCase.updateAffiliateStatus(
@@ -79,6 +92,8 @@ class AdminOrganizationMasterDataUseCaseTest {
         assertEquals("Platform", created.name());
         assertEquals("Platform Lab", updated.name());
         assertEquals("INACTIVE", changedStatus.status());
+        assertEquals(
+                created.affiliateId(), userSearchReindexEventPublisherPort.lastEvent.affiliateId());
     }
 
     @Test
@@ -97,7 +112,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                                 AFFILIATE_ID,
                                 "Core Engineering",
                                 "CENG",
-                                2));
+                                2,
+                                UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.DepartmentResult changedStatus =
                 useCase.updateDepartmentStatus(
@@ -110,6 +126,9 @@ class AdminOrganizationMasterDataUseCaseTest {
         assertEquals("Engineering", created.name());
         assertEquals("Core Engineering", updated.name());
         assertEquals("INACTIVE", changedStatus.status());
+        assertEquals(
+                created.departmentId(),
+                userSearchReindexEventPublisherPort.lastEvent.departmentId());
     }
 
     @Test
@@ -125,7 +144,12 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.TeamResult updated =
                 useCase.updateTeam(
                         new AdminOrganizationMasterDataUseCase.UpdateTeamCommand(
-                                created.teamId(), DEPARTMENT_ID, "Platform Backend", "PBE", 2));
+                                created.teamId(),
+                                DEPARTMENT_ID,
+                                "Platform Backend",
+                                "PBE",
+                                2,
+                                UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.TeamResult changedStatus =
                 useCase.updateTeamStatus(
@@ -138,6 +162,7 @@ class AdminOrganizationMasterDataUseCaseTest {
         assertEquals("Backend", created.name());
         assertEquals("Platform Backend", updated.name());
         assertEquals("INACTIVE", changedStatus.status());
+        assertEquals(created.teamId(), userSearchReindexEventPublisherPort.lastEvent.teamId());
     }
 
     @Test
@@ -150,7 +175,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.PositionResult updated =
                 useCase.updatePosition(
                         new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
-                                created.positionId(), "Senior Manager", "SMGR", 2));
+                                created.positionId(),
+                                "Senior Manager",
+                                "SMGR",
+                                2,
+                                UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.PositionResult changedStatus =
                 useCase.updatePositionStatus(
@@ -163,6 +192,19 @@ class AdminOrganizationMasterDataUseCaseTest {
         assertEquals("Manager", created.name());
         assertEquals("Senior Manager", updated.name());
         assertEquals("INACTIVE", changedStatus.status());
+        assertEquals(
+                created.positionId(), userSearchReindexEventPublisherPort.lastEvent.positionId());
+    }
+
+    @Test
+    void affiliateUpdateDoesNotPublishWhenOnlyCodeChanges() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Platform", "PLT"));
+
+        useCase.updateAffiliate(
+                new AdminOrganizationMasterDataUseCase.UpdateAffiliateCommand(
+                        AFFILIATE_ID, "Platform", "PLT-NEW", 2, UUID.randomUUID()));
+
+        assertEquals(0, userSearchReindexEventPublisherPort.publishCount);
     }
 
     @Test
@@ -445,6 +487,19 @@ class AdminOrganizationMasterDataUseCaseTest {
                             item ->
                                     !item.id().equals(positionId)
                                             && item.code().equalsIgnoreCase(code));
+        }
+    }
+
+    private static final class FakeUserSearchReindexEventPublisherPort
+            implements UserSearchReindexEventPublisherPort {
+
+        private UserSearchReindexRequestedEvent lastEvent;
+        private int publishCount;
+
+        @Override
+        public void publish(UserSearchReindexRequestedEvent event) {
+            lastEvent = event;
+            publishCount++;
         }
     }
 }

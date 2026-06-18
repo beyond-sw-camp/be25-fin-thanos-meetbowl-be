@@ -1,0 +1,151 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "analysis": {
+      "tokenizer": {
+        "user_search_edge_ngram_tokenizer": {
+          "type": "edge_ngram",
+          "min_gram": 1,
+          "max_gram": 20,
+          "token_chars": ["letter", "digit", "punctuation", "symbol"]
+        }
+      },
+      "analyzer": {
+        "user_search_index_analyzer": {
+          "type": "custom",
+          "tokenizer": "user_search_edge_ngram_tokenizer",
+          "filter": ["lowercase"]
+        },
+        "user_search_query_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase"]
+        }
+      },
+      "normalizer": {
+        "user_search_keyword_normalizer": {
+          "type": "custom",
+          "filter": ["lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "userId": {
+        "type": "keyword"
+      },
+      "loginId": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "name": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "email": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "role": {
+        "type": "keyword",
+        "normalizer": "user_search_keyword_normalizer"
+      },
+      "roleLabel": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "affiliateId": {
+        "type": "keyword"
+      },
+      "affiliateName": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "departmentId": {
+        "type": "keyword"
+      },
+      "departmentName": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "teamId": {
+        "type": "keyword"
+      },
+      "teamName": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "positionId": {
+        "type": "keyword"
+      },
+      "positionName": {
+        "type": "text",
+        "analyzer": "user_search_index_analyzer",
+        "search_analyzer": "user_search_query_analyzer",
+        "fields": {
+          "raw": {
+            "type": "keyword",
+            "normalizer": "user_search_keyword_normalizer"
+          }
+        }
+      },
+      "status": {
+        "type": "keyword"
+      },
+      "createdAt": {
+        "type": "date"
+      }
+    }
+  }
+}

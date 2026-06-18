@@ -35,4 +35,10 @@ public interface UserRepositoryPort {
 
     /** 같은 조직(affiliate)에 소속된 사용자 전체를 조회한다. 생성/시스템 계정 여부 판단은 호출 측 도메인 규칙에 맡긴다. */
     List<User> findAllByAffiliateId(UUID affiliateId);
+
+    List<User> findAllByDepartmentId(UUID departmentId);
+
+    List<User> findAllByTeamId(UUID teamId);
+
+    List<User> findAllByPositionId(UUID positionId);
 }
