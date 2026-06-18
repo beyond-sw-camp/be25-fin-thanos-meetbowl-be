@@ -18,6 +18,7 @@ import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 
 @Service
 public class MyProfileUseCase {
@@ -27,18 +28,21 @@ public class MyProfileUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
+    private final UserSearchIndexPort userSearchIndexPort;
 
     public MyProfileUseCase(
             UserRepositoryPort userRepositoryPort,
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
-            PositionRepositoryPort positionRepositoryPort) {
+            PositionRepositoryPort positionRepositoryPort,
+            UserSearchIndexPort userSearchIndexPort) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
+        this.userSearchIndexPort = userSearchIndexPort;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +57,7 @@ public class MyProfileUseCase {
         ensureEmailIsUnique(command.email(), current.id());
         User saved =
                 userRepositoryPort.save(current.updateMyProfile(command.name(), command.email()));
+        userSearchIndexPort.indexUser(saved.id());
         return toResult(saved);
     }
 

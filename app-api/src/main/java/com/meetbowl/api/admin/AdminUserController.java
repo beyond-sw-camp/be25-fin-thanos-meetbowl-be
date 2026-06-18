@@ -22,6 +22,7 @@ import com.meetbowl.api.admin.dto.AdminUserCreateRequest;
 import com.meetbowl.api.admin.dto.AdminUserCreateResponse;
 import com.meetbowl.api.admin.dto.AdminUserListResponse;
 import com.meetbowl.api.admin.dto.AdminUserResponse;
+import com.meetbowl.api.admin.dto.AdminUserSearchReindexResponse;
 import com.meetbowl.api.admin.dto.AdminUserStatusUpdateRequest;
 import com.meetbowl.api.admin.dto.AdminUserUpdateRequest;
 import com.meetbowl.api.common.ApiPaths;
@@ -30,6 +31,7 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.application.admin.AdminUserManagementUseCase;
+import com.meetbowl.application.admin.AdminUserSearchIndexUseCase;
 import com.meetbowl.application.admin.ResetUserPasswordCommand;
 import com.meetbowl.application.admin.ResetUserPasswordResult;
 import com.meetbowl.application.admin.ResetUserPasswordUseCase;
@@ -45,6 +47,7 @@ public class AdminUserController extends BaseController {
     private static final String USER_ID_PATH = "/{userId:[0-9a-fA-F-]{36}}";
 
     private final AdminUserManagementUseCase adminUserManagementUseCase;
+    private final AdminUserSearchIndexUseCase adminUserSearchIndexUseCase;
     private final ResetUserPasswordUseCase resetUserPasswordUseCase;
     private final GlobalPermissionChecker globalPermissionChecker;
 
@@ -57,9 +60,11 @@ public class AdminUserController extends BaseController {
      */
     public AdminUserController(
             AdminUserManagementUseCase adminUserManagementUseCase,
+            AdminUserSearchIndexUseCase adminUserSearchIndexUseCase,
             ResetUserPasswordUseCase resetUserPasswordUseCase,
             GlobalPermissionChecker globalPermissionChecker) {
         this.adminUserManagementUseCase = adminUserManagementUseCase;
+        this.adminUserSearchIndexUseCase = adminUserSearchIndexUseCase;
         this.resetUserPasswordUseCase = resetUserPasswordUseCase;
         this.globalPermissionChecker = globalPermissionChecker;
     }
@@ -120,6 +125,13 @@ public class AdminUserController extends BaseController {
                         adminUserManagementUseCase.search(
                                 new AdminUserManagementUseCase.SearchCommand(
                                         keyword, page, size))));
+    }
+
+    @PostMapping("/search-index/reindex")
+    public ApiResponse<AdminUserSearchReindexResponse> reindexSearchDocuments(
+            @CurrentUser AuthenticatedUser admin) {
+        requireAdmin(admin);
+        return ok(AdminUserSearchReindexResponse.from(adminUserSearchIndexUseCase.reindexAll()));
     }
 
     /**

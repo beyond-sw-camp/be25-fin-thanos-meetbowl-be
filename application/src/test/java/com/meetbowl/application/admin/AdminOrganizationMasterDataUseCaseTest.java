@@ -25,6 +25,7 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 
 class AdminOrganizationMasterDataUseCaseTest {
 
@@ -40,6 +41,7 @@ class AdminOrganizationMasterDataUseCaseTest {
     private FakeDepartmentRepository departmentRepository;
     private FakeTeamRepository teamRepository;
     private FakePositionRepository positionRepository;
+    private FakeUserSearchIndexPort userSearchIndexPort;
     private AdminOrganizationMasterDataUseCase useCase;
 
     @BeforeEach
@@ -48,12 +50,14 @@ class AdminOrganizationMasterDataUseCaseTest {
         departmentRepository = new FakeDepartmentRepository();
         teamRepository = new FakeTeamRepository();
         positionRepository = new FakePositionRepository();
+        userSearchIndexPort = new FakeUserSearchIndexPort();
         useCase =
                 new AdminOrganizationMasterDataUseCase(
                         affiliateRepository,
                         departmentRepository,
                         teamRepository,
-                        positionRepository);
+                        positionRepository,
+                        userSearchIndexPort);
     }
 
     @Test
@@ -446,5 +450,28 @@ class AdminOrganizationMasterDataUseCaseTest {
                                     !item.id().equals(positionId)
                                             && item.code().equalsIgnoreCase(code));
         }
+    }
+
+    private static final class FakeUserSearchIndexPort implements UserSearchIndexPort {
+
+        @Override
+        public void indexUser(UUID userId) {}
+
+        @Override
+        public ReindexResult reindexAll() {
+            return new ReindexResult(0, 0);
+        }
+
+        @Override
+        public void reindexByAffiliateId(UUID affiliateId) {}
+
+        @Override
+        public void reindexByDepartmentId(UUID departmentId) {}
+
+        @Override
+        public void reindexByTeamId(UUID teamId) {}
+
+        @Override
+        public void reindexByPositionId(UUID positionId) {}
     }
 }

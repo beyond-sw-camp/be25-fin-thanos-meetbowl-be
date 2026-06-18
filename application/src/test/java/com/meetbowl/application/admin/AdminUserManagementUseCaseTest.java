@@ -43,6 +43,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 import com.meetbowl.domain.user.UserStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,6 +59,7 @@ class AdminUserManagementUseCaseTest {
     @Mock private PositionRepositoryPort positionRepositoryPort;
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
+    @Mock private UserSearchIndexPort userSearchIndexPort;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -98,6 +100,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals(UserRole.ADMIN.name(), result.user().role());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
+        verify(userSearchIndexPort).indexUser(result.userId());
     }
 
     @Test
@@ -388,6 +391,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals("updated@example.com", savedUser.getValue().email());
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals("ADMIN", result.role());
+        verify(userSearchIndexPort).indexUser(current.id());
     }
 
     @Test
@@ -576,6 +580,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals(expectedStatus, savedUser.getValue().status());
         assertEquals(expectedStatus.name(), result.status());
         verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
+        verify(userSearchIndexPort).indexUser(current.id());
     }
 
     private AdminUserManagementUseCase useCase() {
@@ -588,7 +593,8 @@ class AdminUserManagementUseCaseTest {
                 passwordEncoder,
                 adminAuditLogRepositoryPort,
                 tokenStateRepositoryPort,
-                objectMapper);
+                objectMapper,
+                userSearchIndexPort);
     }
 
     private User createUser(String loginId, String email, UserRole role) {

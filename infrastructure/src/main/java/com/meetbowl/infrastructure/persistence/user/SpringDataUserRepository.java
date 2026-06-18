@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.user;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,7 +32,8 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             left join DepartmentEntity department on department.id = u.departmentId
             left join TeamEntity team on team.id = u.teamId
             left join PositionEntity position on position.id = u.positionId
-            where (:keyword is null or :keyword = ''
+            where u.role in ('USER', 'ADMIN')
+              and (:keyword is null or :keyword = ''
                 or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                 or lower(u.name) like lower(concat('%', :keyword, '%'))
                 or lower(u.email) like lower(concat('%', :keyword, '%'))
@@ -90,4 +92,179 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             Pageable pageable);
 
     List<UserEntity> findByAffiliateId(UUID affiliateId);
+
+    List<UserEntity> findByDepartmentId(UUID departmentId);
+
+    List<UserEntity> findByTeamId(UUID teamId);
+
+    List<UserEntity> findByPositionId(UUID positionId);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+              and u.id in :userIds
+            """)
+    List<UserSearchSourceRow> findSearchSourcesByIdIn(@Param("userIds") Collection<UUID> userIds);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+            """)
+    Page<UserSearchSourceRow> findAllSearchSources(Pageable pageable);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+              and u.affiliateId = :affiliateId
+            """)
+    List<UserSearchSourceRow> findSearchSourcesByAffiliateId(
+            @Param("affiliateId") UUID affiliateId);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+              and u.departmentId = :departmentId
+            """)
+    List<UserSearchSourceRow> findSearchSourcesByDepartmentId(
+            @Param("departmentId") UUID departmentId);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+              and u.teamId = :teamId
+            """)
+    List<UserSearchSourceRow> findSearchSourcesByTeamId(@Param("teamId") UUID teamId);
+
+    @Query(
+            """
+            select new com.meetbowl.infrastructure.persistence.user.UserSearchSourceRow(
+                u.id,
+                u.loginId,
+                u.name,
+                u.email,
+                u.role,
+                u.status,
+                u.affiliateId,
+                affiliate.name,
+                u.departmentId,
+                department.name,
+                u.teamId,
+                team.name,
+                u.positionId,
+                position.name,
+                u.createdAt)
+            from UserEntity u
+            left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
+            left join DepartmentEntity department on department.id = u.departmentId
+            left join TeamEntity team on team.id = u.teamId
+            left join PositionEntity position on position.id = u.positionId
+            where u.role in ('USER', 'ADMIN')
+              and u.positionId = :positionId
+            """)
+    List<UserSearchSourceRow> findSearchSourcesByPositionId(@Param("positionId") UUID positionId);
 }

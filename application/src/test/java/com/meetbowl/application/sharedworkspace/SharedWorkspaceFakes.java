@@ -294,5 +294,24 @@ final class SharedWorkspaceFakes {
                     .filter(user -> affiliateId.equals(user.affiliateId()))
                     .toList();
         }
+
+        @Override
+        public java.util.List<User> findAllByDepartmentId(UUID departmentId) {
+            return store.values().stream()
+                    .filter(user -> departmentId.equals(user.departmentId()))
+                    .toList();
+        }
+
+        @Override
+        public java.util.List<User> findAllByTeamId(UUID teamId) {
+            return store.values().stream().filter(user -> teamId.equals(user.teamId())).toList();
+        }
+
+        @Override
+        public java.util.List<User> findAllByPositionId(UUID positionId) {
+            return store.values().stream()
+                    .filter(user -> positionId.equals(user.positionId()))
+                    .toList();
+        }
     }
 }

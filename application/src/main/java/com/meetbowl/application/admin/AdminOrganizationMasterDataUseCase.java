@@ -19,6 +19,7 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 
 @Service
 public class AdminOrganizationMasterDataUseCase {
@@ -48,16 +49,19 @@ public class AdminOrganizationMasterDataUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
+    private final UserSearchIndexPort userSearchIndexPort;
 
     public AdminOrganizationMasterDataUseCase(
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
-            PositionRepositoryPort positionRepositoryPort) {
+            PositionRepositoryPort positionRepositoryPort,
+            UserSearchIndexPort userSearchIndexPort) {
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
+        this.userSearchIndexPort = userSearchIndexPort;
     }
 
     @Transactional(readOnly = true)
@@ -92,7 +96,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Affiliate name is required.");
         String code = requiredText(command.code(), "Affiliate code is required.");
         ensureAffiliateUnique(name, code, affiliate.id());
-        return toAffiliateResult(
+        Affiliate saved =
                 affiliateRepositoryPort.save(
                         new Affiliate(
                                 affiliate.id(),
@@ -101,7 +105,10 @@ public class AdminOrganizationMasterDataUseCase {
                                 affiliate.status(),
                                 command.sortOrder(),
                                 affiliate.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        // 조직 표시명 변경은 사용자 검색 문서의 노출값에도 반영돼야 하므로 관련 문서를 함께 재색인한다.
+        userSearchIndexPort.reindexByAffiliateId(saved.id());
+        return toAffiliateResult(saved);
     }
 
     @Transactional
@@ -156,7 +163,7 @@ public class AdminOrganizationMasterDataUseCase {
         String code = requiredText(command.code(), "Department code is required.");
         loadAffiliate(command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
-        return toDepartmentResult(
+        Department saved =
                 departmentRepositoryPort.save(
                         new Department(
                                 department.id(),
@@ -167,7 +174,9 @@ public class AdminOrganizationMasterDataUseCase {
                                 department.status(),
                                 command.sortOrder(),
                                 department.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        userSearchIndexPort.reindexByDepartmentId(saved.id());
+        return toDepartmentResult(saved);
     }
 
     @Transactional
@@ -223,7 +232,7 @@ public class AdminOrganizationMasterDataUseCase {
         String code = requiredText(command.code(), "Team code is required.");
         loadDepartment(command.departmentId());
         ensureTeamNameUnique(command.departmentId(), name, team.id());
-        return toTeamResult(
+        Team saved =
                 teamRepositoryPort.save(
                         new Team(
                                 team.id(),
@@ -233,7 +242,9 @@ public class AdminOrganizationMasterDataUseCase {
                                 team.status(),
                                 command.sortOrder(),
                                 team.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        userSearchIndexPort.reindexByTeamId(saved.id());
+        return toTeamResult(saved);
     }
 
     @Transactional
@@ -284,7 +295,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Position name is required.");
         String code = requiredText(command.code(), "Position code is required.");
         ensurePositionUnique(name, code, position.id());
-        return toPositionResult(
+        Position saved =
                 positionRepositoryPort.save(
                         new Position(
                                 position.id(),
@@ -293,7 +304,9 @@ public class AdminOrganizationMasterDataUseCase {
                                 position.status(),
                                 command.sortOrder(),
                                 position.createdAt(),
-                                Instant.now())));
+                                Instant.now()));
+        userSearchIndexPort.reindexByPositionId(saved.id());
+        return toPositionResult(saved);
     }
 
     @Transactional

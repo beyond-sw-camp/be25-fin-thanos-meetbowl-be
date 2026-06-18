@@ -29,6 +29,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 import com.meetbowl.domain.user.UserStatus;
 
 class MyProfileUseCaseTest {
@@ -45,6 +46,7 @@ class MyProfileUseCaseTest {
     private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
 
     private FakeUserRepository userRepository;
+    private FakeUserSearchIndexPort userSearchIndexPort;
     private MyProfileUseCase useCase;
 
     @BeforeEach
@@ -54,6 +56,7 @@ class MyProfileUseCaseTest {
         FakeDepartmentRepository departmentRepository = new FakeDepartmentRepository();
         FakeTeamRepository teamRepository = new FakeTeamRepository();
         FakePositionRepository positionRepository = new FakePositionRepository();
+        userSearchIndexPort = new FakeUserSearchIndexPort();
 
         affiliateRepository.save(
                 new Affiliate(
@@ -89,7 +92,8 @@ class MyProfileUseCaseTest {
                         affiliateRepository,
                         departmentRepository,
                         teamRepository,
-                        positionRepository);
+                        positionRepository,
+                        userSearchIndexPort);
     }
 
     @Test
@@ -124,6 +128,7 @@ class MyProfileUseCaseTest {
         assertEquals(POSITION_ID, saved.positionId());
         assertEquals(Instant.parse("2026-06-01T00:00:00Z"), saved.activeFrom());
         assertEquals(Instant.parse("2026-12-31T23:59:59Z"), saved.activeUntil());
+        assertEquals(USER_ID, userSearchIndexPort.lastIndexedUserId);
     }
 
     @Test
@@ -222,6 +227,51 @@ class MyProfileUseCaseTest {
                     .filter(user -> affiliateId.equals(user.affiliateId()))
                     .toList();
         }
+
+        @Override
+        public List<User> findAllByDepartmentId(UUID departmentId) {
+            return users.values().stream()
+                    .filter(user -> departmentId.equals(user.departmentId()))
+                    .toList();
+        }
+
+        @Override
+        public List<User> findAllByTeamId(UUID teamId) {
+            return users.values().stream().filter(user -> teamId.equals(user.teamId())).toList();
+        }
+
+        @Override
+        public List<User> findAllByPositionId(UUID positionId) {
+            return users.values().stream()
+                    .filter(user -> positionId.equals(user.positionId()))
+                    .toList();
+        }
+    }
+
+    private static final class FakeUserSearchIndexPort implements UserSearchIndexPort {
+        private UUID lastIndexedUserId;
+
+        @Override
+        public void indexUser(UUID userId) {
+            lastIndexedUserId = userId;
+        }
+
+        @Override
+        public ReindexResult reindexAll() {
+            return new ReindexResult(0, 0);
+        }
+
+        @Override
+        public void reindexByAffiliateId(UUID affiliateId) {}
+
+        @Override
+        public void reindexByDepartmentId(UUID departmentId) {}
+
+        @Override
+        public void reindexByTeamId(UUID teamId) {}
+
+        @Override
+        public void reindexByPositionId(UUID positionId) {}
     }
 
     private static final class FakeAffiliateRepository implements AffiliateRepositoryPort {

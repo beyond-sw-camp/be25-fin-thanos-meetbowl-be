@@ -34,6 +34,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchIndexPort;
 import com.meetbowl.domain.user.UserStatus;
 
 /** 관리자 회원 관리 유스케이스 회원 생성, 조회, 수정, 상태 관리 기능을 제공합니다. 모든 관리 작업은 감사 로그(Audit Log)에 기록됩니다. */
@@ -49,6 +50,7 @@ public class AdminUserManagementUseCase {
     private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
     private final ObjectMapper objectMapper;
+    private final UserSearchIndexPort userSearchIndexPort;
 
     /**
      * AdminUserManagementUseCase 생성자
@@ -73,7 +75,8 @@ public class AdminUserManagementUseCase {
             PasswordEncoder passwordEncoder,
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TokenStateRepositoryPort tokenStateRepositoryPort,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            UserSearchIndexPort userSearchIndexPort) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
@@ -83,6 +86,7 @@ public class AdminUserManagementUseCase {
         this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
         this.objectMapper = objectMapper;
+        this.userSearchIndexPort = userSearchIndexPort;
     }
 
     /**
@@ -136,6 +140,8 @@ public class AdminUserManagementUseCase {
                 null,
                 snapshot(summary),
                 savedUser.id());
+        // 회원 저장 이후 바로 색인을 갱신해 관리자/사용자 검색 결과가 지연되지 않게 맞춘다.
+        userSearchIndexPort.indexUser(savedUser.id());
         return new CreateResult(savedUser.id(), PasswordPolicy.INITIAL_PASSWORD, summary);
     }
 
@@ -224,6 +230,7 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        userSearchIndexPort.indexUser(saved.id());
         return summary;
     }
 
@@ -251,6 +258,7 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        userSearchIndexPort.indexUser(saved.id());
         return summary;
     }
 

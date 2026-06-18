@@ -33,6 +33,7 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.admin.AdminUserManagementUseCase;
+import com.meetbowl.application.admin.AdminUserSearchIndexUseCase;
 import com.meetbowl.application.admin.ResetUserPasswordUseCase;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 
@@ -60,6 +61,7 @@ class AdminUserControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private AdminUserManagementUseCase adminUserManagementUseCase;
+    @MockitoBean private AdminUserSearchIndexUseCase adminUserSearchIndexUseCase;
     @MockitoBean private ResetUserPasswordUseCase resetUserPasswordUseCase;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
@@ -150,6 +152,21 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.data.role").value("ADMIN"));
+    }
+
+    @Test
+    void reindexSearchDocumentsSuccess() throws Exception {
+        given(adminUserSearchIndexUseCase.reindexAll())
+                .willReturn(new AdminUserSearchIndexUseCase.ReindexResult(12, 1));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/users/search-index/reindex")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.processedCount").value(12))
+                .andExpect(jsonPath("$.data.failedCount").value(1));
     }
 
     @Test

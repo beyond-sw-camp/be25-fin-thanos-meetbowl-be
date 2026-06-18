@@ -405,6 +405,25 @@ class UserDirectoryUseCaseTest {
                     .filter(user -> affiliateId.equals(user.affiliateId()))
                     .toList();
         }
+
+        @Override
+        public List<User> findAllByDepartmentId(UUID departmentId) {
+            return users.values().stream()
+                    .filter(user -> departmentId.equals(user.departmentId()))
+                    .toList();
+        }
+
+        @Override
+        public List<User> findAllByTeamId(UUID teamId) {
+            return users.values().stream().filter(user -> teamId.equals(user.teamId())).toList();
+        }
+
+        @Override
+        public List<User> findAllByPositionId(UUID positionId) {
+            return users.values().stream()
+                    .filter(user -> positionId.equals(user.positionId()))
+                    .toList();
+        }
     }
 
     private static final class FakeAffiliateRepository implements AffiliateRepositoryPort {

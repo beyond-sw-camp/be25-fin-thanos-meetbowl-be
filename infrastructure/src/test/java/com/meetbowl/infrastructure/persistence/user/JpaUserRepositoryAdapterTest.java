@@ -23,6 +23,7 @@ import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
+import com.meetbowl.infrastructure.config.ElasticsearchUserSearchConfig;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.AuthUserOrgJpaConfig;
 import com.meetbowl.infrastructure.persistence.organization.JpaAffiliateRepositoryAdapter;
@@ -33,6 +34,7 @@ import com.meetbowl.infrastructure.persistence.organization.SpringDataAffiliateR
 import com.meetbowl.infrastructure.persistence.organization.SpringDataDepartmentRepository;
 import com.meetbowl.infrastructure.persistence.organization.SpringDataPositionRepository;
 import com.meetbowl.infrastructure.persistence.organization.SpringDataTeamRepository;
+import com.meetbowl.infrastructure.search.user.ElasticsearchUserSearchAdapter;
 
 @SpringBootTest(classes = JpaUserRepositoryAdapterTest.TestApplication.class)
 @TestPropertySource(
@@ -42,7 +44,11 @@ import com.meetbowl.infrastructure.persistence.organization.SpringDataTeamReposi
             "spring.datasource.password=",
             "spring.datasource.driver-class-name=org.h2.Driver",
             "spring.jpa.hibernate.ddl-auto=create-drop",
-            "spring.jpa.properties.hibernate.jdbc.time_zone=UTC"
+            "spring.jpa.properties.hibernate.jdbc.time_zone=UTC",
+            "meetbowl.elasticsearch.base-url=http://127.0.0.1:65535",
+            "meetbowl.elasticsearch.user-index-name=meetbowl-users",
+            "meetbowl.elasticsearch.auto-create-index=false",
+            "meetbowl.elasticsearch.reindex-batch-size=50"
         })
 class JpaUserRepositoryAdapterTest {
 
@@ -224,6 +230,8 @@ class JpaUserRepositoryAdapterTest {
     @EnableAutoConfiguration
     @Import({
         InfrastructureConfig.class,
+        ElasticsearchUserSearchConfig.class,
+        ElasticsearchUserSearchAdapter.class,
         AuthUserOrgJpaConfig.class,
         JpaUserRepositoryAdapter.class,
         JpaAffiliateRepositoryAdapter.class,
