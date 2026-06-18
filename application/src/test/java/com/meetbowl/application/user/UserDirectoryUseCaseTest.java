@@ -302,6 +302,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public List<User> findAll() {
+            return List.copyOf(users.values());
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return users.values().stream()
                     .filter(user -> user.loginId().equals(loginId))

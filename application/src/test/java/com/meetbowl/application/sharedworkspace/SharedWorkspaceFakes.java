@@ -249,6 +249,11 @@ final class SharedWorkspaceFakes {
         }
 
         @Override
+        public List<User> findAll() {
+            return List.copyOf(store.values());
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return store.values().stream()
                     .filter(user -> user.loginId().equals(loginId))

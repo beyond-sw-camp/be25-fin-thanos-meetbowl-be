@@ -45,6 +45,11 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public List<User> findAll() {
+        return springDataUserRepository.findAll().stream().map(UserEntity::toDomain).toList();
+    }
+
+    @Override
     public Optional<User> findByLoginId(String loginId) {
         return springDataUserRepository.findByLoginId(loginId).map(UserEntity::toDomain);
     }
