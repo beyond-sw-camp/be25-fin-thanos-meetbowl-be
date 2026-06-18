@@ -170,6 +170,7 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
             return new Paged<>(List.of(), result.totalElements());
         }
 
+        // ES 점수순 결과를 유지한 채 기존 도메인 User 매핑을 재사용하기 위해 ID 기준으로 다시 조립한다.
         Map<UUID, User> usersById =
                 springDataUserRepository.findAllById(result.userIds()).stream()
                         .map(UserEntity::toDomain)

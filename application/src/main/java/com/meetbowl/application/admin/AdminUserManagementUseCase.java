@@ -230,6 +230,7 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        // 관리자 수정은 이름, 이메일, 권한, 조직 표시값을 바꿀 수 있어 검색 문서도 즉시 맞춘다.
         userSearchIndexPort.indexUser(saved.id());
         return summary;
     }
@@ -258,6 +259,7 @@ public class AdminUserManagementUseCase {
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
                 saved.id());
+        // 상태값은 관리자/일반 사용자 검색 필터에 바로 쓰이므로 저장 직후 재색인한다.
         userSearchIndexPort.indexUser(saved.id());
         return summary;
     }

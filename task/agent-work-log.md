@@ -259,3 +259,14 @@
   Passed `./gradlew.bat --no-problems-report :app-api:test --tests "com.meetbowl.api.admin.AdminUserControllerTest" --tests "com.meetbowl.api.user.UserDirectoryControllerTest"`
   `./gradlew.bat --no-problems-report :application:test --tests "com.meetbowl.application.admin.AdminUserManagementUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.user.UserDirectoryUseCaseTest" --tests "com.meetbowl.application.user.MyProfileUseCaseTest"` is blocked by pre-existing unrelated `application` test compile failures in `meeting` / `transcript` / `minutes` tests.
   `./gradlew.bat --no-problems-report :infrastructure:test --tests "com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest"` is blocked by pre-existing unrelated `RabbitEventPublisherTest` / `RabbitDocumentIndexRequestedEventPublisherTest` compile failures.
+
+2026-06-18 Elasticsearch user search Korean comments
+
+- Purpose: add concise Korean comments to the Elasticsearch member search code so PR reviewers can understand the query structure, fallback path, and reindex timing faster.
+- Changed files:
+  `application/admin/AdminUserManagementUseCase`, `infrastructure/persistence/user/JpaUserRepositoryAdapter`, `infrastructure/search/user/ElasticsearchUserSearchAdapter`, and this log.
+- Behavior:
+  No runtime behavior change.
+  Added Korean comments around ES page/size request construction, ADMIN/USER role filtering, `edge_ngram` + `wildcard` query intent, DB fallback behavior, ES result reordering, and immediate reindex on admin update/status change.
+- Verification:
+  No additional verification run by request. This change is comments-only.

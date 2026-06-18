@@ -268,6 +268,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
             String status) {
         ensureIndexReady();
 
+        // 기존 API의 page/size 계약을 그대로 유지하기 위해 ES 요청도 같은 범위 계산으로 만든다.
         ObjectNode requestBody = objectMapper.createObjectNode();
         requestBody.put("from", (page - 1) * size);
         requestBody.put("size", size);
@@ -313,6 +314,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
         ArrayNode filters = bool.putArray("filter");
         ArrayNode should = bool.putArray("should");
 
+        // 이번 범위에서 검색 가능한 권한은 ADMIN / USER뿐이므로 다른 role 문서는 처음부터 제외한다.
         filters.add(
                 objectMapper
                         .createObjectNode()
@@ -349,6 +351,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
     }
 
     private ObjectNode buildMultiMatchQuery(String keyword, List<String> fields) {
+        // edge_ngram analyzer로 생성된 prefix 토큰을 활용해 추천 검색어처럼 앞부분 일치를 우선 잡는다.
         ObjectNode multiMatch = objectMapper.createObjectNode();
         multiMatch.put("query", keyword);
         multiMatch.put("type", "bool_prefix");
@@ -358,6 +361,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
     }
 
     private ObjectNode buildWildcardQuery(String field, String keyword) {
+        // 이메일, 로그인 ID처럼 중간 문자열 검색이 필요한 필드는 wildcard로 추가 보완한다.
         ObjectNode wildcardConfig = objectMapper.createObjectNode();
         wildcardConfig.put("value", "*" + keyword + "*");
         wildcardConfig.put("case_insensitive", true);
@@ -405,6 +409,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                         ? hitsNode.path("hits").size()
                         : hitsNode.path("total").path("value").asLong();
 
+        // 응답 DTO 조립은 기존 DB 매핑 흐름을 재사용하기 위해 ES에서는 userId 목록만 추린다.
         List<UUID> userIds = new ArrayList<>();
         for (JsonNode hit : hitsNode.path("hits")) {
             String userId = hit.path("_source").path("userId").asText(null);
@@ -416,6 +421,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
     }
 
     private ObjectNode toDocument(UserSearchSourceRow row) {
+        // 검색 전용 인덱스이므로 비밀번호/토큰 같은 민감 정보는 넣지 않고 표시용 필드만 저장한다.
         ObjectNode document = objectMapper.createObjectNode();
         document.put("userId", row.userId().toString());
         document.put("loginId", row.loginId());
@@ -467,6 +473,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                             "Elasticsearch user search index is missing: "
                                     + properties.userIndexName());
                 }
+                // 로컬/개발 환경에서는 수동 생성 단계를 줄이기 위해 인덱스를 자동으로 준비한다.
                 createIndex();
             }
             indexPrepared.set(true);
@@ -484,6 +491,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
 
     private void createIndex() {
         try {
+            // analyzer와 매핑은 리소스 파일에 고정해 Java 코드 변경 없이도 추적 가능하게 유지한다.
             restClient
                     .put()
                     .uri("/{index}", properties.userIndexName())
