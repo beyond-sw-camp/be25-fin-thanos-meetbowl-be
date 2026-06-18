@@ -303,6 +303,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
+        public List<Affiliate> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Affiliate> findAllByIds(Collection<UUID> organizationIds) {
             return organizationIds.stream()
                     .map(affiliates::get)
@@ -361,6 +366,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
+        public List<Department> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Department> findAllByIds(Collection<UUID> departmentIds) {
             return departmentIds.stream()
                     .map(departments::get)
@@ -409,6 +419,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
+        public List<Team> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).filter(java.util.Objects::nonNull).toList();
         }
@@ -451,6 +466,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         @Override
         public List<Position> findAll() {
             return List.copyOf(positions.values());
+        }
+
+        @Override
+        public List<Position> findAllForExcelExport() {
+            return findAll();
         }
 
         @Override

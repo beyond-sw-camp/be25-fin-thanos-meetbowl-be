@@ -3,6 +3,7 @@ package com.meetbowl.infrastructure.persistence.user;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
+import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 import com.meetbowl.infrastructure.search.user.ElasticsearchUserSearchAdapter;
 
@@ -45,6 +47,11 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public List<User> findAll() {
+        return springDataUserRepository.findAll().stream().map(UserEntity::toDomain).toList();
+    }
+
+    @Override
     public Optional<User> findByLoginId(String loginId) {
         return springDataUserRepository.findByLoginId(loginId).map(UserEntity::toDomain);
     }
@@ -62,6 +69,13 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     @Override
     public boolean existsByEmail(String email) {
         return springDataUserRepository.existsByEmail(email);
+    }
+
+    @Override
+    public List<User> findAllForExcelExportByRoles(Set<UserRole> roles) {
+        return springDataUserRepository.findAllForExcelExportByRoles(roles).stream()
+                .map(UserEntity::toDomain)
+                .toList();
     }
 
     @Override

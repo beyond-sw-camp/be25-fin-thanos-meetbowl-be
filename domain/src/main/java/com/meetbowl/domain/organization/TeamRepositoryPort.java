@@ -14,6 +14,8 @@ public interface TeamRepositoryPort {
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
     List<Team> findAll();
 
+    List<Team> findAllForExcelExport();
+
     List<Team> findAllByIds(Collection<UUID> teamIds);
 
     // 팀명 중복 규칙은 같은 Department 내부 범위에서만 적용된다.

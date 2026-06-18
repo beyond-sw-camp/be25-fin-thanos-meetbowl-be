@@ -14,6 +14,8 @@ public interface AffiliateRepositoryPort {
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
     List<Affiliate> findAll();
 
+    List<Affiliate> findAllForExcelExport();
+
     List<Affiliate> findAllByIds(Collection<UUID> organizationIds);
 
     boolean existsByName(String name);

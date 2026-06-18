@@ -14,6 +14,8 @@ public interface DepartmentRepositoryPort {
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
     List<Department> findAll();
 
+    List<Department> findAllForExcelExport();
+
     List<Department> findAllByIds(Collection<UUID> departmentIds);
 
     // 부서명 중복 규칙은 전체가 아니라 같은 Affiliate 내부 범위에서만 적용된다.

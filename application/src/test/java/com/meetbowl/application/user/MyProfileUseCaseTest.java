@@ -187,6 +187,16 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public List<User> findAll() {
+            return List.copyOf(users.values());
+        }
+
+        @Override
+        public List<User> findAllForExcelExportByRoles(java.util.Set<UserRole> roles) {
+            return users.values().stream().filter(user -> roles.contains(user.role())).toList();
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return users.values().stream()
                     .filter(user -> user.loginId().equals(loginId))
@@ -288,6 +298,11 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public List<Affiliate> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public boolean existsByName(String name) {
             return affiliates.values().stream()
                     .anyMatch(affiliate -> affiliate.name().equalsIgnoreCase(name));
@@ -343,6 +358,11 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public List<Department> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return departments.values().stream()
                     .anyMatch(
@@ -388,6 +408,11 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public List<Team> findAllForExcelExport() {
+            return findAll();
+        }
+
+        @Override
         public boolean existsByDepartmentIdAndName(UUID departmentId, String name) {
             return teams.values().stream()
                     .anyMatch(
@@ -430,6 +455,11 @@ class MyProfileUseCaseTest {
         @Override
         public List<Position> findAll() {
             return List.copyOf(positions.values());
+        }
+
+        @Override
+        public List<Position> findAllForExcelExport() {
+            return findAll();
         }
 
         @Override

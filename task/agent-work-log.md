@@ -306,3 +306,37 @@
   Passed `./gradlew.bat --no-problems-report :app-api:test --tests "com.meetbowl.api.admin.AdminUserControllerTest" --tests "com.meetbowl.api.messaging.UserSearchReindexRequestedListenerTest"`
   `./gradlew.bat --no-problems-report :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminUserManagementUseCaseTest" --tests "com.meetbowl.application.user.MyProfileUseCaseTest" --tests "com.meetbowl.application.user.UserSearchReindexUseCaseTest"` is blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests.
   `./gradlew.bat --no-problems-report :infrastructure:test --tests "com.meetbowl.infrastructure.messaging.user.RabbitUserSearchReindexEventPublisherTest"` is blocked by pre-existing unrelated `RabbitEventPublisherTest` / `RabbitDocumentIndexRequestedEventPublisherTest` compile failures.
+
+2026-06-18 Admin organization/member excel import-export API
+
+- Purpose: add admin-only Excel download/import APIs so affiliate, department, team, position, and member master data can be exported from the current DB and bulk-applied back in one validated transaction.
+- Changed files:
+  `application/build.gradle`,
+  `application/admin/AdminOrganizationMembersExcelUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `application/admin/AdminOrganizationMembersExcelAuditService`,
+  `application/admin/excel/OrganizationMembersExcelWorkbookMapper`,
+  `application/admin/excel/OrganizationMembersExcelRows`,
+  `app-api/admin/AdminOrganizationMembersExcelController`,
+  `app-api/admin/dto/AdminOrganizationMembersExcelImportResponse`,
+  `app-api/admin/AdminOrganizationMembersExcelControllerTest`,
+  `application/admin/AdminOrganizationMembersExcelUseCaseTest`,
+  `common/response/ErrorDetail`,
+  `domain/user/UserRepositoryPort`,
+  `infrastructure/persistence/user/JpaUserRepositoryAdapter`,
+  several existing application test fakes updated with `findAll()`,
+  and this log.
+- Behavior:
+  Added `GET /api/v1/admin/organization-members/excel` that returns an `.xlsx` workbook matching the v2 template layout and fills affiliate/department/team/position/member rows from the current DB.
+  Added `POST /api/v1/admin/organization-members/excel/import` that accepts `.xlsx` multipart uploads (`file`) and validates required sheets, required columns, required values, UUIDs, allowed role/status values, numeric `sortNumber`, email format, duplicate rows, duplicate `loginId`, and organization hierarchy references before any DB write.
+  Import matching uses `id` first for organization rows, then template business keys (`affiliateName`, `affiliateName+departmentName`, `affiliateName+departmentName+teamName`, `positionName`). Member import resolves existing users by `loginId` first, then `userId` when needed, and rejects login ID changes for existing users.
+  Successful imports update or create only the rows present in the workbook; missing DB rows are not deleted.
+  New users are created with initial password `1234`, password hash encoding, and `initialPasswordChangeRequired=true`.
+  `sortNumber` is applied to department/team/position rows on both create and update.
+  Import success publishes a single `user.search.reindex.requested` event with `reindexAll=true` through the existing after-commit dispatcher so Elasticsearch is not called synchronously inside the API transaction.
+  Success and failure audit logs are recorded without storing raw workbook contents, passwords, tokens, or member PII payloads beyond field-level validation metadata.
+- Verification:
+  Passed `./gradlew.bat spotlessApply`
+  Passed `./gradlew.bat :application:compileJava :app-api:compileJava`
+  Passed `./gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationMembersExcelControllerTest"`
+  `./gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests. This work also added `findAll()` implementations to existing fake user repositories so the new `UserRepositoryPort` method does not introduce extra failures on top of those pre-existing test issues.
