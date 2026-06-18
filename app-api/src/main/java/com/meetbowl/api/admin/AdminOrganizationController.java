@@ -91,7 +91,8 @@ public class AdminOrganizationController extends BaseController {
                                         affiliateId,
                                         request.name(),
                                         request.code(),
-                                        request.sortOrder()))));
+                                        request.sortOrder(),
+                                        admin.userId()))));
     }
 
     @PatchMapping(AFFILIATE_ID_PATH + "/status")
@@ -144,7 +145,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.affiliateId(),
                                         request.name(),
                                         request.code(),
-                                        request.sortOrder()))));
+                                        request.sortOrder(),
+                                        admin.userId()))));
     }
 
     @PatchMapping(DEPARTMENT_ID_PATH + "/status")
@@ -196,7 +198,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.departmentId(),
                                         request.name(),
                                         request.code(),
-                                        request.sortOrder()))));
+                                        request.sortOrder(),
+                                        admin.userId()))));
     }
 
     @PatchMapping(TEAM_ID_PATH + "/status")
@@ -247,7 +250,8 @@ public class AdminOrganizationController extends BaseController {
                                         positionId,
                                         request.name(),
                                         request.code(),
-                                        request.sortOrder()))));
+                                        request.sortOrder(),
+                                        admin.userId()))));
     }
 
     @PatchMapping(POSITION_ID_PATH + "/status")

@@ -1,5 +1,6 @@
 package com.meetbowl.application.user;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -18,7 +19,7 @@ import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
-import com.meetbowl.domain.user.UserSearchIndexPort;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 
 @Service
 public class MyProfileUseCase {
@@ -28,7 +29,7 @@ public class MyProfileUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
-    private final UserSearchIndexPort userSearchIndexPort;
+    private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
 
     public MyProfileUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -36,13 +37,13 @@ public class MyProfileUseCase {
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort,
-            UserSearchIndexPort userSearchIndexPort) {
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
-        this.userSearchIndexPort = userSearchIndexPort;
+        this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +58,16 @@ public class MyProfileUseCase {
         ensureEmailIsUnique(command.email(), current.id());
         User saved =
                 userRepositoryPort.save(current.updateMyProfile(command.name(), command.email()));
-        userSearchIndexPort.indexUser(saved.id());
+        userSearchReindexRequestDispatcher.publishAfterCommit(
+                new UserSearchReindexRequestedEvent(
+                        "MY_PROFILE_UPDATED",
+                        false,
+                        List.of(saved.id()),
+                        null,
+                        null,
+                        null,
+                        null,
+                        saved.id()));
         return toResult(saved);
     }
 

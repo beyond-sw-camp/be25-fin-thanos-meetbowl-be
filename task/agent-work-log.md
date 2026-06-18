@@ -270,3 +270,39 @@
   Added Korean comments around ES page/size request construction, ADMIN/USER role filtering, `edge_ngram` + `wildcard` query intent, DB fallback behavior, ES result reordering, and immediate reindex on admin update/status change.
 - Verification:
   No additional verification run by request. This change is comments-only.
+
+2026-06-18 RabbitMQ async user-search reindex refactor
+
+- Purpose: decouple member-search Elasticsearch reindexing from organization/member/profile write APIs so DB commits finish first and reindex work is retried through RabbitMQ instead of blocking synchronous API responses.
+- Changed files:
+  `../docs/event-contract.md`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/messaging/RabbitMqMessagingConfig`,
+  new `app-api/messaging/UserSearchReindexRequestedListener`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/user/MyProfileUseCase`,
+  new `application/user/UserSearchReindexRequestDispatcher`,
+  new `application/user/UserSearchReindexUseCase`,
+  new `common/event/user/UserSearchReindexRequestedMessage`,
+  `common/event/EventTypes`,
+  new `domain/user/UserSearchReindexEventPublisherPort`,
+  new `domain/user/UserSearchReindexRequestedEvent`,
+  new `infrastructure/messaging/user/RabbitUserSearchReindexEventPublisher`,
+  related application/app-api/infrastructure tests,
+  and this log.
+- Behavior:
+  Added RabbitMQ event `user.search.reindex.requested` for member-search reindex requests.
+  Affiliate/department/team/position update APIs no longer call Elasticsearch reindexing directly; they publish scoped reindex events only when search-visible fields actually changed.
+  Admin user create/update/status-change and my-profile update flows now request user-scoped async reindex events instead of directly touching Elasticsearch.
+  Reindex events are registered with `afterCommit` so the consumer reads committed DB state, not pre-commit data.
+  The new consumer routes `reindexAll`, `userIds`, `affiliateId`, `departmentId`, `teamId`, or `positionId` requests back into the existing `UserSearchIndexPort` implementation. Duplicate user IDs collapse to a single upsert target, preserving idempotent final Elasticsearch state.
+  The manual admin endpoint `POST /api/v1/admin/users/search-index/reindex` stays synchronous and keeps its existing response DTO.
+  Search API fallback behavior is unchanged: Elasticsearch first, DB LIKE fallback second.
+  Infra repo `rabbitmq/definitions.json` does not yet contain `api.user.search.reindex` / `user.search.reindex.requested`; BE now auto-declares that queue/binding via `RabbitMqMessagingConfig`, so infra follow-up may still be needed for managed environments.
+- Verification:
+  Passed `./gradlew.bat spotlessApply`
+  Passed `./gradlew.bat --no-problems-report :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `./gradlew.bat --no-problems-report :app-api:test --tests "com.meetbowl.api.admin.AdminUserControllerTest" --tests "com.meetbowl.api.messaging.UserSearchReindexRequestedListenerTest"`
+  `./gradlew.bat --no-problems-report :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminUserManagementUseCaseTest" --tests "com.meetbowl.application.user.MyProfileUseCaseTest" --tests "com.meetbowl.application.user.UserSearchReindexUseCaseTest"` is blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests.
+  `./gradlew.bat --no-problems-report :infrastructure:test --tests "com.meetbowl.infrastructure.messaging.user.RabbitUserSearchReindexEventPublisherTest"` is blocked by pre-existing unrelated `RabbitEventPublisherTest` / `RabbitDocumentIndexRequestedEventPublisherTest` compile failures.
