@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.meeting;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,9 @@ public interface SpringDataMeetingAttendeeRepository
         extends JpaRepository<MeetingAttendeeEntity, UUID> {
 
     List<MeetingAttendeeEntity> findByMeetingId(UUID meetingId);
+
+    /** 회의 목록 조회 시 참석자 N+1을 피하기 위한 배치 조회(WHERE meeting_id IN (...)). */
+    List<MeetingAttendeeEntity> findByMeetingIdIn(Collection<UUID> meetingIds);
 
     List<MeetingAttendeeEntity> findByUserId(UUID userId);
 

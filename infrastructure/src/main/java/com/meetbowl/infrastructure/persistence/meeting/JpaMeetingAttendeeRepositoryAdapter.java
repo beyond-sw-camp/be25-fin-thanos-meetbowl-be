@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.meeting;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +41,16 @@ public class JpaMeetingAttendeeRepositoryAdapter implements MeetingAttendeeRepos
     @Override
     public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
         return springDataMeetingAttendeeRepository.findByMeetingId(meetingId).stream()
+                .map(MeetingAttendeeEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<MeetingAttendee> findByMeetingIds(Collection<UUID> meetingIds) {
+        if (meetingIds.isEmpty()) {
+            return List.of();
+        }
+        return springDataMeetingAttendeeRepository.findByMeetingIdIn(meetingIds).stream()
                 .map(MeetingAttendeeEntity::toDomain)
                 .toList();
     }

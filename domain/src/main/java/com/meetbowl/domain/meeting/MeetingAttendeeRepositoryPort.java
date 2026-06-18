@@ -1,5 +1,6 @@
 package com.meetbowl.domain.meeting;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,6 +14,12 @@ public interface MeetingAttendeeRepositoryPort {
     List<MeetingAttendee> saveAll(List<MeetingAttendee> attendees);
 
     List<MeetingAttendee> findByMeetingId(UUID meetingId);
+
+    /**
+     * 여러 회의의 참석자를 한 번에 배치 조회한다. 회의 목록 조회 시 회의별 참석자 쿼리를 반복(N+1)하지 않도록, 회의 id들을 모아 단일 {@code IN}
+     * 쿼리로 조회한 뒤 호출 측에서 회의별로 그룹핑한다.
+     */
+    List<MeetingAttendee> findByMeetingIds(Collection<UUID> meetingIds);
 
     /** 내가 참석자로 지정된 회의 조회용. */
     List<MeetingAttendee> findByUserId(UUID userId);
