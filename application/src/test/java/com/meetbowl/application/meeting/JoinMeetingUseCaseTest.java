@@ -1,6 +1,7 @@
 package com.meetbowl.application.meeting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -16,6 +17,8 @@ import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 
 class JoinMeetingUseCaseTest {
 
@@ -157,6 +160,41 @@ class JoinMeetingUseCaseTest {
 
         assertEquals("게스트 1", first.participantName());
         assertEquals("게스트 2", second.participantName());
+    }
+
+    @Test
+    void 종료된회의에는재입장할수없다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "종료된 회의",
+                                        Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-ended",
+                                        MeetingStatus.ENDED,
+                                        Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        "종료 테스트")),
+                        new RecordingTokenIssuer(),
+                        new RecordingRealtimeSessionStarter(),
+                        new MeetingGuestNameAllocator());
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new JoinMeetingCommand(
+                                                meetingId, null, "게스트", "guest-ended-test")));
+
+        assertEquals(ErrorCode.MEETING_ALREADY_ENDED, exception.errorCode());
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {

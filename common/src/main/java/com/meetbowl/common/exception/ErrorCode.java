@@ -23,6 +23,7 @@ public enum ErrorCode {
 
     // Meeting
     MEETING_NOT_FOUND("MEETING_NOT_FOUND", "회의를 찾을 수 없습니다.", 404),
+    MEETING_ALREADY_ENDED("MEETING_ALREADY_ENDED", "해당 회의는 종료되었습니다.", 409),
     MEETING_ROOM_ALREADY_RESERVED("MEETING_ROOM_ALREADY_RESERVED", "회의실이 이미 예약되어 있습니다.", 409),
     MEETING_FORBIDDEN_GUEST_ACCESS(
             "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),

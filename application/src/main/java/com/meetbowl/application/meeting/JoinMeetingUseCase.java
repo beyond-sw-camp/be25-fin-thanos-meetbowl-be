@@ -12,6 +12,7 @@ import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingStatus;
 
 /**
  * 회의 입장용 LiveKit 접속 정보를 발급한다.
@@ -49,6 +50,9 @@ public class JoinMeetingUseCase {
         }
 
         Meeting meeting = meetingRepositoryPort.findById(command.meetingId()).orElse(null);
+        if (meeting != null && meeting.status() == MeetingStatus.ENDED) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
         String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
