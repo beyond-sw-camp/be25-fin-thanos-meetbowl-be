@@ -1,6 +1,6 @@
 package com.meetbowl.common.exception;
 
-/** API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다. 새 도메인 에러가 필요하면 docs/api-spec.md의 에러 계약과 함께 추가한다. */
+/** API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다. */
 public enum ErrorCode {
     // Common
     VALIDATION_FAILED("VALIDATION_FAILED", "요청 값이 올바르지 않습니다.", 400),
@@ -15,6 +15,7 @@ public enum ErrorCode {
     AUTH_INVALID_CREDENTIALS("AUTH_INVALID_CREDENTIALS", "로그인 정보가 올바르지 않습니다.", 401),
     AUTH_TOKEN_EXPIRED("AUTH_TOKEN_EXPIRED", "토큰이 만료되었습니다.", 401),
     AUTH_REFRESH_TOKEN_INVALID("AUTH_REFRESH_TOKEN_INVALID", "Refresh Token이 유효하지 않습니다.", 401),
+    AUTH_ADMIN_ALREADY_LOGGED_IN("AUTH_ADMIN_ALREADY_LOGGED_IN", "이미 접속 중인 관리자 계정입니다.", 409),
     AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED(
             "AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED", "초기 비밀번호 변경이 필요합니다.", 403),
 

@@ -48,7 +48,7 @@ class SecurityConfigTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"))
-                .andExpect(jsonPath("$.error.message").value("인증이 필요합니다."));
+                .andExpect(jsonPath("$.error.message").value("?몄쬆???꾩슂?⑸땲??"));
     }
 
     @Test
@@ -146,16 +146,12 @@ class SecurityConfigTest {
     }
 
     @Test
-    void passwordResetRequestRequiresUserRole() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/password/reset-request"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"));
+    void passwordResetRequestEndpointIsPublic() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/password-reset/request"))
+                .andExpect(status().isBadRequest());
 
-        String accessToken = createAccessToken("USER");
-        mockMvc.perform(
-                        post("/api/v1/auth/password/reset-request")
-                                .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/v1/auth/password/reset-request"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -252,7 +248,7 @@ class SecurityConfigTest {
                         .claim("organizationId", UUID.randomUUID().toString())
                         .claim("role", role)
                         .claim("initialPasswordChangeRequired", initialPasswordChangeRequired)
-                        .claim("displayName", "홍길동")
+                        .claim("displayName", "Tester")
                         .issueTime(Date.from(now))
                         .expirationTime(Date.from(now.plusSeconds(300)));
         if (issuer != null) {

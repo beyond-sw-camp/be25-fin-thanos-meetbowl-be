@@ -9,6 +9,8 @@ public interface TokenStateRepositoryPort {
 
     void saveRefreshToken(String tokenHash, UUID userId, Duration ttl);
 
+    boolean hasActiveRefreshToken(UUID userId);
+
     Optional<UUID> consumeRefreshToken(String tokenHash);
 
     boolean deleteRefreshToken(String tokenHash, UUID userId);

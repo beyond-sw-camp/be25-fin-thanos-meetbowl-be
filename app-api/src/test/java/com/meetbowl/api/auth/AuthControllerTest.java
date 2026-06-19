@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.api.auth.dto.ChangeInitialPasswordRequest;
 import com.meetbowl.api.auth.dto.LoginRequest;
 import com.meetbowl.api.auth.dto.LogoutRequest;
+import com.meetbowl.api.auth.dto.PasswordResetRequest;
 import com.meetbowl.api.auth.dto.RefreshTokenRequest;
 import com.meetbowl.api.common.GlobalExceptionHandler;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
@@ -37,6 +38,7 @@ import com.meetbowl.application.auth.IssuedTokens;
 import com.meetbowl.application.auth.LoginResult;
 import com.meetbowl.application.auth.LoginUseCase;
 import com.meetbowl.application.auth.LogoutUseCase;
+import com.meetbowl.application.auth.PasswordResetRequestUseCase;
 import com.meetbowl.application.auth.RefreshTokenUseCase;
 
 @WebMvcTest(AuthController.class)
@@ -44,18 +46,17 @@ import com.meetbowl.application.auth.RefreshTokenUseCase;
 class AuthControllerTest {
 
     @Autowired private MockMvc mockMvc;
-    // Boot 4 모듈러 테스트 환경에서 ObjectMapper 빈이 자동 등록되지 않을 수 있어 직접 생성 사용
 
     @MockitoBean private LoginUseCase loginUseCase;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
     @MockitoBean private RefreshTokenUseCase refreshTokenUseCase;
     @MockitoBean private LogoutUseCase logoutUseCase;
     @MockitoBean private ChangeInitialPasswordUseCase changeInitialPasswordUseCase;
+    @MockitoBean private PasswordResetRequestUseCase passwordResetRequestUseCase;
 
     @Test
-    @DisplayName("로그인 성공")
+    @DisplayName("濡쒓렇???깃났")
     void loginSuccess() throws Exception {
-        // given
         LoginRequest request = new LoginRequest("user1", "password");
         UUID userId = UUID.randomUUID();
         LoginResult result =
@@ -68,18 +69,17 @@ class AuthControllerTest {
                         new LoginResult.UserSummary(
                                 userId,
                                 "user1",
-                                "홍길동",
+                                "Tester",
                                 "user1@test.com",
                                 null,
                                 null,
-                                "계열사",
-                                "부서",
-                                "팀",
-                                "직급",
+                                "Affiliate",
+                                "Department",
+                                "Team",
+                                "Position",
                                 false));
         given(loginUseCase.execute(any())).willReturn(result);
 
-        // when & then
         ObjectMapper objectMapper = new ObjectMapper();
         mockMvc.perform(
                         post("/api/v1/auth/login")
@@ -90,12 +90,11 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("access-token"))
                 .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-                .andExpect(jsonPath("$.data.user.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.user.name").value("Tester"))
                 .andExpect(jsonPath("$.data.user.initialPasswordChangeRequired").value(false));
     }
 
     @Test
-    @DisplayName("토큰 재발급 성공")
     void refreshSuccess() throws Exception {
         given(refreshTokenUseCase.execute(any()))
                 .willReturn(
@@ -115,7 +114,6 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("로그아웃 성공")
     void logoutSuccess() throws Exception {
         willDoNothing().given(logoutUseCase).execute(any());
         AuthenticatedUser authenticatedUser =
@@ -123,7 +121,7 @@ class AuthControllerTest {
                         UUID.fromString("123e4567-e89b-12d3-a456-426614174000"),
                         UUID.fromString("223e4567-e89b-12d3-a456-426614174000"),
                         AuthenticatedUserRole.USER,
-                        "홍길동",
+                        "Tester",
                         "access-token-id",
                         Instant.now().plusSeconds(300));
 
@@ -143,6 +141,26 @@ class AuthControllerTest {
     }
 
     @Test
+    void requestPasswordResetSuccess() throws Exception {
+        willDoNothing().given(passwordResetRequestUseCase).execute(any());
+
+        mockMvc.perform(
+                        post("/api/v1/auth/password-reset/request")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        new ObjectMapper()
+                                                .writeValueAsString(
+                                                        new PasswordResetRequest(
+                                                                " user1 ",
+                                                                " user1@local.meetbowl "))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(
+                        jsonPath("$.message").value(PasswordResetRequestUseCase.ACCEPTED_MESSAGE));
+    }
+
+    @Test
     void changeInitialPasswordSuccess() throws Exception {
         given(changeInitialPasswordUseCase.execute(any()))
                 .willReturn(
@@ -152,7 +170,7 @@ class AuthControllerTest {
                         UUID.randomUUID(),
                         UUID.randomUUID(),
                         AuthenticatedUserRole.USER,
-                        "홍길동",
+                        "Tester",
                         "restricted-token-id",
                         Instant.now().plusSeconds(300),
                         true);
@@ -181,7 +199,7 @@ class AuthControllerTest {
                         UUID.randomUUID(),
                         UUID.randomUUID(),
                         AuthenticatedUserRole.USER,
-                        "홍길동",
+                        "Tester",
                         "restricted-token-id",
                         Instant.now().plusSeconds(300),
                         true);

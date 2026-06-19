@@ -1,5 +1,6 @@
 package com.meetbowl.api.auth;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,6 +12,7 @@ import com.meetbowl.api.auth.dto.ChangeInitialPasswordRequest;
 import com.meetbowl.api.auth.dto.LoginRequest;
 import com.meetbowl.api.auth.dto.LoginResponse;
 import com.meetbowl.api.auth.dto.LogoutRequest;
+import com.meetbowl.api.auth.dto.PasswordResetRequest;
 import com.meetbowl.api.auth.dto.RefreshTokenRequest;
 import com.meetbowl.api.auth.dto.TokenResponse;
 import com.meetbowl.api.common.ApiHeaders;
@@ -26,6 +28,8 @@ import com.meetbowl.application.auth.LoginResult;
 import com.meetbowl.application.auth.LoginUseCase;
 import com.meetbowl.application.auth.LogoutCommand;
 import com.meetbowl.application.auth.LogoutUseCase;
+import com.meetbowl.application.auth.PasswordResetRequestCommand;
+import com.meetbowl.application.auth.PasswordResetRequestUseCase;
 import com.meetbowl.application.auth.RefreshTokenCommand;
 import com.meetbowl.application.auth.RefreshTokenUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -41,21 +45,24 @@ public class AuthController extends BaseController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final ChangeInitialPasswordUseCase changeInitialPasswordUseCase;
+    private final PasswordResetRequestUseCase passwordResetRequestUseCase;
 
     public AuthController(
             LoginUseCase loginUseCase,
             RefreshTokenUseCase refreshTokenUseCase,
             LogoutUseCase logoutUseCase,
-            ChangeInitialPasswordUseCase changeInitialPasswordUseCase) {
+            ChangeInitialPasswordUseCase changeInitialPasswordUseCase,
+            PasswordResetRequestUseCase passwordResetRequestUseCase) {
         this.loginUseCase = loginUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.logoutUseCase = logoutUseCase;
         this.changeInitialPasswordUseCase = changeInitialPasswordUseCase;
+        this.passwordResetRequestUseCase = passwordResetRequestUseCase;
     }
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        // 로그인 응답에는 초기 비밀번호 변경 필요 여부를 함께 내려준다.
+        // 로그인 응답 DTO 구조는 유지하면서 보안 정책만 유스케이스에서 처리한다.
         LoginResult result =
                 loginUseCase.execute(new LoginCommand(request.loginId(), request.password()));
 
@@ -106,7 +113,7 @@ public class AuthController extends BaseController {
     public ApiResponse<TokenResponse> changeInitialPassword(
             @Parameter(hidden = true) @CurrentUser AuthenticatedUser currentUser,
             @Valid @RequestBody ChangeInitialPasswordRequest request) {
-        // 이 엔드포인트는 제한 로그인 흐름을 끝내고 정상 토큰을 발급한다.
+        // 최초 로그인 비밀번호 변경이 끝나면 새 토큰을 발급해 변경 필요 상태를 즉시 해제한다.
         IssuedTokens tokens =
                 changeInitialPasswordUseCase.execute(
                         new ChangeInitialPasswordCommand(
@@ -115,5 +122,18 @@ public class AuthController extends BaseController {
                                 currentUser.accessTokenId(),
                                 currentUser.accessTokenExpiresAt()));
         return ok(TokenResponse.from(tokens));
+    }
+
+    @PostMapping({"/password-reset/request", "/password/reset-request"})
+    public ApiResponse<Void> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request,
+            HttpServletRequest httpServletRequest) {
+        passwordResetRequestUseCase.execute(
+                new PasswordResetRequestCommand(
+                        request.loginId(),
+                        request.email(),
+                        httpServletRequest.getRemoteAddr(),
+                        httpServletRequest.getHeader("User-Agent")));
+        return ok(null, PasswordResetRequestUseCase.ACCEPTED_MESSAGE);
     }
 }

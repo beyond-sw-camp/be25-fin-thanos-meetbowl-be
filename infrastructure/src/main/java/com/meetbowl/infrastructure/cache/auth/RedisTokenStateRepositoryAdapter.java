@@ -40,6 +40,26 @@ public class RedisTokenStateRepositoryAdapter implements TokenStateRepositoryPor
     }
 
     @Override
+    public boolean hasActiveRefreshToken(UUID userId) {
+        Set<String> tokenHashes = redisTemplate.opsForSet().members(userRefreshTokenKey(userId));
+        if (tokenHashes == null || tokenHashes.isEmpty()) {
+            return false;
+        }
+
+        boolean hasActiveToken = false;
+        for (String tokenHash : tokenHashes) {
+            // 활성 세션 판단은 실제 refresh token key 존재 여부로 본다.
+            // 만료됐는데 사용자 인덱스에만 남은 해시는 여기서 정리해서 오탐을 막는다.
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(refreshTokenKey(tokenHash)))) {
+                hasActiveToken = true;
+                break;
+            }
+            redisTemplate.opsForSet().remove(userRefreshTokenKey(userId), tokenHash);
+        }
+        return hasActiveToken;
+    }
+
+    @Override
     public Optional<UUID> consumeRefreshToken(String tokenHash) {
         String userId = redisTemplate.opsForValue().getAndDelete(refreshTokenKey(tokenHash));
         Optional<UUID> consumedUserId = Optional.ofNullable(userId).map(UUID::fromString);
@@ -73,7 +93,8 @@ public class RedisTokenStateRepositoryAdapter implements TokenStateRepositoryPor
 
     @Override
     public void revokeUserSessions(UUID userId, Instant revokedAt) {
-        // 사용자별 Refresh Token 인덱스로 모든 재발급 경로를 제거하고, 기존 Access Token은 발급 시각으로 차단한다.
+        // 사용자별 refresh token 인덱스로 모든 재발급 경로를 제거하고,
+        // 기존 access token 은 발급 시각 기준으로 차단한다.
         String userRefreshTokenKey = userRefreshTokenKey(userId);
         Set<String> tokenHashes = redisTemplate.opsForSet().members(userRefreshTokenKey);
         if (tokenHashes != null && !tokenHashes.isEmpty()) {
@@ -92,8 +113,7 @@ public class RedisTokenStateRepositoryAdapter implements TokenStateRepositoryPor
             return false;
         }
         Instant revokedAt = Instant.ofEpochMilli(Long.parseLong(revokedAtValue));
-        // JWT iat는 초 단위라 관리자 초기화 직후 같은 초에 다시 로그인하면 revokedAt의 밀리초보다
-        // 과거로 보일 수 있다. 같은 초에 새로 발급된 토큰까지 막지 않도록 초 단위로만 비교한다.
+        // JWT iat 는 초 단위여서, 같은 초에 재로그인한 새 토큰까지 막지 않도록 초 단위로만 비교한다.
         return accessTokenIssuedAt.getEpochSecond() < revokedAt.getEpochSecond();
     }
 
