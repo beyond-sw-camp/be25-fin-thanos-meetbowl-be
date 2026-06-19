@@ -23,10 +23,15 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 /**
  * 회의별 최종 STT 원문 조회 API다.
  *
- * <p>이 API가 보여주는 데이터의 출처는 실시간 DataChannel이 아니라 DB다. 따라서 이 API 응답에 자막이 보인다면 다음 경로가 모두 성공한 것이다.
+ * <p>이 API가 보여주는 데이터의 출처는 실시간 DataChannel이 아니라 DB다.
+ * 따라서 이 API 응답에 자막이 보인다면 다음 경로가 모두 성공한 것이다.
  *
- * <p>SegmentController.finalize() -> RabbitMqTranscriptPublisher.publishFinalSegment() ->
- * TranscriptFinalCreatedListener -> SaveFinalTranscriptUseCase -> DB 저장 -> 현재 API 조회
+ * <p>SegmentController.finalize()
+ * -> RabbitMqTranscriptPublisher.publishFinalSegment()
+ * -> TranscriptFinalCreatedListener
+ * -> SaveFinalTranscriptUseCase
+ * -> DB 저장
+ * -> 현재 API 조회
  *
  * <p>한 회의의 segment 리스트와 조합된 전체 원문을 함께 내려줘, 화면과 후처리 기능이 같은 API를 재사용할 수 있게 한다.
  */

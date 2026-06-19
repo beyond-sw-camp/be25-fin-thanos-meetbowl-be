@@ -22,8 +22,7 @@ public class MeetingGuestNameAllocator {
             return 1;
         }
         // 회의별로 순번을 따로 관리해야 다른 회의의 입장 순서가 섞이지 않는다.
-        return counters.computeIfAbsent(meetingId, ignored -> new AtomicInteger(0))
-                .incrementAndGet();
+        return counters.computeIfAbsent(meetingId, ignored -> new AtomicInteger(0)).incrementAndGet();
     }
 
     public void reset(UUID meetingId) {

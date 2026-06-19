@@ -17,9 +17,12 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 /**
  * 회의 발화 세그먼트를 저장하기 위한 JPA 엔티티 클래스입니다.
  *
- * <p>이 엔티티는 "실시간 자막 전체"를 저장하지 않는다. STT 서버가 FINALIZED로 확정한 세그먼트만 한 건씩 저장한다.
+ * <p>이 엔티티는 "실시간 자막 전체"를 저장하지 않는다.
+ * STT 서버가 FINALIZED로 확정한 세그먼트만 한 건씩 저장한다.
  *
- * <p>즉, 이 테이블은 - partial/interim caption 로그 저장소가 아니라 - 최종 원문 재조립을 위한 finalized segment 저장소다.
+ * <p>즉, 이 테이블은
+ * - partial/interim caption 로그 저장소가 아니라
+ * - 최종 원문 재조립을 위한 finalized segment 저장소다.
  *
  * <p>STT 서버로부터 수신된 최종 확정(Finalized) 데이터를 'meeting_transcript_segments' 테이블에 매핑합니다.
  */
@@ -92,10 +95,13 @@ public class MeetingTranscriptSegmentEntity extends BaseEntity {
     /**
      * RabbitMQ 메시지의 eventId입니다.
      *
-     * <p>역할: - STT가 한 finalized 문장을 이벤트로 발행했을 때 그 이벤트 자체를 식별한다. - 네트워크 재시도 등으로 동일 메시지가 다시 와도, DB
-     * unique constraint로 중복 저장을 막는다.
+     * 역할:
+     * - STT가 한 finalized 문장을 이벤트로 발행했을 때 그 이벤트 자체를 식별한다.
+     * - 네트워크 재시도 등으로 동일 메시지가 다시 와도, DB unique constraint로 중복 저장을 막는다.
      *
-     * <p>중요한 구분: - segmentId: "문장 세그먼트" 식별자 - sourceEventId: "브로커를 통해 들어온 이벤트 envelope" 식별자
+     * 중요한 구분:
+     * - segmentId: "문장 세그먼트" 식별자
+     * - sourceEventId: "브로커를 통해 들어온 이벤트 envelope" 식별자
      */
     @Column(
             name = "source_event_id",

@@ -47,8 +47,7 @@ public class TransferMeetingHostUseCase {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "새 회의 관리자는 필수입니다.");
         }
 
-        List<MeetingAttendee> attendees =
-                meetingAttendeeRepositoryPort.findByMeetingId(meeting.id());
+        List<MeetingAttendee> attendees = meetingAttendeeRepositoryPort.findByMeetingId(meeting.id());
         MeetingAttendee newHostAttendee =
                 attendees.stream()
                         .filter(attendee -> attendee.userId().equals(command.newHostUserId()))
@@ -79,8 +78,7 @@ public class TransferMeetingHostUseCase {
                         .toList();
 
         meetingAttendeeRepositoryPort.saveAll(updatedAttendees);
-        Meeting savedMeeting =
-                meetingRepositoryPort.save(meeting.transferHost(command.newHostUserId()));
+        Meeting savedMeeting = meetingRepositoryPort.save(meeting.transferHost(command.newHostUserId()));
         return MeetingResult.of(savedMeeting, updatedAttendees);
     }
 }

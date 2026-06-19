@@ -45,10 +45,12 @@ public class EndMeetingUseCase {
                         .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         /**
-         * 종료 요청은 여러 경로에서 다시 들어올 수 있다. - Host가 UI에서 "회의 종료" 버튼을 누른 경우 - STT/시스템이 내부 API로 종료를 알린 경우 -
-         * 장애 복구 중 같은 종료 요청이 재처리된 경우
+         * 종료 요청은 여러 경로에서 다시 들어올 수 있다.
+         * - Host가 UI에서 "회의 종료" 버튼을 누른 경우
+         * - STT/시스템이 내부 API로 종료를 알린 경우
+         * - 장애 복구 중 같은 종료 요청이 재처리된 경우
          *
-         * <p>이미 ENDED라면 상태 변경과 이벤트 재발행을 막고, 게스트 번호 카운터만 정리한다.
+         * 이미 ENDED라면 상태 변경과 이벤트 재발행을 막고, 게스트 번호 카운터만 정리한다.
          */
         if (meeting.status() == com.meetbowl.domain.meeting.MeetingStatus.ENDED) {
             meetingGuestNameAllocator.reset(meeting.id());
@@ -65,7 +67,8 @@ public class EndMeetingUseCase {
         Meeting savedMeeting = meetingRepositoryPort.save(endedMeeting);
 
         /**
-         * 회의 종료 이후 AI 회의록 초안 생성, 후속 알림 같은 비동기 작업은 DB 상태가 ENDED로 확정된 뒤 `meeting.ended` 이벤트로만 시작한다.
+         * 회의 종료 이후 AI 회의록 초안 생성, 후속 알림 같은 비동기 작업은
+         * DB 상태가 ENDED로 확정된 뒤 `meeting.ended` 이벤트로만 시작한다.
          */
         UUID reviewerUserId =
                 meetingAttendeeRepositoryPort.findByMeetingId(savedMeeting.id()).stream()

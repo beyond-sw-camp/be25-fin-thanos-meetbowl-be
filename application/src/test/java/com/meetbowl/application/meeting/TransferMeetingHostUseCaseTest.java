@@ -70,8 +70,7 @@ class TransferMeetingHostUseCaseTest {
                 new TransferMeetingHostUseCase(meetingRepository, attendeeRepository);
 
         MeetingResult result =
-                useCase.execute(
-                        new TransferMeetingHostCommand(meetingId, hostUserId, newHostUserId));
+                useCase.execute(new TransferMeetingHostCommand(meetingId, hostUserId, newHostUserId));
 
         assertEquals(newHostUserId, result.hostUserId());
         assertEquals(newHostUserId, meetingRepository.savedMeeting.hostUserId());
