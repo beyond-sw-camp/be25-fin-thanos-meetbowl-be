@@ -1,5 +1,8 @@
 package com.meetbowl.application.meeting;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -27,21 +30,25 @@ public class JoinMeetingUseCase {
 
     private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "게스트";
     private static final String DEFAULT_GUEST_DISPLAY_NAME = "게스트";
+    private static final Duration JOIN_AVAILABLE_BEFORE = Duration.ofMinutes(15);
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final LiveKitTokenIssuer liveKitTokenIssuer;
     private final MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
     private final MeetingGuestNameAllocator meetingGuestNameAllocator;
+    private final Clock clock;
 
     public JoinMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             LiveKitTokenIssuer liveKitTokenIssuer,
             MeetingRealtimeSessionStarter meetingRealtimeSessionStarter,
-            MeetingGuestNameAllocator meetingGuestNameAllocator) {
+            MeetingGuestNameAllocator meetingGuestNameAllocator,
+            Clock clock) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.liveKitTokenIssuer = liveKitTokenIssuer;
         this.meetingRealtimeSessionStarter = meetingRealtimeSessionStarter;
         this.meetingGuestNameAllocator = meetingGuestNameAllocator;
+        this.clock = clock;
     }
 
     public JoinMeetingResult execute(JoinMeetingCommand command) {
@@ -53,6 +60,7 @@ public class JoinMeetingUseCase {
         if (meeting != null && meeting.status() == MeetingStatus.ENDED) {
             throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
         }
+        validateJoinWindow(meeting);
         String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
@@ -136,6 +144,22 @@ public class JoinMeetingUseCase {
         }
         return DEFAULT_GUEST_DISPLAY_NAME.equals(displayName)
                 || "참석자".equals(displayName);
+    }
+
+    /**
+     * 예약 회의는 로비를 너무 일찍 열어두면 실사용자 혼선을 키우므로, 예정 시작 15분 전부터만 입장을 허용한다.
+     *
+     * <p>회의가 DB에 없으면 로컬 개발용 fallback room 경로로 간주해 기존처럼 즉시 입장을 허용한다.
+     */
+    private void validateJoinWindow(Meeting meeting) {
+        if (meeting == null) {
+            return;
+        }
+
+        Instant joinAvailableAt = meeting.scheduledAt().minus(JOIN_AVAILABLE_BEFORE);
+        if (Instant.now(clock).isBefore(joinAvailableAt)) {
+            throw new BusinessException(ErrorCode.MEETING_JOIN_TOO_EARLY);
+        }
     }
 
 }
