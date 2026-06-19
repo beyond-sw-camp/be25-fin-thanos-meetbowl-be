@@ -44,8 +44,12 @@ class AuthTokenStatePrecisionTest {
     private Object invoke(Object target, String methodName, Object... arguments) {
         try {
             Class<?>[] parameterTypes =
-                    java.util.Arrays.stream(arguments).map(Object::getClass).toArray(Class<?>[]::new);
-            return target.getClass().getMethod(methodName, parameterTypes).invoke(target, arguments);
+                    java.util.Arrays.stream(arguments)
+                            .map(Object::getClass)
+                            .toArray(Class<?>[]::new);
+            return target.getClass()
+                    .getMethod(methodName, parameterTypes)
+                    .invoke(target, arguments);
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException(exception);
         }

@@ -11,14 +11,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueCommand;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
 
 class JoinMeetingUseCaseTest {
 
@@ -107,8 +107,7 @@ class JoinMeetingUseCaseTest {
                         new MeetingGuestNameAllocator());
 
         useCase.execute(
-                new JoinMeetingCommand(
-                        meetingId, null, "자동 자막 테스트", "frontend-participant"));
+                new JoinMeetingCommand(meetingId, null, "자동 자막 테스트", "frontend-participant"));
 
         assertTrue(realtimeSessionStarter.called);
         assertEquals("meeting-" + meetingId, realtimeSessionStarter.lastRoomName);
@@ -152,11 +151,9 @@ class JoinMeetingUseCaseTest {
                         allocator);
 
         JoinMeetingResult first =
-                useCase.execute(
-                        new JoinMeetingCommand(meetingId, null, "", "guest-1"));
+                useCase.execute(new JoinMeetingCommand(meetingId, null, "", "guest-1"));
         JoinMeetingResult second =
-                useCase.execute(
-                        new JoinMeetingCommand(meetingId, null, "", "guest-2"));
+                useCase.execute(new JoinMeetingCommand(meetingId, null, "", "guest-2"));
 
         assertEquals("게스트 1", first.participantName());
         assertEquals("게스트 2", second.participantName());

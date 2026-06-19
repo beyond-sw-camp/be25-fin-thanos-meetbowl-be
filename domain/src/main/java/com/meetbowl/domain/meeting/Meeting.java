@@ -283,7 +283,8 @@ public class Meeting {
      */
     public Meeting transferHost(UUID newHostUserId) {
         if (status == MeetingStatus.ENDED || status == MeetingStatus.CANCELLED) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "종료되었거나 취소된 회의는 관리자를 변경할 수 없습니다.");
+            throw new BusinessException(
+                    ErrorCode.COMMON_CONFLICT, "종료되었거나 취소된 회의는 관리자를 변경할 수 없습니다.");
         }
         if (newHostUserId == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "새 회의 관리자는 필수입니다.");

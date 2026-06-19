@@ -37,9 +37,8 @@ public class RabbitMqMeetingEndedEventPublisher implements MeetingEndedEventPubl
             Instant endedAt,
             UUID correlationId) {
         /**
-         * `meeting.ended`는 "회의가 DB에서 종료로 확정됐다"는 사실을 알리는 후속 처리 시작 이벤트다.
-         * 참석자 브라우저가 창을 닫았다는 사실 자체를 바로 담는 이벤트가 아니라,
-         * authoritative 종료 기준(호스트 종료 또는 시스템 종료 처리 완료) 이후에만 발행한다.
+         * `meeting.ended`는 "회의가 DB에서 종료로 확정됐다"는 사실을 알리는 후속 처리 시작 이벤트다. 참석자 브라우저가 창을 닫았다는 사실 자체를 바로
+         * 담는 이벤트가 아니라, authoritative 종료 기준(호스트 종료 또는 시스템 종료 처리 완료) 이후에만 발행한다.
          */
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("meetingId", meetingId);
