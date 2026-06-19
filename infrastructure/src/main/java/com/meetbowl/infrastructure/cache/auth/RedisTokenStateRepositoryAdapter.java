@@ -92,7 +92,9 @@ public class RedisTokenStateRepositoryAdapter implements TokenStateRepositoryPor
             return false;
         }
         Instant revokedAt = Instant.ofEpochMilli(Long.parseLong(revokedAtValue));
-        return !accessTokenIssuedAt.isAfter(revokedAt);
+        // JWT iat는 초 단위라 관리자 초기화 직후 같은 초에 다시 로그인하면 revokedAt의 밀리초보다
+        // 과거로 보일 수 있다. 같은 초에 새로 발급된 토큰까지 막지 않도록 초 단위로만 비교한다.
+        return accessTokenIssuedAt.getEpochSecond() < revokedAt.getEpochSecond();
     }
 
     private String refreshTokenKey(String tokenHash) {
