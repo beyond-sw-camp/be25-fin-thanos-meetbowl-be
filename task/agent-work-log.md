@@ -395,3 +395,32 @@
   `./gradlew.bat :application:test --tests "com.meetbowl.application.auth.LoginUseCaseTest" --tests "com.meetbowl.application.auth.PasswordResetRequestUseCaseTest" --tests "com.meetbowl.application.admin.ResetUserPasswordUseCaseTest" --no-problems-report` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting`, `minutes`, and `transcript` tests on the current branch.
   Passed `./gradlew spotlessApply`
   Passed `./gradlew :app-api:compileJava`
+
+2026-06-19 Admin member/org delete APIs
+
+- Purpose: add admin delete APIs for members, departments, teams, and positions with safe deletion policies, reference validation, audit logging, and user-search impact handling.
+- Changed files:
+  `app-api/admin/AdminUserController`,
+  `app-api/admin/AdminOrganizationController`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `domain/organization/DepartmentRepositoryPort`,
+  `domain/organization/TeamRepositoryPort`,
+  `domain/organization/PositionRepositoryPort`,
+  `infrastructure/persistence/organization/JpaDepartmentRepositoryAdapter`,
+  `infrastructure/persistence/organization/JpaTeamRepositoryAdapter`,
+  `infrastructure/persistence/organization/JpaPositionRepositoryAdapter`,
+  `infrastructure/persistence/organization/SpringDataTeamRepository`,
+  related admin/user tests, and this log.
+- Behavior:
+  Added `DELETE /api/v1/admin/users/{userId}` and implemented it as `INACTIVE` status change instead of hard delete so meetings, mail, audit logs, and other linked data keep referential integrity.
+  Member delete now blocks self-delete and duplicate delete for already inactive members, revokes active sessions immediately, writes success/failure `AdminAuditLog`, and publishes targeted user-search reindex events so admin/user search results reflect the inactive state.
+  Existing admin status update flow now also blocks self-inactivation to prevent bypassing the new self-delete policy.
+  Added `DELETE /api/v1/admin/organizations/departments/{departmentId}` with child-team/member reference checks before physical delete.
+  Added `DELETE /api/v1/admin/organizations/teams/{teamId}` with member reference checks before physical delete.
+  Added `DELETE /api/v1/admin/organizations/positions/{positionId}` with member reference checks before physical delete.
+  Organization delete paths write success/failure `AdminAuditLog`. They do not trigger user-search reindex because delete is allowed only when no member reference remains, so there is no affected user document to refresh.
+- Verification:
+  Passed `./gradlew.bat spotlessApply`
+  Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `./gradlew.bat :app-api:test --tests "*AdminUser*" --tests "*Organization*" --tests "*Position*"`

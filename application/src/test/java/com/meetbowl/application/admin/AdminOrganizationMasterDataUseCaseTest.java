@@ -2,6 +2,8 @@ package com.meetbowl.application.admin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -14,9 +16,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.admin.AdminAuditLog;
+import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
+import com.meetbowl.domain.admin.AuditResult;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.Department;
@@ -26,8 +32,12 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.User;
+import com.meetbowl.domain.user.UserRepositoryPort;
+import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserSearchReindexEventPublisherPort;
 import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
+import com.meetbowl.domain.user.UserStatus;
 
 class AdminOrganizationMasterDataUseCaseTest {
 
@@ -43,6 +53,8 @@ class AdminOrganizationMasterDataUseCaseTest {
     private FakeDepartmentRepository departmentRepository;
     private FakeTeamRepository teamRepository;
     private FakePositionRepository positionRepository;
+    private UserRepositoryPort userRepositoryPort;
+    private FakeAdminAuditLogRepository auditLogRepository;
     private FakeUserSearchReindexEventPublisherPort userSearchReindexEventPublisherPort;
     private UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
     private AdminOrganizationMasterDataUseCase useCase;
@@ -53,6 +65,8 @@ class AdminOrganizationMasterDataUseCaseTest {
         departmentRepository = new FakeDepartmentRepository();
         teamRepository = new FakeTeamRepository();
         positionRepository = new FakePositionRepository();
+        userRepositoryPort = mock(UserRepositoryPort.class);
+        auditLogRepository = new FakeAdminAuditLogRepository();
         userSearchReindexEventPublisherPort = new FakeUserSearchReindexEventPublisherPort();
         userSearchReindexRequestDispatcher =
                 new UserSearchReindexRequestDispatcher(userSearchReindexEventPublisherPort);
@@ -62,6 +76,9 @@ class AdminOrganizationMasterDataUseCaseTest {
                         departmentRepository,
                         teamRepository,
                         positionRepository,
+                        userRepositoryPort,
+                        auditLogRepository,
+                        new ObjectMapper().findAndRegisterModules(),
                         userSearchReindexRequestDispatcher);
     }
 
@@ -266,6 +283,159 @@ class AdminOrganizationMasterDataUseCaseTest {
         assertEquals(ErrorCode.COMMON_NOT_FOUND, exception.errorCode());
     }
 
+    @Test
+    void deleteDepartmentSucceedsWhenNoChildTeamOrMemberExists() {
+        Department department = department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG");
+        departmentRepository.save(department);
+        given(userRepositoryPort.findAllByDepartmentId(DEPARTMENT_ID)).willReturn(List.of());
+
+        useCase.deleteDepartment(
+                new AdminOrganizationMasterDataUseCase.DeleteDepartmentCommand(
+                        DEPARTMENT_ID, UUID.randomUUID(), "Admin", "127.0.0.1", "JUnit"));
+
+        assertEquals(true, departmentRepository.findById(DEPARTMENT_ID).isEmpty());
+        assertEquals(AuditResult.SUCCESS, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deleteDepartmentFailsWhenChildTeamExists() {
+        Department department = department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG");
+        departmentRepository.save(department);
+        teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE"));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.deleteDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .DeleteDepartmentCommand(
+                                                DEPARTMENT_ID,
+                                                UUID.randomUUID(),
+                                                "Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        assertEquals(AuditResult.FAILURE, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deleteDepartmentFailsWhenMemberExists() {
+        Department department = department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG");
+        departmentRepository.save(department);
+        given(userRepositoryPort.findAllByDepartmentId(DEPARTMENT_ID))
+                .willReturn(List.of(user("dept-user", DEPARTMENT_ID, null, null)));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.deleteDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .DeleteDepartmentCommand(
+                                                DEPARTMENT_ID,
+                                                UUID.randomUUID(),
+                                                "Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+    }
+
+    @Test
+    void deleteTeamSucceedsWhenNoMemberExists() {
+        Team team = team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE");
+        teamRepository.save(team);
+        given(userRepositoryPort.findAllByTeamId(TEAM_ID)).willReturn(List.of());
+
+        useCase.deleteTeam(
+                new AdminOrganizationMasterDataUseCase.DeleteTeamCommand(
+                        TEAM_ID, UUID.randomUUID(), "Admin", "127.0.0.1", "JUnit"));
+
+        assertEquals(true, teamRepository.findById(TEAM_ID).isEmpty());
+        assertEquals(AuditResult.SUCCESS, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deleteTeamFailsWhenMemberExists() {
+        Team team = team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE");
+        teamRepository.save(team);
+        given(userRepositoryPort.findAllByTeamId(TEAM_ID))
+                .willReturn(List.of(user("team-user", DEPARTMENT_ID, TEAM_ID, null)));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.deleteTeam(
+                                        new AdminOrganizationMasterDataUseCase.DeleteTeamCommand(
+                                                TEAM_ID,
+                                                UUID.randomUUID(),
+                                                "Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        assertEquals(AuditResult.FAILURE, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deletePositionSucceedsWhenUnused() {
+        Position position = position(POSITION_ID, "Manager", "MGR");
+        positionRepository.save(position);
+        given(userRepositoryPort.findAllByPositionId(POSITION_ID)).willReturn(List.of());
+
+        useCase.deletePosition(
+                new AdminOrganizationMasterDataUseCase.DeletePositionCommand(
+                        POSITION_ID, UUID.randomUUID(), "Admin", "127.0.0.1", "JUnit"));
+
+        assertEquals(true, positionRepository.findById(POSITION_ID).isEmpty());
+        assertEquals(AuditResult.SUCCESS, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deletePositionFailsWhenMemberUsesIt() {
+        Position position = position(POSITION_ID, "Manager", "MGR");
+        positionRepository.save(position);
+        given(userRepositoryPort.findAllByPositionId(POSITION_ID))
+                .willReturn(List.of(user("position-user", DEPARTMENT_ID, TEAM_ID, POSITION_ID)));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.deletePosition(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .DeletePositionCommand(
+                                                POSITION_ID,
+                                                UUID.randomUUID(),
+                                                "Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        assertEquals(AuditResult.FAILURE, auditLogRepository.lastSaved.result());
+    }
+
+    @Test
+    void deleteDepartmentFailsWhenTargetDoesNotExist() {
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.deleteDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .DeleteDepartmentCommand(
+                                                DEPARTMENT_ID,
+                                                UUID.randomUUID(),
+                                                "Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_NOT_FOUND, exception.errorCode());
+    }
+
     private Affiliate affiliate(UUID id, String name, String code) {
         return new Affiliate(id, name, code, ReferenceStatus.ACTIVE, 1, NOW, NOW);
     }
@@ -281,6 +451,26 @@ class AdminOrganizationMasterDataUseCaseTest {
 
     private Position position(UUID id, String name, String code) {
         return new Position(id, name, code, ReferenceStatus.ACTIVE, 1, NOW, NOW);
+    }
+
+    private User user(String loginId, UUID departmentId, UUID teamId, UUID positionId) {
+        return User.of(
+                UUID.randomUUID(),
+                loginId,
+                "hash",
+                "User",
+                loginId + "@example.com",
+                UserRole.USER,
+                UserStatus.ACTIVE,
+                AFFILIATE_ID,
+                departmentId,
+                positionId,
+                teamId,
+                false,
+                NOW,
+                NOW.plusSeconds(3600),
+                NOW,
+                NOW);
     }
 
     private static final class FakeAffiliateRepository implements AffiliateRepositoryPort {
@@ -356,6 +546,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID departmentId) {
+            departments.remove(departmentId);
+        }
+
+        @Override
         public Optional<Department> findById(UUID departmentId) {
             return Optional.ofNullable(departments.get(departmentId));
         }
@@ -409,6 +604,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID teamId) {
+            teams.remove(teamId);
+        }
+
+        @Override
         public Optional<Team> findById(UUID teamId) {
             return Optional.ofNullable(teams.get(teamId));
         }
@@ -426,6 +626,13 @@ class AdminOrganizationMasterDataUseCaseTest {
         @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).filter(java.util.Objects::nonNull).toList();
+        }
+
+        @Override
+        public List<Team> findAllByDepartmentId(UUID departmentId) {
+            return teams.values().stream()
+                    .filter(item -> item.departmentId().equals(departmentId))
+                    .toList();
         }
 
         @Override
@@ -456,6 +663,11 @@ class AdminOrganizationMasterDataUseCaseTest {
         public Position save(Position position) {
             positions.put(position.id(), position);
             return position;
+        }
+
+        @Override
+        public void deleteById(UUID positionId) {
+            positions.remove(positionId);
         }
 
         @Override
@@ -507,6 +719,28 @@ class AdminOrganizationMasterDataUseCaseTest {
                             item ->
                                     !item.id().equals(positionId)
                                             && item.code().equalsIgnoreCase(code));
+        }
+    }
+
+    private static final class FakeAdminAuditLogRepository implements AdminAuditLogRepositoryPort {
+        private AdminAuditLog lastSaved;
+
+        @Override
+        public AdminAuditLog save(AdminAuditLog adminAuditLog) {
+            lastSaved = adminAuditLog;
+            return adminAuditLog;
+        }
+
+        @Override
+        public Optional<AdminAuditLog> findById(UUID auditLogId) {
+            return Optional.ofNullable(lastSaved).filter(log -> log.id().equals(auditLogId));
+        }
+
+        @Override
+        public com.meetbowl.domain.common.Paged<AdminAuditLog> findPage(
+                com.meetbowl.domain.admin.AdminAuditLogSearchCondition condition) {
+            return new com.meetbowl.domain.common.Paged<>(
+                    lastSaved == null ? List.of() : List.of(lastSaved), lastSaved == null ? 0 : 1);
         }
     }
 

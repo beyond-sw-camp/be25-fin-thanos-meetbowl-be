@@ -511,6 +511,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID departmentId) {
+            values.remove(departmentId);
+        }
+
+        @Override
         public Optional<Department> findById(UUID departmentId) {
             return Optional.ofNullable(values.get(departmentId));
         }
@@ -555,6 +560,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID teamId) {
+            values.remove(teamId);
+        }
+
+        @Override
         public Optional<Team> findById(UUID teamId) {
             return Optional.ofNullable(values.get(teamId));
         }
@@ -572,6 +582,13 @@ class AdminOrganizationMembersExcelUseCaseTest {
         @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(values::get).filter(java.util.Objects::nonNull).toList();
+        }
+
+        @Override
+        public List<Team> findAllByDepartmentId(UUID departmentId) {
+            return values.values().stream()
+                    .filter(item -> item.departmentId().equals(departmentId))
+                    .toList();
         }
 
         @Override
@@ -593,6 +610,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         public Position save(Position position) {
             values.put(position.id(), position);
             return position;
+        }
+
+        @Override
+        public void deleteById(UUID positionId) {
+            values.remove(positionId);
         }
 
         @Override

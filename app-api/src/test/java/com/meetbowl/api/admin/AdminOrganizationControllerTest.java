@@ -3,6 +3,7 @@ package com.meetbowl.api.admin;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -219,6 +220,20 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void deleteDepartmentSuccess() throws Exception {
+        mockMvc.perform(
+                        delete(
+                                        "/api/v1/admin/organizations/departments/{departmentId}",
+                                        DEPARTMENT_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void getTeamsSuccess() throws Exception {
         given(useCase.getTeams()).willReturn(List.of(teamResult("ACTIVE")));
 
@@ -297,6 +312,18 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void deleteTeamSuccess() throws Exception {
+        mockMvc.perform(
+                        delete("/api/v1/admin/organizations/teams/{teamId}", TEAM_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void getPositionsSuccess() throws Exception {
         given(useCase.getPositions()).willReturn(List.of(positionResult("ACTIVE")));
 
@@ -370,6 +397,18 @@ class AdminOrganizationControllerTest {
                                 .content("{\"status\":\"INACTIVE\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("INACTIVE"));
+    }
+
+    @Test
+    void deletePositionSuccess() throws Exception {
+        mockMvc.perform(
+                        delete("/api/v1/admin/organizations/positions/{positionId}", POSITION_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test

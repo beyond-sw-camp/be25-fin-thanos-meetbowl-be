@@ -8,9 +8,14 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.admin.AdminAuditLog;
+import com.meetbowl.domain.admin.AdminAuditLogRepositoryPort;
+import com.meetbowl.domain.admin.AuditResult;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.Department;
@@ -20,6 +25,7 @@ import com.meetbowl.domain.organization.PositionRepositoryPort;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.domain.organization.Team;
 import com.meetbowl.domain.organization.TeamRepositoryPort;
+import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 
 @Service
@@ -50,6 +56,9 @@ public class AdminOrganizationMasterDataUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
+    private final UserRepositoryPort userRepositoryPort;
+    private final AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
+    private final ObjectMapper objectMapper;
     private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
 
     public AdminOrganizationMasterDataUseCase(
@@ -57,11 +66,17 @@ public class AdminOrganizationMasterDataUseCase {
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort,
+            UserRepositoryPort userRepositoryPort,
+            AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
+            ObjectMapper objectMapper,
             UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
+        this.userRepositoryPort = userRepositoryPort;
+        this.adminAuditLogRepositoryPort = adminAuditLogRepositoryPort;
+        this.objectMapper = objectMapper;
         this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
     }
 
@@ -201,6 +216,65 @@ public class AdminOrganizationMasterDataUseCase {
                                 Instant.now())));
     }
 
+    @Transactional
+    public void deleteDepartment(DeleteDepartmentCommand command) {
+        Department department =
+                departmentRepositoryPort
+                        .findById(command.departmentId())
+                        .orElseThrow(
+                                () -> {
+                                    saveDeleteFailureAudit(
+                                            command.adminId(),
+                                            command.adminName(),
+                                            command.ipAddress(),
+                                            command.userAgent(),
+                                            "DEPARTMENT",
+                                            command.departmentId(),
+                                            null,
+                                            "삭제할 부서를 찾을 수 없습니다.");
+                                    return new BusinessException(
+                                            ErrorCode.COMMON_NOT_FOUND, "Department not found.");
+                                });
+        String beforeValue = snapshot(toDepartmentResult(department));
+
+        // 부서 삭제 전에는 하위 팀과 소속 회원을 먼저 막아야 조직 트리와 회원 참조가 동시에 깨지지 않는다.
+        if (!teamRepositoryPort.findAllByDepartmentId(department.id()).isEmpty()) {
+            saveDeleteFailureAudit(
+                    command.adminId(),
+                    command.adminName(),
+                    command.ipAddress(),
+                    command.userAgent(),
+                    "DEPARTMENT",
+                    department.id(),
+                    beforeValue,
+                    "소속 팀이 있어 부서를 삭제할 수 없습니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "소속 팀이 있어 부서를 삭제할 수 없습니다.");
+        }
+        if (!userRepositoryPort.findAllByDepartmentId(department.id()).isEmpty()) {
+            saveDeleteFailureAudit(
+                    command.adminId(),
+                    command.adminName(),
+                    command.ipAddress(),
+                    command.userAgent(),
+                    "DEPARTMENT",
+                    department.id(),
+                    beforeValue,
+                    "소속 회원이 있어 부서를 삭제할 수 없습니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "소속 회원이 있어 부서를 삭제할 수 없습니다.");
+        }
+
+        departmentRepositoryPort.deleteById(department.id());
+        saveDeleteSuccessAudit(
+                command.adminId(),
+                command.adminName(),
+                command.ipAddress(),
+                command.userAgent(),
+                "DEPARTMENT",
+                department.id(),
+                beforeValue);
+        // 삭제는 회원 참조가 없을 때만 허용하므로 사용자 검색 문서를 추가로 갱신할 대상이 없다.
+    }
+
     @Transactional(readOnly = true)
     public List<TeamResult> getTeams() {
         return teamRepositoryPort.findAll().stream()
@@ -270,6 +344,52 @@ public class AdminOrganizationMasterDataUseCase {
                                 Instant.now())));
     }
 
+    @Transactional
+    public void deleteTeam(DeleteTeamCommand command) {
+        Team team =
+                teamRepositoryPort
+                        .findById(command.teamId())
+                        .orElseThrow(
+                                () -> {
+                                    saveDeleteFailureAudit(
+                                            command.adminId(),
+                                            command.adminName(),
+                                            command.ipAddress(),
+                                            command.userAgent(),
+                                            "TEAM",
+                                            command.teamId(),
+                                            null,
+                                            "삭제할 팀을 찾을 수 없습니다.");
+                                    return new BusinessException(
+                                            ErrorCode.COMMON_NOT_FOUND, "Team not found.");
+                                });
+        String beforeValue = snapshot(toTeamResult(team));
+
+        // 팀 삭제는 소속 회원이 없을 때만 허용해서 회원의 조직 참조가 dangling 상태가 되지 않게 막는다.
+        if (!userRepositoryPort.findAllByTeamId(team.id()).isEmpty()) {
+            saveDeleteFailureAudit(
+                    command.adminId(),
+                    command.adminName(),
+                    command.ipAddress(),
+                    command.userAgent(),
+                    "TEAM",
+                    team.id(),
+                    beforeValue,
+                    "소속 회원이 있어 팀을 삭제할 수 없습니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "소속 회원이 있어 팀을 삭제할 수 없습니다.");
+        }
+
+        teamRepositoryPort.deleteById(team.id());
+        saveDeleteSuccessAudit(
+                command.adminId(),
+                command.adminName(),
+                command.ipAddress(),
+                command.userAgent(),
+                "TEAM",
+                team.id(),
+                beforeValue);
+    }
+
     @Transactional(readOnly = true)
     public List<PositionResult> getPositions() {
         return positionRepositoryPort.findAll().stream()
@@ -331,6 +451,53 @@ public class AdminOrganizationMasterDataUseCase {
                                 position.sortOrder(),
                                 position.createdAt(),
                                 Instant.now())));
+    }
+
+    @Transactional
+    public void deletePosition(DeletePositionCommand command) {
+        Position position =
+                positionRepositoryPort
+                        .findById(command.positionId())
+                        .orElseThrow(
+                                () -> {
+                                    saveDeleteFailureAudit(
+                                            command.adminId(),
+                                            command.adminName(),
+                                            command.ipAddress(),
+                                            command.userAgent(),
+                                            "POSITION",
+                                            command.positionId(),
+                                            null,
+                                            "삭제할 직급을 찾을 수 없습니다.");
+                                    return new BusinessException(
+                                            ErrorCode.COMMON_NOT_FOUND, "Position not found.");
+                                });
+        String beforeValue = snapshot(toPositionResult(position));
+
+        // 직급 삭제도 사용 중인 회원이 하나라도 있으면 막아야 회원 검색/상세에서 존재하지 않는 직급을 가리키지 않는다.
+        if (!userRepositoryPort.findAllByPositionId(position.id()).isEmpty()) {
+            saveDeleteFailureAudit(
+                    command.adminId(),
+                    command.adminName(),
+                    command.ipAddress(),
+                    command.userAgent(),
+                    "POSITION",
+                    position.id(),
+                    beforeValue,
+                    "해당 직급을 사용하는 회원이 있어 삭제할 수 없습니다.");
+            throw new BusinessException(
+                    ErrorCode.COMMON_CONFLICT, "해당 직급을 사용하는 회원이 있어 삭제할 수 없습니다.");
+        }
+
+        positionRepositoryPort.deleteById(position.id());
+        saveDeleteSuccessAudit(
+                command.adminId(),
+                command.adminName(),
+                command.ipAddress(),
+                command.userAgent(),
+                "POSITION",
+                position.id(),
+                beforeValue);
     }
 
     private void ensureAffiliateUnique(String name, String code, UUID affiliateId) {
@@ -463,6 +630,66 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
+    private String snapshot(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INTERNAL_ERROR, "Failed to serialize admin audit snapshot.");
+        }
+    }
+
+    private void saveDeleteSuccessAudit(
+            UUID adminId,
+            String adminName,
+            String ipAddress,
+            String userAgent,
+            String targetType,
+            UUID targetId,
+            String beforeValue) {
+        adminAuditLogRepositoryPort.save(
+                new AdminAuditLog(
+                        UUID.randomUUID(),
+                        adminId,
+                        adminName,
+                        targetType,
+                        targetId,
+                        "ORGANIZATION_MASTER_DATA",
+                        "DELETE",
+                        AuditResult.SUCCESS,
+                        beforeValue,
+                        null,
+                        ipAddress,
+                        userAgent,
+                        Instant.now()));
+    }
+
+    private void saveDeleteFailureAudit(
+            UUID adminId,
+            String adminName,
+            String ipAddress,
+            String userAgent,
+            String targetType,
+            UUID targetId,
+            String beforeValue,
+            String message) {
+        adminAuditLogRepositoryPort.save(
+                new AdminAuditLog(
+                        UUID.randomUUID(),
+                        adminId,
+                        adminName,
+                        targetType,
+                        targetId,
+                        "ORGANIZATION_MASTER_DATA",
+                        "DELETE",
+                        AuditResult.FAILURE,
+                        beforeValue,
+                        snapshot(new FailureSnapshot(message)),
+                        ipAddress,
+                        userAgent,
+                        Instant.now()));
+    }
+
     private boolean isAffiliateSearchDocumentChanged(Affiliate before, Affiliate after) {
         return !before.name().equals(after.name());
     }
@@ -588,6 +815,13 @@ public class AdminOrganizationMasterDataUseCase {
 
     public record UpdateDepartmentStatusCommand(UUID departmentId, String status) {}
 
+    public record DeleteDepartmentCommand(
+            UUID departmentId,
+            UUID adminId,
+            String adminName,
+            String ipAddress,
+            String userAgent) {}
+
     public record CreateTeamCommand(
             UUID departmentId, String name, String code, String status, Integer sortOrder) {}
 
@@ -601,6 +835,9 @@ public class AdminOrganizationMasterDataUseCase {
 
     public record UpdateTeamStatusCommand(UUID teamId, String status) {}
 
+    public record DeleteTeamCommand(
+            UUID teamId, UUID adminId, String adminName, String ipAddress, String userAgent) {}
+
     public record CreatePositionCommand(
             String name, String code, String status, Integer sortOrder) {}
 
@@ -608,6 +845,9 @@ public class AdminOrganizationMasterDataUseCase {
             UUID positionId, String name, String code, Integer sortOrder, UUID adminId) {}
 
     public record UpdatePositionStatusCommand(UUID positionId, String status) {}
+
+    public record DeletePositionCommand(
+            UUID positionId, UUID adminId, String adminName, String ipAddress, String userAgent) {}
 
     public record AffiliateResult(
             UUID affiliateId,
@@ -646,4 +886,6 @@ public class AdminOrganizationMasterDataUseCase {
             Integer sortOrder,
             Instant createdAt,
             Instant updatedAt) {}
+
+    private record FailureSnapshot(String message) {}
 }
