@@ -276,6 +276,36 @@ public class Meeting {
                 newDescription);
     }
 
+    /**
+     * 회의 관리자를 다른 참석자로 넘긴다.
+     *
+     * <p>회의 중 호스트가 자리를 비우더라도 회의가 계속될 수 있도록, 호스트 권한만 갈아끼우고 나머지 진행 상태는 유지한다.
+     */
+    public Meeting transferHost(UUID newHostUserId) {
+        if (status == MeetingStatus.ENDED || status == MeetingStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "종료되었거나 취소된 회의는 관리자를 변경할 수 없습니다.");
+        }
+        if (newHostUserId == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "새 회의 관리자는 필수입니다.");
+        }
+        if (hostUserId.equals(newHostUserId)) {
+            return this;
+        }
+        return of(
+                id,
+                title,
+                scheduledAt,
+                scheduledEndAt,
+                newHostUserId,
+                meetingRoomId,
+                provider,
+                providerRoomId,
+                status,
+                startedAt,
+                endedAt,
+                description);
+    }
+
     public boolean isHostedBy(UUID userId) {
         return hostUserId.equals(userId);
     }

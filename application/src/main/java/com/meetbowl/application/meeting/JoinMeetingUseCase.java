@@ -10,7 +10,9 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueCommand;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
+import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingStatus;
 
 /**
  * 회의 입장용 LiveKit 접속 정보를 발급한다.
@@ -23,13 +25,23 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 @Transactional(readOnly = true)
 public class JoinMeetingUseCase {
 
+    private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "게스트";
+    private static final String DEFAULT_GUEST_DISPLAY_NAME = "게스트";
+
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final LiveKitTokenIssuer liveKitTokenIssuer;
+    private final MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
+    private final MeetingGuestNameAllocator meetingGuestNameAllocator;
 
     public JoinMeetingUseCase(
-            MeetingRepositoryPort meetingRepositoryPort, LiveKitTokenIssuer liveKitTokenIssuer) {
+            MeetingRepositoryPort meetingRepositoryPort,
+            LiveKitTokenIssuer liveKitTokenIssuer,
+            MeetingRealtimeSessionStarter meetingRealtimeSessionStarter,
+            MeetingGuestNameAllocator meetingGuestNameAllocator) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.liveKitTokenIssuer = liveKitTokenIssuer;
+        this.meetingRealtimeSessionStarter = meetingRealtimeSessionStarter;
+        this.meetingGuestNameAllocator = meetingGuestNameAllocator;
     }
 
     public JoinMeetingResult execute(JoinMeetingCommand command) {
@@ -37,9 +49,16 @@ public class JoinMeetingUseCase {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "회의 ID는 필수입니다.");
         }
 
-        String roomName = resolveRoomName(command.meetingId());
+        Meeting meeting = meetingRepositoryPort.findById(command.meetingId()).orElse(null);
+        if (meeting != null && meeting.status() == MeetingStatus.ENDED) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
+        String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
+
+        // 사용자가 회의 화면에 입장하는 시점에 STT 세션도 같이 보장해야, 자막 탭이 빈 상태로 오래 머무르지 않는다.
+        meetingRealtimeSessionStarter.ensureStarted(command.meetingId(), roomName);
 
         LiveKitTokenIssueResult issuedToken =
                 liveKitTokenIssuer.issue(
@@ -50,6 +69,7 @@ public class JoinMeetingUseCase {
                 command.meetingId(),
                 roomName,
                 issuedToken.livekitUrl(),
+                meeting != null ? meeting.hostUserId() : null,
                 participantIdentity,
                 participantName,
                 issuedToken.token(),
@@ -63,12 +83,12 @@ public class JoinMeetingUseCase {
      * <p>다만 현재 화면은 mock meetingId로도 회의 입장 테스트를 해야 하므로, DB에 회의가 없거나 providerRoomId가 비어 있더라도 즉시 404를
      * 내지 않고 deterministic fallback room을 만든다.
      */
-    private String resolveRoomName(UUID meetingId) {
-        return meetingRepositoryPort
-                .findById(meetingId)
-                .map(meeting -> meeting.providerRoomId())
-                .filter(providerRoomId -> providerRoomId != null && !providerRoomId.isBlank())
-                .orElse("meeting-" + meetingId);
+    private String resolveRoomName(Meeting meeting, UUID meetingId) {
+        return meeting == null
+                ? "meeting-" + meetingId
+                : java.util.Optional.ofNullable(meeting.providerRoomId())
+                        .filter(providerRoomId -> !providerRoomId.isBlank())
+                        .orElse("meeting-" + meetingId);
     }
 
     /**
@@ -87,10 +107,35 @@ public class JoinMeetingUseCase {
         return "guest-" + UUID.randomUUID();
     }
 
+    /**
+     * 게스트는 화면에 같은 이름으로만 보이면 누가 누구인지 구분이 안 되므로, 서버에서 구분 가능한 번호를 붙인다.
+     *
+     * <p>비로그인 게스트는 입력한 이름이 비어 있거나 기본값인 경우만 "게스트 {번호}"로 만든다. 번호는 participantIdentity를 기반으로
+     * 계산해 같은 입장 흐름에서는 일관되게 유지되도록 한다.
+     */
     private String resolveParticipantName(JoinMeetingCommand command) {
-        if (command.displayName() == null || command.displayName().isBlank()) {
-            return "게스트";
+        String requestedDisplayName = normalizeDisplayName(command.displayName());
+        if (command.authenticatedUserId() != null) {
+            return requestedDisplayName.isBlank() ? DEFAULT_GUEST_DISPLAY_NAME : requestedDisplayName;
         }
-        return command.displayName().trim();
+        if (!isDefaultGuestDisplayName(requestedDisplayName)) {
+            return requestedDisplayName;
+        }
+        return DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX
+                + " "
+                + meetingGuestNameAllocator.nextGuestSequence(command.meetingId());
     }
+
+    private String normalizeDisplayName(String displayName) {
+        return displayName == null ? "" : displayName.trim();
+    }
+
+    private boolean isDefaultGuestDisplayName(String displayName) {
+        if (displayName == null || displayName.isBlank()) {
+            return true;
+        }
+        return DEFAULT_GUEST_DISPLAY_NAME.equals(displayName)
+                || "참석자".equals(displayName);
+    }
+
 }
