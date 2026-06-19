@@ -36,10 +36,12 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
                     + " LEFT JOIN PostLikeEntity l ON l.postId = p.id"
                     + " LEFT JOIN CommentEntity c ON c.postId = p.id";
 
+    // 공백 무시 검색: 저장된 제목/내용에서 공백을 제거하고 비교한다(검색어도 어댑터에서 공백 제거).
+    // 예) 제목 "테 스트" ↔ 검색어 "테스트" 매칭. :keyword 는 소문자·공백제거 %like% 패턴이다.
     String LIST_FILTER =
             " WHERE (:category IS NULL OR p.category = :category)"
-                    + " AND (:keyword IS NULL OR LOWER(p.title) LIKE :keyword"
-                    + " OR LOWER(p.content) LIKE :keyword)";
+                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
+                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)";
 
     String LIST_GROUP_BY =
             " GROUP BY p.id, p.category, p.title, p.content, p.authorUserId, p.viewCount,"
@@ -51,8 +53,8 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
     String LIST_COUNT =
             "SELECT COUNT(p) FROM PostEntity p"
                     + " WHERE (:category IS NULL OR p.category = :category)"
-                    + " AND (:keyword IS NULL OR LOWER(p.title) LIKE :keyword"
-                    + " OR LOWER(p.content) LIKE :keyword)";
+                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
+                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)";
 
     /** 최신순(createdAt DESC) 목록. */
     @Query(

@@ -11,6 +11,9 @@ import com.meetbowl.domain.community.CommunityPostListItem;
  *
  * <p>카테고리는 app-api가 도메인 enum에 의존하지 않도록 코드값({@code category})과 한글 라벨({@code categoryLabel}) 문자열로 풀어
  * 담는다.
+ *
+ * <p>{@code mine}은 현재 사용자가 작성자인지, {@code liked}는 현재 사용자가 이 글에 좋아요를 눌렀는지다. 둘 다 boolean만 담아 익명성을 해치지
+ * 않는다(작성자 userId는 여전히 비노출).
  */
 public record PostListItemResult(
         UUID id,
@@ -22,9 +25,12 @@ public record PostListItemResult(
         Instant createdAt,
         long viewCount,
         long likeCount,
-        long commentCount) {
+        long commentCount,
+        boolean mine,
+        boolean liked) {
 
-    public static PostListItemResult of(CommunityPostListItem item, String authorAlias) {
+    public static PostListItemResult of(
+            CommunityPostListItem item, String authorAlias, boolean mine, boolean liked) {
         return new PostListItemResult(
                 item.id(),
                 item.category().name(),
@@ -35,6 +41,8 @@ public record PostListItemResult(
                 item.createdAt(),
                 item.viewCount(),
                 item.likeCount(),
-                item.commentCount());
+                item.commentCount(),
+                mine,
+                liked);
     }
 }

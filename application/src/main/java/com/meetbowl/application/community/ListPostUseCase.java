@@ -14,6 +14,7 @@ import com.meetbowl.domain.community.CommunityPostListItem;
 import com.meetbowl.domain.community.CommunityPostQuery;
 import com.meetbowl.domain.community.CommunityPostQueryPort;
 import com.meetbowl.domain.community.CommunityPostSort;
+import com.meetbowl.domain.community.PostLikeRepositoryPort;
 
 /**
  * 게시글 목록 조회 UseCase다. 카테고리·검색어·정렬(최신순/인기순)·페이징 조건으로 한 페이지를 조회하고, 각 글의 작성자 userId를 "익명N" 표시명으로 배치
@@ -26,21 +27,27 @@ public class ListPostUseCase {
 
     private final CommunityPostQueryPort communityPostQueryPort;
     private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final PostLikeRepositoryPort postLikeRepositoryPort;
 
     public ListPostUseCase(
             CommunityPostQueryPort communityPostQueryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver) {
+            CommunityAliasDisplayResolver aliasDisplayResolver,
+            PostLikeRepositoryPort postLikeRepositoryPort) {
         this.communityPostQueryPort = communityPostQueryPort;
         this.aliasDisplayResolver = aliasDisplayResolver;
+        this.postLikeRepositoryPort = postLikeRepositoryPort;
     }
 
     /**
      * 목록을 조회한다. app-api가 도메인 타입에 의존하지 않도록 카테고리/정렬은 문자열로 받아 여기서 해석한다. {@code category}가 null/공백이면 전체
      * 카테고리, {@code sort}가 "popular"면 인기순, 그 외(기본 latest)는 최신순이다.
+     *
+     * <p>{@code requesterId}는 현재 로그인 사용자다. 각 글의 작성자 여부(mine)·좋아요 여부(liked)를 계산해 내리되, 좋아요는 이 페이지의 글
+     * ID를 모아 한 번에 배치 조회해 N+1을 피한다.
      */
     @Transactional(readOnly = true)
     public PostListPageResult execute(
-            String category, String keyword, String sort, int page, int size) {
+            String category, String keyword, String sort, int page, int size, UUID requesterId) {
         CommunityCategory categoryFilter =
                 (category == null || category.isBlank()) ? null : CommunityCategory.from(category);
         CommunityPostSort sortType =
@@ -59,6 +66,11 @@ public class ListPostUseCase {
                         .collect(Collectors.toSet());
         Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
 
+        // 이 페이지의 글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피).
+        Set<UUID> postIds =
+                paged.content().stream().map(CommunityPostListItem::id).collect(Collectors.toSet());
+        Set<UUID> likedPostIds = postLikeRepositoryPort.findLikedPostIds(requesterId, postIds);
+
         var items =
                 paged.content().stream()
                         .map(
@@ -68,7 +80,9 @@ public class ListPostUseCase {
                                                 aliasByUser.getOrDefault(
                                                         item.authorUserId(),
                                                         CommunityAliasDisplayResolver
-                                                                .FALLBACK_DISPLAY_NAME)))
+                                                                .FALLBACK_DISPLAY_NAME),
+                                                item.authorUserId().equals(requesterId),
+                                                likedPostIds.contains(item.id())))
                         .toList();
 
         return new PostListPageResult(

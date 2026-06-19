@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -108,6 +109,54 @@ class JpaCommunityPersistenceAdapterTest {
         postLikeRepositoryPort.deleteByPostIdAndUserId(postId, userId);
         assertThat(postLikeRepositoryPort.existsByPostIdAndUserId(postId, userId)).isFalse();
         assertThat(postLikeRepositoryPort.countByPostId(postId)).isZero();
+    }
+
+    @Test
+    void findLikedPostIdsReturnsOnlyRequestersLikesWithinGivenIds() {
+        UUID user = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        UUID likedPost = UUID.randomUUID();
+        UUID notLikedPost = UUID.randomUUID();
+        UUID likedByOther = UUID.randomUUID();
+
+        // user는 likedPost만 좋아요, other는 likedByOther를 좋아요.
+        postLikeRepositoryPort.save(PostLike.create(likedPost, user));
+        postLikeRepositoryPort.save(PostLike.create(likedByOther, other));
+
+        // 조회 대상 집합엔 안 누른 글·타인이 누른 글도 섞여 있지만, user가 누른 것만 돌려줘야 한다.
+        Set<UUID> result =
+                postLikeRepositoryPort.findLikedPostIds(
+                        user, List.of(likedPost, notLikedPost, likedByOther));
+
+        assertThat(result).containsExactly(likedPost);
+    }
+
+    @Test
+    void findLikedPostIdsEmptyWhenNoIdsOrNoLikes() {
+        UUID user = UUID.randomUUID();
+        // 빈 ID 집합 → 쿼리 없이 빈 결과.
+        assertThat(postLikeRepositoryPort.findLikedPostIds(user, List.of())).isEmpty();
+        // 좋아요 이력이 없는 사용자 → 빈 결과.
+        assertThat(postLikeRepositoryPort.findLikedPostIds(user, List.of(UUID.randomUUID())))
+                .isEmpty();
+    }
+
+    @Test
+    void findLikedCommentIdsReturnsOnlyRequestersLikesWithinGivenIds() {
+        UUID user = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        UUID likedComment = UUID.randomUUID();
+        UUID notLikedComment = UUID.randomUUID();
+        UUID likedByOther = UUID.randomUUID();
+
+        commentLikeRepositoryPort.save(CommentLike.create(likedComment, user));
+        commentLikeRepositoryPort.save(CommentLike.create(likedByOther, other));
+
+        Set<UUID> result =
+                commentLikeRepositoryPort.findLikedCommentIds(
+                        user, List.of(likedComment, notLikedComment, likedByOther));
+
+        assertThat(result).containsExactly(likedComment);
     }
 
     @Test

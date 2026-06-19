@@ -115,6 +115,7 @@ public class CommunityController extends BaseController {
      */
     @GetMapping
     public ApiResponse<PostPageResponse> listPosts(
+            @CurrentUser AuthenticatedUser currentUser,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "latest") String sort,
@@ -123,13 +124,18 @@ public class CommunityController extends BaseController {
         // 카테고리/정렬 해석은 UseCase에서 수행한다(app-api는 도메인 타입에 의존하지 않는다).
         return ok(
                 PostPageResponse.from(
-                        listPostUseCase.execute(category, keyword, sort, page, size)));
+                        listPostUseCase.execute(
+                                category, keyword, sort, page, size, currentUser.userId())));
     }
 
     /** Hot 게시글 조회. 최근 48시간 내 글 중 인기 점수 상위 3개를 목록 상단 노출용으로 내린다. */
     @GetMapping("/hot")
-    public ApiResponse<List<PostListItemResponse>> hotPosts() {
-        return ok(getHotPostsUseCase.execute().stream().map(PostListItemResponse::from).toList());
+    public ApiResponse<List<PostListItemResponse>> hotPosts(
+            @CurrentUser AuthenticatedUser currentUser) {
+        return ok(
+                getHotPostsUseCase.execute(currentUser.userId()).stream()
+                        .map(PostListItemResponse::from)
+                        .toList());
     }
 
     /** 게시글 상세 조회. 조회 시 조회수를 1 증가시키고 본문·카운트·작성 시각·현재 사용자의 좋아요 여부를 내린다. 없는 글이면 404. */
@@ -179,9 +185,10 @@ public class CommunityController extends BaseController {
 
     /** 댓글 목록 조회. 한 게시글의 댓글을 등록순으로, 작성자 "익명N"·좋아요 수와 함께 내린다. 게시글이 없으면 404. */
     @GetMapping("/{postId}/comments")
-    public ApiResponse<List<CommentListItemResponse>> listComments(@PathVariable UUID postId) {
+    public ApiResponse<List<CommentListItemResponse>> listComments(
+            @CurrentUser AuthenticatedUser currentUser, @PathVariable UUID postId) {
         return ok(
-                listCommentsUseCase.execute(postId).stream()
+                listCommentsUseCase.execute(postId, currentUser.userId()).stream()
                         .map(CommentListItemResponse::from)
                         .toList());
     }

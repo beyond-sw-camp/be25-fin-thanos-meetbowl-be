@@ -57,8 +57,9 @@ public class CommunityPostQueryAdapter implements CommunityPostQueryPort {
     }
 
     /**
-     * 검색어를 대소문자 무시 부분일치 LIKE 패턴으로 정규화한다. 앞뒤 공백을 제거하고 소문자로 낮춘 뒤 {@code %...%} 로 감싼다. null/공백이면 검색
-     * 미적용을 의미하는 null 을 반환한다(쿼리의 {@code :keyword IS NULL} 분기와 연결).
+     * 검색어를 대소문자·공백 무시 부분일치 LIKE 패턴으로 정규화한다. 앞뒤 공백 제거 → 소문자 변환 → 내부 공백까지 모두 제거한 뒤 {@code %...%}
+     * 로 감싼다. 쿼리도 제목/내용의 공백을 제거하고 비교하므로 "테 스트" ↔ "테스트" 가 매칭된다. null/공백이면 검색 미적용을 의미하는 null 을
+     * 반환한다(쿼리의 {@code :keyword IS NULL} 분기와 연결).
      */
     private String toLikePattern(String keyword) {
         if (keyword == null) {
@@ -68,6 +69,6 @@ public class CommunityPostQueryAdapter implements CommunityPostQueryPort {
         if (trimmed.isEmpty()) {
             return null;
         }
-        return "%" + trimmed.toLowerCase() + "%";
+        return "%" + trimmed.toLowerCase().replace(" ", "") + "%";
     }
 }
