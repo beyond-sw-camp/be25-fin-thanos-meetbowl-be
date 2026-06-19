@@ -22,9 +22,14 @@ import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
+import com.meetbowl.api.meeting.dto.EndMeetingResponse;
+import com.meetbowl.api.meeting.dto.TransferMeetingHostRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingResponse;
 import com.meetbowl.application.meeting.CancelMeetingUseCase;
+import com.meetbowl.application.meeting.EndMeetingCommand;
+import com.meetbowl.application.meeting.EndMeetingResult;
+import com.meetbowl.application.meeting.EndMeetingUseCase;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
@@ -33,8 +38,12 @@ import com.meetbowl.application.meeting.JoinMeetingResult;
 import com.meetbowl.application.meeting.JoinMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
+import com.meetbowl.application.meeting.TransferMeetingHostCommand;
+import com.meetbowl.application.meeting.TransferMeetingHostUseCase;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.common.response.ApiResponse;
 
 /** 회의 생성, 조회, 수정, 취소와 회의 입장 정보를 제공하는 API다. */
@@ -46,6 +55,8 @@ public class MeetingController extends BaseController {
     private final GetMeetingUseCase getMeetingUseCase;
     private final UpdateMeetingUseCase updateMeetingUseCase;
     private final CancelMeetingUseCase cancelMeetingUseCase;
+    private final EndMeetingUseCase endMeetingUseCase;
+    private final TransferMeetingHostUseCase transferMeetingHostUseCase;
     private final JoinMeetingUseCase joinMeetingUseCase;
 
     public MeetingController(
@@ -53,11 +64,15 @@ public class MeetingController extends BaseController {
             GetMeetingUseCase getMeetingUseCase,
             UpdateMeetingUseCase updateMeetingUseCase,
             CancelMeetingUseCase cancelMeetingUseCase,
+            EndMeetingUseCase endMeetingUseCase,
+            TransferMeetingHostUseCase transferMeetingHostUseCase,
             JoinMeetingUseCase joinMeetingUseCase) {
         this.createMeetingUseCase = createMeetingUseCase;
         this.getMeetingUseCase = getMeetingUseCase;
         this.updateMeetingUseCase = updateMeetingUseCase;
         this.cancelMeetingUseCase = cancelMeetingUseCase;
+        this.endMeetingUseCase = endMeetingUseCase;
+        this.transferMeetingHostUseCase = transferMeetingHostUseCase;
         this.joinMeetingUseCase = joinMeetingUseCase;
     }
 
@@ -164,6 +179,53 @@ public class MeetingController extends BaseController {
                                 request.displayName(),
                                 request.participantIdentity()));
         return ok(JoinMeetingResponse.from(result));
+    }
+
+    /**
+     * 회의 종료를 요청한다.
+     *
+     * <p>현재는 회의 생성자(로그인 사용자) 기준으로만 종료를 허용하고, 회의가 끝나면 FE가 LiveKit DataChannel로 나머지 참여자를 함께
+     * 내보낸다.
+     */
+    @PostMapping("/{meetingId}/end")
+    public ApiResponse<EndMeetingResponse> endMeeting(
+            @PathVariable UUID meetingId,
+            @CurrentUser(required = false) AuthenticatedUser currentUser) {
+        if (currentUser != null) {
+            MeetingResult meeting =
+                    getMeetingUseCase.getById(meetingId, currentUser.userId(), currentUser.isAdmin());
+            if (!meeting.hostUserId().equals(currentUser.userId())) {
+                throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "회의 주최자만 종료할 수 있습니다.");
+            }
+        }
+        EndMeetingResult result =
+                endMeetingUseCase.execute(
+                        new EndMeetingCommand(
+                                meetingId,
+                                Instant.now(),
+                                UUID.randomUUID(),
+                                "meeting-ended",
+                                currentUser != null ? currentUser.displayName() : "meeting-client"));
+        return ok(EndMeetingResponse.from(result));
+    }
+
+    /**
+     * 회의 관리자 이전.
+     *
+     * <p>호스트가 잠시 자리를 비우거나 화면 공유 중 역할을 넘겨야 할 때, 현재 참여자 중 한 명을 새 호스트로 지정한다.
+     */
+    @PostMapping("/{meetingId}/transfer-host")
+    public ApiResponse<MeetingResponse> transferHost(
+            @PathVariable UUID meetingId,
+            @CurrentUser(required = false) AuthenticatedUser currentUser,
+            @Valid @RequestBody TransferMeetingHostRequest request) {
+        MeetingResult result =
+                transferMeetingHostUseCase.execute(
+                        new TransferMeetingHostCommand(
+                                meetingId,
+                                currentUser != null ? currentUser.userId() : null,
+                                request.newHostUserId()));
+        return ok(MeetingResponse.from(result));
     }
 
     private MeetingListFilter toFilter(String role) {
