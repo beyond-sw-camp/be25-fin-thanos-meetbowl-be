@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -90,6 +91,13 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_REQUEST;
+        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+    }
+
+    /** 만료·폐기·위조된 JWT는 공통 401 응답으로 변환한다. */
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJwtException(JwtException exception) {
+        ErrorCode errorCode = ErrorCode.COMMON_UNAUTHORIZED;
         return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
     }
 

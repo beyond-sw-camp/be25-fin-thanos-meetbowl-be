@@ -1,6 +1,7 @@
 package com.meetbowl.api.common.auth;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -40,11 +41,9 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
     public JwtAuthenticationToken convert(Jwt jwt) {
         AuthenticatedUser authenticatedUser = toAuthenticatedUser(jwt);
         Collection<GrantedAuthority> authorities =
-                authenticatedUser.initialPasswordChangeRequired()
-                        ? List.of(new SimpleGrantedAuthority(PASSWORD_CHANGE_REQUIRED_AUTHORITY))
-                        : List.of(
-                                new SimpleGrantedAuthority(
-                                        ROLE_PREFIX + authenticatedUser.role().name()));
+                buildAuthorities(
+                        authenticatedUser.role(),
+                        authenticatedUser.initialPasswordChangeRequired());
 
         JwtAuthenticationToken authentication =
                 new JwtAuthenticationToken(jwt, authorities, authenticatedUser.userId().toString());
@@ -78,6 +77,17 @@ public class JwtAuthenticatedUserConverter implements Converter<Jwt, JwtAuthenti
                 tokenId,
                 jwt.getExpiresAt(),
                 initialPasswordChangeRequired);
+    }
+
+    private Collection<GrantedAuthority> buildAuthorities(
+            AuthenticatedUserRole role, boolean initialPasswordChangeRequired) {
+        LinkedHashSet<GrantedAuthority> authorities = new LinkedHashSet<>();
+        // 초기 비밀번호 변경 대상도 기존 USER/ADMIN 권한은 유지해야 일반 API 접근이 막히지 않는다.
+        authorities.add(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
+        if (initialPasswordChangeRequired) {
+            authorities.add(new SimpleGrantedAuthority(PASSWORD_CHANGE_REQUIRED_AUTHORITY));
+        }
+        return List.copyOf(authorities);
     }
 
     private UUID parseUuid(String value, String claimName) {

@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.BadJwtException;
@@ -80,7 +81,7 @@ class JwtAuthenticatedUserConverterTest {
     }
 
     @Test
-    void initialPasswordChangeTokenOnlyGetsPasswordChangeAuthority() {
+    void initialPasswordChangeTokenGetsRoleAndPasswordChangeAuthorities() {
         Jwt jwt =
                 jwtBuilder(UUID.randomUUID())
                         .claim("role", "ADMIN")
@@ -93,8 +94,10 @@ class JwtAuthenticatedUserConverterTest {
                 assertInstanceOf(AuthenticatedUser.class, authentication.getDetails());
         assertEquals(true, user.initialPasswordChangeRequired());
         assertEquals(
-                "ROLE_PASSWORD_CHANGE_REQUIRED",
-                authentication.getAuthorities().iterator().next().getAuthority());
+                java.util.Set.of("ROLE_ADMIN", "ROLE_PASSWORD_CHANGE_REQUIRED"),
+                authentication.getAuthorities().stream()
+                        .map(authority -> authority.getAuthority())
+                        .collect(Collectors.toSet()));
     }
 
     @Test
