@@ -40,26 +40,6 @@ public class RedisTokenStateRepositoryAdapter implements TokenStateRepositoryPor
     }
 
     @Override
-    public boolean hasActiveRefreshToken(UUID userId) {
-        Set<String> tokenHashes = redisTemplate.opsForSet().members(userRefreshTokenKey(userId));
-        if (tokenHashes == null || tokenHashes.isEmpty()) {
-            return false;
-        }
-
-        boolean hasActiveToken = false;
-        for (String tokenHash : tokenHashes) {
-            // 활성 세션 판단은 실제 refresh token key 존재 여부로 본다.
-            // 만료됐는데 사용자 인덱스에만 남은 해시는 여기서 정리해서 오탐을 막는다.
-            if (Boolean.TRUE.equals(redisTemplate.hasKey(refreshTokenKey(tokenHash)))) {
-                hasActiveToken = true;
-                break;
-            }
-            redisTemplate.opsForSet().remove(userRefreshTokenKey(userId), tokenHash);
-        }
-        return hasActiveToken;
-    }
-
-    @Override
     public Optional<UUID> consumeRefreshToken(String tokenHash) {
         String userId = redisTemplate.opsForValue().getAndDelete(refreshTokenKey(tokenHash));
         Optional<UUID> consumedUserId = Optional.ofNullable(userId).map(UUID::fromString);

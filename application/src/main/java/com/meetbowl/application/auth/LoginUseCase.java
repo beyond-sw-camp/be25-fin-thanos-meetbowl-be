@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.Department;
@@ -32,7 +31,6 @@ public class LoginUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
-    private final TokenStateRepositoryPort tokenStateRepositoryPort;
 
     public LoginUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -41,8 +39,7 @@ public class LoginUseCase {
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
-            PositionRepositoryPort positionRepositoryPort,
-            TokenStateRepositoryPort tokenStateRepositoryPort) {
+            PositionRepositoryPort positionRepositoryPort) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
         this.authTokenIssuer = authTokenIssuer;
@@ -50,7 +47,6 @@ public class LoginUseCase {
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
-        this.tokenStateRepositoryPort = tokenStateRepositoryPort;
     }
 
     public LoginResult execute(LoginCommand command) {
@@ -74,12 +70,6 @@ public class LoginUseCase {
         if (user.isSystemAccount()) {
             throw new BusinessException(
                     ErrorCode.COMMON_UNAUTHORIZED, "시스템 계정은 내부 인증만 사용할 수 있습니다.");
-        }
-        // ADMIN 계정은 유효한 refresh token 이 남아 있으면 기존 세션이 살아 있는 것으로 보고,
-        // 먼저 로그인한 관리자 세션은 유지한 채 후행 로그인만 차단한다.
-        if (user.role().canAccessAdminApi()
-                && tokenStateRepositoryPort.hasActiveRefreshToken(user.id())) {
-            throw new BusinessException(ErrorCode.AUTH_ADMIN_ALREADY_LOGGED_IN);
         }
 
         IssuedTokens tokens =

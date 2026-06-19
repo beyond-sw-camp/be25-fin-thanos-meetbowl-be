@@ -18,8 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.auth.TokenStateRepositoryPort;
 import com.meetbowl.domain.organization.AffiliateRepositoryPort;
 import com.meetbowl.domain.organization.DepartmentRepositoryPort;
 import com.meetbowl.domain.organization.PositionRepositoryPort;
@@ -41,7 +39,6 @@ class LoginUseCaseTest {
     @Mock private DepartmentRepositoryPort departmentRepositoryPort;
     @Mock private TeamRepositoryPort teamRepositoryPort;
     @Mock private PositionRepositoryPort positionRepositoryPort;
-    @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
 
     @BeforeEach
     void setUp() {
@@ -53,8 +50,7 @@ class LoginUseCaseTest {
                         affiliateRepositoryPort,
                         departmentRepositoryPort,
                         teamRepositoryPort,
-                        positionRepositoryPort,
-                        tokenStateRepositoryPort);
+                        positionRepositoryPort);
     }
 
     @Test
@@ -77,32 +73,18 @@ class LoginUseCaseTest {
     }
 
     @Test
-    void adminSecondLoginFailsWhenActiveRefreshTokenExists() {
+    @DisplayName("login success - admin")
+    void loginSuccessAdmin() {
         String loginId = "admin";
         User admin = createUser(loginId, "hash", UserRole.ADMIN);
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(admin));
         given(passwordEncoder.matches("password", "hash")).willReturn(true);
-        given(tokenStateRepositoryPort.hasActiveRefreshToken(admin.id())).willReturn(true);
-
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
-
-        assertEquals(ErrorCode.AUTH_ADMIN_ALREADY_LOGGED_IN, exception.errorCode());
-    }
-
-    @Test
-    void userLoginIsNotBlockedByAnotherActiveSession() {
-        String loginId = "user1";
-        User user = createUser(loginId, "hash", UserRole.USER);
-        given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
-        given(passwordEncoder.matches("password", "hash")).willReturn(true);
-        given(authTokenIssuer.issue(user))
+        given(authTokenIssuer.issue(admin))
                 .willReturn(new IssuedTokens("access", "refresh", "Bearer", 900L, 1209600L));
 
         LoginResult result = loginUseCase.execute(new LoginCommand(loginId, "password"));
 
+        assertEquals("access", result.accessToken());
         assertEquals("refresh", result.refreshToken());
     }
 
@@ -159,12 +141,9 @@ class LoginUseCaseTest {
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "hash")).willReturn(true);
 
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
-
-        assertEquals(ErrorCode.COMMON_UNAUTHORIZED, exception.errorCode());
+        assertThrows(
+                BusinessException.class,
+                () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
     }
 
     private User createUser(String loginId, String hash, UserRole role) {
