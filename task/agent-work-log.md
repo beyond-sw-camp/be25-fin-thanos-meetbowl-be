@@ -340,3 +340,14 @@
   Passed `./gradlew.bat :application:compileJava :app-api:compileJava`
   Passed `./gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationMembersExcelControllerTest"`
   `./gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests. This work also added `findAll()` implementations to existing fake user repositories so the new `UserRepositoryPort` method does not introduce extra failures on top of those pre-existing test issues.
+
+2026-06-19 Initial password reset same-second login fix
+
+- Purpose: fix the password reset/login regression where a user reset to `1234` could log in, but the freshly issued access token was treated as revoked inside the same second and every protected API failed before the forced password change flow could continue.
+- Changed files: `infrastructure/cache/auth/RedisTokenStateRepositoryAdapter`, `app-api/common/GlobalExceptionHandler`, new `app-api/auth/AuthTokenStatePrecisionTest`, and this log.
+- Behavior:
+  Session revocation now compares JWT `iat` and user-session `revokedAt` at second precision so a new token issued in the same second as an admin password reset is not rejected as already revoked.
+  Revoked/invalid JWT failures are converted to the common 401 response instead of leaking a raw 500 error page.
+- Verification:
+  Reproduced before fix against local API: `POST /api/v1/admin/users/{userId}/password/reset` -> `POST /api/v1/auth/login` with `user1 / 1234` succeeded, but follow-up protected calls failed with `500` and `BadJwtException: Access Token is revoked.` in `bootrun.out.log`.
+  Pending local rerun after rebuild/restart: login with reset password, forced password change, and post-change re-login.
