@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +23,9 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
 class JoinMeetingUseCaseTest {
+
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-06-12T00:40:00Z"), ZoneOffset.UTC);
 
     @Test
     void providerRoomId가있으면기존Room으로토큰을발급한다() {
@@ -47,7 +52,8 @@ class JoinMeetingUseCaseTest {
                                         "주간 전략 공유")),
                         tokenIssuer,
                         realtimeSessionStarter,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
 
         JoinMeetingResult result =
                 useCase.execute(
@@ -77,7 +83,8 @@ class JoinMeetingUseCaseTest {
                         new StubMeetingRepository(null),
                         tokenIssuer,
                         realtimeSessionStarter,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
 
         JoinMeetingResult result =
                 useCase.execute(
@@ -104,7 +111,8 @@ class JoinMeetingUseCaseTest {
                         new StubMeetingRepository(null),
                         tokenIssuer,
                         realtimeSessionStarter,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
 
         useCase.execute(
                 new JoinMeetingCommand(
@@ -125,7 +133,8 @@ class JoinMeetingUseCaseTest {
                         new StubMeetingRepository(null),
                         tokenIssuer,
                         realtimeSessionStarter,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
 
         JoinMeetingResult result =
                 useCase.execute(
@@ -149,7 +158,8 @@ class JoinMeetingUseCaseTest {
                         new StubMeetingRepository(null),
                         tokenIssuer,
                         realtimeSessionStarter,
-                        allocator);
+                        allocator,
+                        FIXED_CLOCK);
 
         JoinMeetingResult first =
                 useCase.execute(
@@ -184,7 +194,8 @@ class JoinMeetingUseCaseTest {
                                         "종료 테스트")),
                         new RecordingTokenIssuer(),
                         new RecordingRealtimeSessionStarter(),
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
 
         BusinessException exception =
                 assertThrows(
@@ -195,6 +206,79 @@ class JoinMeetingUseCaseTest {
                                                 meetingId, null, "게스트", "guest-ended-test")));
 
         assertEquals(ErrorCode.MEETING_ALREADY_ENDED, exception.errorCode());
+    }
+
+    @Test
+    void 회의시작15분전보다이르면입장할수없다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "너무 이른 회의 입장",
+                                        Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-upcoming",
+                                        MeetingStatus.SCHEDULED,
+                                        null,
+                                        null,
+                                        "입장 시간 제한 테스트")),
+                        new RecordingTokenIssuer(),
+                        new RecordingRealtimeSessionStarter(),
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new JoinMeetingCommand(
+                                                meetingId, null, "게스트", "guest-early-test")));
+
+        assertEquals(ErrorCode.MEETING_JOIN_TOO_EARLY, exception.errorCode());
+    }
+
+    @Test
+    void 회의시작15분전부터는입장할수있다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
+        RecordingRealtimeSessionStarter realtimeSessionStarter =
+                new RecordingRealtimeSessionStarter();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "입장 가능 회의",
+                                        Instant.parse("2026-06-12T00:55:00Z"),
+                                        Instant.parse("2026-06-12T01:55:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-open",
+                                        MeetingStatus.SCHEDULED,
+                                        null,
+                                        null,
+                                        "입장 가능 시간 테스트")),
+                        tokenIssuer,
+                        realtimeSessionStarter,
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
+
+        JoinMeetingResult result =
+                useCase.execute(
+                        new JoinMeetingCommand(
+                                meetingId, null, "게스트", "guest-open-test"));
+
+        assertEquals("provider-room-open", result.roomName());
+        assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {
