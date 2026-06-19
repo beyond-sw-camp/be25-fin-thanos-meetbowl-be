@@ -1,6 +1,6 @@
 package com.meetbowl.common.exception;
 
-/** API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다. 새 도메인 에러가 필요하면 docs/api-spec.md의 에러 계약과 함께 추가한다. */
+/** API 실패 응답의 code와 HTTP status를 한 곳에서 관리한다. */
 public enum ErrorCode {
     // Common
     VALIDATION_FAILED("VALIDATION_FAILED", "요청 값이 올바르지 않습니다.", 400),

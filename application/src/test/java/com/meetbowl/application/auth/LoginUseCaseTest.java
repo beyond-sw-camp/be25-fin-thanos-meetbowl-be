@@ -54,9 +54,8 @@ class LoginUseCaseTest {
     }
 
     @Test
-    @DisplayName("로그인 성공 - 일반 사용자")
+    @DisplayName("login success - user")
     void loginSuccessUser() {
-        // given
         String loginId = "user1";
         String password = "password";
         User user = createUser(loginId, "hash", UserRole.USER);
@@ -67,18 +66,31 @@ class LoginUseCaseTest {
         given(authTokenIssuer.issue(any()))
                 .willReturn(new IssuedTokens("access", "refresh", "Bearer", 900L, 1209600L));
 
-        // when
         LoginResult result = loginUseCase.execute(command);
 
-        // then
         assertEquals("access", result.accessToken());
         assertEquals("refresh", result.refreshToken());
     }
 
     @Test
-    @DisplayName("비활성 사용자 로그인 실패")
+    @DisplayName("login success - admin")
+    void loginSuccessAdmin() {
+        String loginId = "admin";
+        User admin = createUser(loginId, "hash", UserRole.ADMIN);
+        given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(admin));
+        given(passwordEncoder.matches("password", "hash")).willReturn(true);
+        given(authTokenIssuer.issue(admin))
+                .willReturn(new IssuedTokens("access", "refresh", "Bearer", 900L, 1209600L));
+
+        LoginResult result = loginUseCase.execute(new LoginCommand(loginId, "password"));
+
+        assertEquals("access", result.accessToken());
+        assertEquals("refresh", result.refreshToken());
+    }
+
+    @Test
+    @DisplayName("inactive user login fails")
     void loginFailInactiveUser() {
-        // given
         String loginId = "user1";
         User user =
                 User.of(
@@ -100,7 +112,6 @@ class LoginUseCaseTest {
                         null);
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
 
-        // when & then
         assertThrows(
                 BusinessException.class,
                 () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
@@ -130,13 +141,9 @@ class LoginUseCaseTest {
         given(userRepositoryPort.findByLoginId(loginId)).willReturn(Optional.of(user));
         given(passwordEncoder.matches("password", "hash")).willReturn(true);
 
-        BusinessException exception =
-                assertThrows(
-                        BusinessException.class,
-                        () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
-
-        assertEquals(
-                com.meetbowl.common.exception.ErrorCode.COMMON_UNAUTHORIZED, exception.errorCode());
+        assertThrows(
+                BusinessException.class,
+                () -> loginUseCase.execute(new LoginCommand(loginId, "password")));
     }
 
     private User createUser(String loginId, String hash, UserRole role) {

@@ -365,5 +365,33 @@
   Existing transcript final save and user search reindex queues also now declare their DLQ queues and bindings from the same config class, so dead-letter routing targets exist even when infra definitions are not loaded first.
   The minutes generated queue declaration uses the same `meetbowl.rabbitmq.minutes-generated-queue` property as the listener, so an environment override does not leave the listener queue undeclared.
 - Verification:
+  Reproduced before fix against local API: `POST /api/v1/admin/users/{userId}/password/reset` -> `POST /api/v1/auth/login` with `user1 / 1234` succeeded, but follow-up protected calls failed with `500` and `BadJwtException: Access Token is revoked.` in `bootrun.out.log`.
+  Pending local rerun after rebuild/restart: login with reset password, forced password change, and post-change re-login.
+
+2026-06-19 Account security flow hardening
+
+- Purpose: add a public password reset request API, block concurrent login of the same ADMIN account, and verify the existing password change/reset flow stays intact.
+- Changed files:
+  `application/auth/LoginUseCase`, new `PasswordResetRequestCommand`, new `PasswordResetRequestUseCase`,
+  `domain/auth/TokenStateRepositoryPort`,
+  `infrastructure/cache/auth/RedisTokenStateRepositoryAdapter`,
+  `infrastructure/client/chatbot/ChatbotAiClientAdapter`,
+  `app-api/auth/AuthController`, new `app-api/auth/dto/PasswordResetRequest`,
+  `app-api/config/SecurityConfig`,
+  `common/exception/ErrorCode`,
+  related auth/security tests, and this log.
+- Behavior:
+  Added `POST /api/v1/auth/password-reset/request` as a public endpoint and kept `/api/v1/auth/password/reset-request` as a compatibility alias.
+  The password reset request flow trims `loginId` and `email`, always returns the same acceptance message, and records an `AdminAuditLog` entry only when the account exists and the email matches.
+  The audit snapshot stores only `requestSource=PUBLIC_API` so login ID, email, password, token, and other raw secret/PII values are not written to logs.
+  ADMIN login now checks for an active refresh token before issuing new tokens and returns `AUTH_ADMIN_ALREADY_LOGGED_IN` when the same admin account is already signed in elsewhere.
+  Active-session 판단 is based on a refresh-token hash that still exists in Redis; stale hashes left in the per-user set are cleaned up during the check, so expired/revoked tokens are not treated as active sessions.
+  USER login policy is unchanged. ADMIN logout/password reset/session revoke behavior continues to work through the existing refresh-token revoke flow.
+  Also fixed an unrelated-but-blocking test-context issue by qualifying `ChatbotAiClientAdapter` to use `aiServerRestClient`, avoiding `RestClient` bean ambiguity after the Elasticsearch client was added.
+- Verification:
+  Passed `./gradlew.bat spotlessApply --no-problems-report`
+  Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava --no-problems-report`
+  Passed `./gradlew.bat :app-api:test --tests "*Auth*" --tests "*Password*" --tests "*AdminUser*" --no-problems-report`
+  `./gradlew.bat :application:test --tests "com.meetbowl.application.auth.LoginUseCaseTest" --tests "com.meetbowl.application.auth.PasswordResetRequestUseCaseTest" --tests "com.meetbowl.application.admin.ResetUserPasswordUseCaseTest" --no-problems-report` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting`, `minutes`, and `transcript` tests on the current branch.
   Passed `./gradlew spotlessApply`
   Passed `./gradlew :app-api:compileJava`

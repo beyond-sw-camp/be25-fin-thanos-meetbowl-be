@@ -33,17 +33,14 @@ import com.meetbowl.api.common.security.ApiAccessDeniedHandler;
 import com.meetbowl.api.common.security.ApiAuthenticationEntryPoint;
 import com.meetbowl.api.common.security.InternalTokenAuthenticationFilter;
 
-/** JWT 기반 인증을 전역으로 적용한다. Controller는 인증 처리 대신 @CurrentUser로 검증된 사용자만 전달받는다. */
+/** Stateless JWT security configuration for app-api. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private static final String JWT_ISSUER = "meetbowl";
-
-    /** SSE 구독 경로. EventSource가 Authorization 헤더를 못 붙이므로 이 경로에 한해 access token을 쿼리 파라미터로 받는다. */
     private static final String SSE_SUBSCRIBE_PATH = "/api/v1/notifications/subscribe";
-
     private static final String SSE_TOKEN_PARAM = "token";
 
     private static final String[] PUBLIC_ENDPOINTS = {
@@ -51,6 +48,8 @@ public class SecurityConfig {
         "/api/v1/health",
         "/api/v1/auth/login",
         "/api/v1/auth/token/refresh",
+        "/api/v1/auth/password-reset/request",
+        "/api/v1/auth/password/reset-request",
         "/api/v1/meetings/*/join",
         "/api/v1/meetings/guest-join",
         "/swagger-ui.html",
@@ -104,8 +103,6 @@ public class SecurityConfig {
                                         .hasRole("ADMIN")
                                         .requestMatchers("/api/v1/auth/password/change-initial")
                                         .hasRole("PASSWORD_CHANGE_REQUIRED")
-                                        .requestMatchers("/api/v1/auth/password/reset-request")
-                                        .hasRole("USER")
                                         .requestMatchers(
                                                 HttpMethod.GET, USER_OR_ADMIN_USER_ENDPOINTS)
                                         .hasAnyRole("USER", "ADMIN")
@@ -139,10 +136,6 @@ public class SecurityConfig {
                 .build();
     }
 
-    /**
-     * Authorization 헤더의 Bearer 토큰을 우선 사용하고, 헤더가 없을 때만 SSE 구독 경로에 한해 {@code ?token=} 쿼리 파라미터를 토큰으로
-     * 받아들인다. 토큰을 URL에 노출하는 건 로그 유출 위험이 있어, EventSource가 헤더를 못 붙이는 SSE 구독에만 한정한다.
-     */
     @Bean
     BearerTokenResolver bearerTokenResolver() {
         DefaultBearerTokenResolver headerResolver = new DefaultBearerTokenResolver();
