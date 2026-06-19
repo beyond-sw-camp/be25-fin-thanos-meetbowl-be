@@ -340,3 +340,18 @@
   Passed `./gradlew.bat :application:compileJava :app-api:compileJava`
   Passed `./gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationMembersExcelControllerTest"`
   `./gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests. This work also added `findAll()` implementations to existing fake user repositories so the new `UserRepositoryPort` method does not introduce extra failures on top of those pre-existing test issues.
+
+2026-06-19 Chatbot AI RestClient bean qualifier fix
+
+- Purpose: fix `ChatbotAiClientAdapter` startup injection ambiguity after multiple `RestClient` beans exist in the infrastructure module.
+- Changed files:
+  `infrastructure/client/chatbot/ChatbotAiClientAdapter`,
+  and this log.
+- Behavior:
+  `ChatbotAiClientAdapter` now explicitly injects the `aiServerRestClient` bean with `@Qualifier("aiServerRestClient")`.
+  This keeps chatbot calls on the internal meetbowl-ai client with `X-Internal-Token` and prevents accidental injection ambiguity with `userSearchElasticsearchRestClient`.
+- Excluded scope:
+  Did not change AI chatbot request/response mapping, endpoint path, internal token configuration, or Elasticsearch search client configuration.
+- Verification:
+  Passed `./gradlew --no-problems-report :infrastructure:compileJava :app-api:compileJava`.
+  `./gradlew --no-problems-report :infrastructure:spotlessApply :infrastructure:test --tests "com.meetbowl.infrastructure.client.chatbot.ChatbotAiClientAdapterTest"` applied formatting but could not run the targeted test because the `infrastructure` test source set has pre-existing unrelated compile failures in `RabbitEventPublisherTest` and `RabbitDocumentIndexRequestedEventPublisherTest`.
