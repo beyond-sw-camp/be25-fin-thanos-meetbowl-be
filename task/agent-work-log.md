@@ -341,13 +341,29 @@
   Passed `./gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationMembersExcelControllerTest"`
   `./gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application` test compile failures in `meeting` / `minutes` / `transcript` tests. This work also added `findAll()` implementations to existing fake user repositories so the new `UserRepositoryPort` method does not introduce extra failures on top of those pre-existing test issues.
 
-2026-06-19 Initial password reset same-second login fix
+2026-06-19 Chatbot AI RestClient bean qualifier fix
 
-- Purpose: fix the password reset/login regression where a user reset to `1234` could log in, but the freshly issued access token was treated as revoked inside the same second and every protected API failed before the forced password change flow could continue.
-- Changed files: `infrastructure/cache/auth/RedisTokenStateRepositoryAdapter`, `app-api/common/GlobalExceptionHandler`, new `app-api/auth/AuthTokenStatePrecisionTest`, and this log.
+- Purpose: fix `ChatbotAiClientAdapter` startup injection ambiguity after multiple `RestClient` beans exist in the infrastructure module.
+- Changed files:
+  `infrastructure/client/chatbot/ChatbotAiClientAdapter`,
+  and this log.
 - Behavior:
-  Session revocation now compares JWT `iat` and user-session `revokedAt` at second precision so a new token issued in the same second as an admin password reset is not rejected as already revoked.
-  Revoked/invalid JWT failures are converted to the common 401 response instead of leaking a raw 500 error page.
+  `ChatbotAiClientAdapter` now explicitly injects the `aiServerRestClient` bean with `@Qualifier("aiServerRestClient")`.
+  This keeps chatbot calls on the internal meetbowl-ai client with `X-Internal-Token` and prevents accidental injection ambiguity with `userSearchElasticsearchRestClient`.
+- Excluded scope:
+  Did not change AI chatbot request/response mapping, endpoint path, internal token configuration, or Elasticsearch search client configuration.
 - Verification:
-  Reproduced before fix against local API: `POST /api/v1/admin/users/{userId}/password/reset` -> `POST /api/v1/auth/login` with `user1 / 1234` succeeded, but follow-up protected calls failed with `500` and `BadJwtException: Access Token is revoked.` in `bootrun.out.log`.
-  Pending local rerun after rebuild/restart: login with reset password, forced password change, and post-change re-login.
+ Passed `./gradlew --no-problems-report :infrastructure:compileJava :app-api:compileJava`.
+ `./gradlew --no-problems-report :infrastructure:spotlessApply :infrastructure:test --tests "com.meetbowl.infrastructure.client.chatbot.ChatbotAiClientAdapterTest"` applied formatting but could not run the targeted test because the `infrastructure` test source set has pre-existing unrelated compile failures in `RabbitEventPublisherTest` and `RabbitDocumentIndexRequestedEventPublisherTest`.
+
+2026-06-19 RabbitMQ minutes generated queue auto declaration
+
+- Purpose: ensure the BE RabbitMQ listener for `minutes.generated` can start even when the infra definitions or AI server have not pre-created `api.minutes.generated`.
+- Changed files: `app-api/src/main/java/com/meetbowl/api/messaging/RabbitMqMessagingConfig.java`, `task/agent-work-log.md`.
+- Behavior:
+  BE now declares the `api.minutes.generated` queue, its `minutes.generated` binding on `meetbowl.topic`, and `dlq.api.minutes.generated` with `meetbowl.dlx` binding during application startup.
+  Existing transcript final save and user search reindex queues also now declare their DLQ queues and bindings from the same config class, so dead-letter routing targets exist even when infra definitions are not loaded first.
+  The minutes generated queue declaration uses the same `meetbowl.rabbitmq.minutes-generated-queue` property as the listener, so an environment override does not leave the listener queue undeclared.
+- Verification:
+  Passed `./gradlew spotlessApply`
+  Passed `./gradlew :app-api:compileJava`

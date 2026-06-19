@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -41,7 +42,7 @@ public class ChatbotAiClientAdapter implements ChatbotAiPort {
 
     private final RestClient aiServerRestClient;
 
-    public ChatbotAiClientAdapter(RestClient aiServerRestClient) {
+    public ChatbotAiClientAdapter(@Qualifier("aiServerRestClient") RestClient aiServerRestClient) {
         this.aiServerRestClient = aiServerRestClient;
     }
 
