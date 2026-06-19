@@ -34,6 +34,11 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     }
 
     @Override
+    public List<Position> findAllForExcelExport() {
+        return repository.findAllForExcelExport().stream().map(PositionEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Position> findAllByIds(Collection<UUID> positionIds) {
         return repository.findAllById(positionIds).stream().map(PositionEntity::toDomain).toList();
     }

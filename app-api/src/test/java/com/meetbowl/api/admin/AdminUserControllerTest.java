@@ -33,6 +33,7 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.admin.AdminUserManagementUseCase;
+import com.meetbowl.application.admin.AdminUserSearchIndexUseCase;
 import com.meetbowl.application.admin.ResetUserPasswordUseCase;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 
@@ -60,6 +61,7 @@ class AdminUserControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private AdminUserManagementUseCase adminUserManagementUseCase;
+    @MockitoBean private AdminUserSearchIndexUseCase adminUserSearchIndexUseCase;
     @MockitoBean private ResetUserPasswordUseCase resetUserPasswordUseCase;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
 
@@ -97,7 +99,7 @@ class AdminUserControllerTest {
                                                         POSITION_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.temporaryPassword").value("Temp1234Abcd5678"))
+                .andExpect(jsonPath("$.data.temporaryPassword").value("1234"))
                 .andExpect(jsonPath("$.data.user.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.data.user.loginId").value("user01"))
                 .andExpect(jsonPath("$.data.user.role").value("ADMIN"))
@@ -120,6 +122,7 @@ class AdminUserControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/admin/users")
+                                .param("keyword", " admin ")
                                 .requestAttr(
                                         AuthenticatedUserAttributes.CURRENT_USER,
                                         authenticatedUser(AuthenticatedUserRole.ADMIN)))
@@ -128,6 +131,13 @@ class AdminUserControllerTest {
                 .andExpect(jsonPath("$.data.items[0].role").value("USER"))
                 .andExpect(jsonPath("$.data.totalElements").value(3))
                 .andExpect(jsonPath("$.data.totalPages").value(2));
+
+        ArgumentCaptor<AdminUserManagementUseCase.SearchCommand> commandCaptor =
+                ArgumentCaptor.forClass(AdminUserManagementUseCase.SearchCommand.class);
+        verify(adminUserManagementUseCase).search(commandCaptor.capture());
+        assertEquals(1, commandCaptor.getValue().page());
+        assertEquals(20, commandCaptor.getValue().size());
+        assertEquals(" admin ", commandCaptor.getValue().keyword());
     }
 
     @Test
@@ -142,6 +152,21 @@ class AdminUserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.userId").value(USER_ID.toString()))
                 .andExpect(jsonPath("$.data.role").value("ADMIN"));
+    }
+
+    @Test
+    void reindexSearchDocumentsSuccess() throws Exception {
+        given(adminUserSearchIndexUseCase.reindexAll())
+                .willReturn(new AdminUserSearchIndexUseCase.ReindexResult(12, 1));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/users/search-index/reindex")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.processedCount").value(12))
+                .andExpect(jsonPath("$.data.failedCount").value(1));
     }
 
     @Test
@@ -303,7 +328,7 @@ class AdminUserControllerTest {
 
     private AdminUserManagementUseCase.CreateResult createResult(String role) {
         return new AdminUserManagementUseCase.CreateResult(
-                USER_ID, "Temp1234Abcd5678", userSummary(role, "ACTIVE"));
+                USER_ID, "1234", userSummary(role, "ACTIVE"));
     }
 
     private AdminUserManagementUseCase.UserSummary userSummary(String role) {

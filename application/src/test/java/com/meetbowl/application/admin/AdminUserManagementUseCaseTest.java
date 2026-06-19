@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.meetbowl.application.user.UserSearchReindexRequestDispatcher;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.admin.AdminAuditLog;
@@ -43,6 +44,7 @@ import com.meetbowl.domain.organization.TeamRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 import com.meetbowl.domain.user.UserRole;
+import com.meetbowl.domain.user.UserSearchReindexRequestedEvent;
 import com.meetbowl.domain.user.UserStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,9 +58,9 @@ class AdminUserManagementUseCaseTest {
     @Mock private DepartmentRepositoryPort departmentRepositoryPort;
     @Mock private TeamRepositoryPort teamRepositoryPort;
     @Mock private PositionRepositoryPort positionRepositoryPort;
-    @Mock private TemporaryPasswordGenerator temporaryPasswordGenerator;
     @Mock private AdminAuditLogRepositoryPort adminAuditLogRepositoryPort;
     @Mock private TokenStateRepositoryPort tokenStateRepositoryPort;
+    @Mock private UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -73,7 +75,6 @@ class AdminUserManagementUseCaseTest {
         stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("admin01")).willReturn(false);
         given(userRepositoryPort.findByEmail("admin01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -100,6 +101,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals(UserRole.ADMIN.name(), result.user().role());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
+        verifyUserReindexPublished("USER_CREATED", result.userId());
     }
 
     @Test
@@ -112,7 +114,6 @@ class AdminUserManagementUseCaseTest {
         stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -136,7 +137,7 @@ class AdminUserManagementUseCaseTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
-        assertEquals("Temp1234Abcd5678", result.temporaryPassword());
+        assertEquals("1234", result.temporaryPassword());
         assertTrue(
                 passwordEncoder.matches(
                         result.temporaryPassword(), savedUser.getValue().passwordHash()));
@@ -225,7 +226,6 @@ class AdminUserManagementUseCaseTest {
         stubTeam(teamId, departmentId, "Team");
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.CreateResult result =
@@ -323,13 +323,14 @@ class AdminUserManagementUseCaseTest {
         stubBatchOrganizationReferences(List.of(first, second));
 
         AdminUserManagementUseCase.PageResult result =
-                useCase.search(new AdminUserManagementUseCase.SearchCommand("name", 1, 1));
+                useCase.search(new AdminUserManagementUseCase.SearchCommand(" name ", 1, 1));
 
         assertEquals(2, result.items().size());
         assertEquals(2, result.totalElements());
         assertEquals(2, result.totalPages());
         assertEquals("first", result.items().get(0).loginId());
         assertEquals("ADMIN", result.items().get(1).role());
+        verify(userRepositoryPort).findPage("name", 1, 1);
         verify(affiliateRepositoryPort).findAllByIds(any());
         verify(departmentRepositoryPort).findAllByIds(any());
         verify(teamRepositoryPort).findAllByIds(any());
@@ -391,6 +392,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals("updated@example.com", savedUser.getValue().email());
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals("ADMIN", result.role());
+        verifyUserReindexPublished("USER_UPDATED", current.id());
     }
 
     @Test
@@ -433,7 +435,6 @@ class AdminUserManagementUseCaseTest {
         given(userRepositoryPort.existsByLoginId("quoted")).willReturn(false);
         given(userRepositoryPort.findByEmail("line\nbreak@example.com"))
                 .willReturn(Optional.empty());
-        given(temporaryPasswordGenerator.generate()).willReturn("Temp1234Abcd5678");
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         useCase.create(
@@ -462,7 +463,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals("line\nbreak@example.com", jsonNode.get("email").asText());
         assertFalse(afterValue.contains("temporaryPassword"));
         assertFalse(afterValue.contains("rawPassword"));
-        assertFalse(afterValue.contains("Temp1234Abcd5678"));
+        assertFalse(afterValue.contains("1234"));
     }
 
     @Test
@@ -580,6 +581,7 @@ class AdminUserManagementUseCaseTest {
         assertEquals(expectedStatus, savedUser.getValue().status());
         assertEquals(expectedStatus.name(), result.status());
         verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
+        verifyUserReindexPublished("USER_STATUS_UPDATED", current.id());
     }
 
     private AdminUserManagementUseCase useCase() {
@@ -590,10 +592,18 @@ class AdminUserManagementUseCaseTest {
                 teamRepositoryPort,
                 positionRepositoryPort,
                 passwordEncoder,
-                temporaryPasswordGenerator,
                 adminAuditLogRepositoryPort,
                 tokenStateRepositoryPort,
-                objectMapper);
+                objectMapper,
+                userSearchReindexRequestDispatcher);
+    }
+
+    private void verifyUserReindexPublished(String reason, UUID userId) {
+        ArgumentCaptor<UserSearchReindexRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(UserSearchReindexRequestedEvent.class);
+        verify(userSearchReindexRequestDispatcher).publishAfterCommit(eventCaptor.capture());
+        assertEquals(reason, eventCaptor.getValue().reason());
+        assertEquals(List.of(userId), eventCaptor.getValue().userIds());
     }
 
     private User createUser(String loginId, String email, UserRole role) {

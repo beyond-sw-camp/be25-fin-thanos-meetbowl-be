@@ -1,12 +1,15 @@
 package com.meetbowl.application.personalworkspace.memo;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
+import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemo;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemoRepositoryPort;
 
@@ -14,10 +17,16 @@ import com.meetbowl.domain.personalworkspace.PersonalWorkspaceMemoRepositoryPort
 @Service
 public class UpdateMemoUseCase {
 
-    private final PersonalWorkspaceMemoRepositoryPort memoRepositoryPort;
+    private static final String PERSONAL_MEMO_DOCUMENT_TYPE = "PERSONAL_MEMO";
 
-    public UpdateMemoUseCase(PersonalWorkspaceMemoRepositoryPort memoRepositoryPort) {
+    private final PersonalWorkspaceMemoRepositoryPort memoRepositoryPort;
+    private final DocumentIndexRequestedEventPort documentIndexRequestedEventPort;
+
+    public UpdateMemoUseCase(
+            PersonalWorkspaceMemoRepositoryPort memoRepositoryPort,
+            DocumentIndexRequestedEventPort documentIndexRequestedEventPort) {
         this.memoRepositoryPort = memoRepositoryPort;
+        this.documentIndexRequestedEventPort = documentIndexRequestedEventPort;
     }
 
     @Transactional
@@ -33,6 +42,24 @@ public class UpdateMemoUseCase {
         PersonalWorkspaceMemo updated =
                 memo.update(command.title(), command.content(), Instant.now());
 
-        return MemoResult.from(memoRepositoryPort.save(updated));
+        PersonalWorkspaceMemo saved = memoRepositoryPort.save(updated);
+
+        // 수정된 내용으로 재색인한다. 같은 documentId면 AI가 교체 upsert하므로 중복 없이 최신 본문이 반영된다.
+        // organization은 선택값이라 조직 미소속 사용자도 그대로 발행한다(검색은 소유자 기준이라 조직 없이도 본인 검색에 잡힘).
+        documentIndexRequestedEventPort.publish(
+                new DocumentIndexRequestedEvent(
+                        saved.id(),
+                        PERSONAL_MEMO_DOCUMENT_TYPE,
+                        command.organizationId(),
+                        saved.ownerUserId(),
+                        saved.title(),
+                        saved.content(),
+                        // 메모는 회의·워크스페이스·파일에 속하지 않는 단독 텍스트라 문서 전용 metadata가 없다.
+                        null,
+                        List.of(saved.ownerUserId()),
+                        List.of(),
+                        List.of()));
+
+        return MemoResult.from(saved);
     }
 }

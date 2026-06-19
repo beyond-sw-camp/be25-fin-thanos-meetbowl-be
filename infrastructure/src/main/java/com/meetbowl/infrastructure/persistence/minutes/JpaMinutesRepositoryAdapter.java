@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.minutes;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +37,24 @@ public class JpaMinutesRepositoryAdapter implements MinutesRepositoryPort {
     @Transactional(readOnly = true)
     public Optional<Minutes> findByMeetingId(UUID meetingId) {
         return springDataMinutesRepository.findByMeetingId(meetingId).map(MinutesEntity::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Minutes> findByOrganizationId(UUID organizationId) {
+        return springDataMinutesRepository
+                .findByOrganizationIdOrderByCreatedAtDesc(organizationId)
+                .stream()
+                .map(MinutesEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
+        return springDataMinutesRepository.searchByOrganizationId(organizationId, keyword).stream()
+                .map(MinutesEntity::toDomain)
+                .toList();
     }
 
     @Override

@@ -40,6 +40,13 @@ public class JpaAffiliateRepositoryAdapter implements AffiliateRepositoryPort {
     }
 
     @Override
+    public List<Affiliate> findAllForExcelExport() {
+        return springDataOrganizationRepository.findAllForExcelExport().stream()
+                .map(AffiliateEntity::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Affiliate> findAllByIds(Collection<UUID> organizationIds) {
         return springDataOrganizationRepository.findAllById(organizationIds).stream()
                 .map(AffiliateEntity::toDomain)

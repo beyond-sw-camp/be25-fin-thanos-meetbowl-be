@@ -80,7 +80,13 @@ public class ApproveMinutesUseCase {
                         TEMPORARY_MINUTES_TITLE,
                         minutesContentTextExtractor.extract(saved.content()),
                         new DocumentIndexRequestedEvent.Metadata(
-                                saved.meetingId(), saved.approvedAt(), null, null, null),
+                                saved.meetingId(),
+                                saved.approvedAt(),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null),
                         readableUserIds,
                         List.of(),
                         List.of()));

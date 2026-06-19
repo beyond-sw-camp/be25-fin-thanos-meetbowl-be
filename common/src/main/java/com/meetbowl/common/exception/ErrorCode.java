@@ -25,6 +25,7 @@ public enum ErrorCode {
     MEETING_NOT_FOUND("MEETING_NOT_FOUND", "회의를 찾을 수 없습니다.", 404),
     MEETING_ALREADY_ENDED("MEETING_ALREADY_ENDED", "해당 회의는 종료되었습니다.", 409),
     MEETING_ROOM_ALREADY_RESERVED("MEETING_ROOM_ALREADY_RESERVED", "회의실이 이미 예약되어 있습니다.", 409),
+    MEETING_ROOM_UNAVAILABLE("MEETING_ROOM_UNAVAILABLE", "사용할 수 없는 회의실입니다.", 409),
     MEETING_FORBIDDEN_GUEST_ACCESS(
             "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
 
@@ -38,6 +39,10 @@ public enum ErrorCode {
     MAIL_FORBIDDEN_ACCESS("MAIL_FORBIDDEN_ACCESS", "메일 접근 권한이 없습니다.", 403),
     MAIL_IDEMPOTENCY_CONFLICT("MAIL_IDEMPOTENCY_CONFLICT", "동일한 멱등성 키로 다른 메일을 요청할 수 없습니다.", 409),
     MAIL_SEND_FAILED("MAIL_SEND_FAILED", "내부 메일 발송에 실패했습니다.", 500),
+
+    // Notification
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", "알림을 찾을 수 없습니다.", 404),
+    NOTIFICATION_FORBIDDEN_ACCESS("NOTIFICATION_FORBIDDEN_ACCESS", "알림 접근 권한이 없습니다.", 403),
 
     // Shared Workspace
     SHARED_WORKSPACE_NOT_FOUND("SHARED_WORKSPACE_NOT_FOUND", "공유 워크스페이스를 찾을 수 없습니다.", 404),

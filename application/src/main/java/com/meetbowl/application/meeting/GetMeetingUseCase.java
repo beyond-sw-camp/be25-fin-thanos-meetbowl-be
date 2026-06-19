@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,10 +48,25 @@ public class GetMeetingUseCase {
                     case ALL -> union(hostMeetings(userId), invitedMeetings(userId));
                 };
 
-        return meetings.stream()
-                .filter(meeting -> withinRange(meeting, from, to))
-                .sorted(Comparator.comparing(Meeting::scheduledAt).reversed())
-                .map(MeetingResult::of)
+        List<Meeting> visible =
+                meetings.stream()
+                        .filter(meeting -> withinRange(meeting, from, to))
+                        .sorted(Comparator.comparing(Meeting::scheduledAt).reversed())
+                        .toList();
+
+        // N+1 방지: 회의별로 참석자를 따로 조회하지 않고, 회의 id를 모아 한 번에 배치 조회한 뒤 회의별로 그룹핑한다.
+        Map<UUID, List<MeetingAttendee>> attendeesByMeetingId =
+                meetingAttendeeRepositoryPort
+                        .findByMeetingIds(visible.stream().map(Meeting::id).toList())
+                        .stream()
+                        .collect(Collectors.groupingBy(MeetingAttendee::meetingId));
+
+        return visible.stream()
+                .map(
+                        meeting ->
+                                MeetingResult.of(
+                                        meeting,
+                                        attendeesByMeetingId.getOrDefault(meeting.id(), List.of())))
                 .toList();
     }
 

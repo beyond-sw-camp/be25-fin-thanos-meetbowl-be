@@ -249,6 +249,16 @@ final class SharedWorkspaceFakes {
         }
 
         @Override
+        public List<User> findAll() {
+            return List.copyOf(store.values());
+        }
+
+        @Override
+        public List<User> findAllForExcelExportByRoles(java.util.Set<UserRole> roles) {
+            return store.values().stream().filter(user -> roles.contains(user.role())).toList();
+        }
+
+        @Override
         public Optional<User> findByLoginId(String loginId) {
             return store.values().stream()
                     .filter(user -> user.loginId().equals(loginId))
@@ -292,6 +302,25 @@ final class SharedWorkspaceFakes {
         public java.util.List<User> findAllByAffiliateId(UUID affiliateId) {
             return store.values().stream()
                     .filter(user -> affiliateId.equals(user.affiliateId()))
+                    .toList();
+        }
+
+        @Override
+        public java.util.List<User> findAllByDepartmentId(UUID departmentId) {
+            return store.values().stream()
+                    .filter(user -> departmentId.equals(user.departmentId()))
+                    .toList();
+        }
+
+        @Override
+        public java.util.List<User> findAllByTeamId(UUID teamId) {
+            return store.values().stream().filter(user -> teamId.equals(user.teamId())).toList();
+        }
+
+        @Override
+        public java.util.List<User> findAllByPositionId(UUID positionId) {
+            return store.values().stream()
+                    .filter(user -> positionId.equals(user.positionId()))
                     .toList();
         }
     }

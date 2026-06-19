@@ -120,6 +120,7 @@ X-Internal-Token: {internalToken}
 | `USER_NOT_FOUND` | 404 | 사용자 없음 |
 | `MEETING_NOT_FOUND` | 404 | 회의 없음 |
 | `MEETING_ROOM_ALREADY_RESERVED` | 409 | 회의실 중복 예약 |
+| `MEETING_ROOM_UNAVAILABLE` | 409 | 사용 제한된 회의실(isAvailable=false) 예약 불가 |
 | `MEETING_FORBIDDEN_GUEST_ACCESS` | 403 | 게스트 접근 불가 |
 | `MINUTES_REVIEW_REQUIRED` | 409 | 검토자 승인 필요 |
 | `MINUTES_ALREADY_APPROVED` | 409 | 이미 승인된 회의록 |
@@ -142,10 +143,12 @@ X-Internal-Token: {internalToken}
 | POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
-| POST | `/users/{userId}/password/reset` | 관리자가 비밀번호 초기화 및 임시 비밀번호 발급 | Admin |
+| POST | `/admin/users/{userId}/password/reset` | 관리자가 비밀번호를 `1234`로 초기화 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
 로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
+
+- 로그인 응답 `data.user.initialPasswordChangeRequired`는 비밀번호 변경 필요 여부를 나타낸다.
 
 - Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
 - Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
@@ -154,7 +157,7 @@ X-Internal-Token: {internalToken}
 - 관리자에 의한 사용자 상태 변경과 비밀번호 초기화 시 해당 사용자의 모든 Refresh Token을 폐기하고, 변경 시각 이전에 발급된 Access Token을 거부한다.
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
-- 관리자 비밀번호 초기화 응답에는 임시 비밀번호 원문이 1회 포함되며, 이후에는 저장되지 않는다.
+- 관리자 비밀번호 초기화 응답에는 초기 비밀번호 원문 `1234`가 1회 포함되며, 이후에는 저장되지 않는다.
 - 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
 - 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
@@ -171,6 +174,7 @@ X-Internal-Token: {internalToken}
 |---|---|---|---|
 | GET | `/users/me` | 내 정보 조회 | User/Admin |
 | PATCH | `/users/me` | 내 프로필 수정 | User/Admin |
+| PATCH | `/users/me/password` | 내 비밀번호 변경 | User/Admin |
 | GET | `/users` | 회원 목록 조회 | Admin |
 | GET | `/users/{userId}` | 회원 상세 조회 | Admin |
 | POST | `/users` | 회원 계정 생성 | Admin |
@@ -180,6 +184,10 @@ X-Internal-Token: {internalToken}
 | GET | `/users/export` | 회원/조직도 엑셀 다운로드 | Admin |
 | GET | `/users/{userId}/simple-profile` | 조직도용 간단 회원 정보 조회 | User/Admin |
 | GET | `/users/recipients/search` | 메일 수신자 및 소속 정보 검색 | User/Admin |
+
+- 관리자 회원 계정 생성 시 초기 비밀번호는 항상 `1234`이며, DB에는 PasswordEncoder로 암호화된 해시만 저장한다.
+- 관리자 회원 계정 생성 및 관리자 비밀번호 초기화 대상 사용자는 `initialPasswordChangeRequired: true`로 저장한다.
+- 로컬 seed 계정 `admin`, `user1`, `user2`는 모두 `1234`를 사용하지만 `initialPasswordChangeRequired`를 강제로 `true`로 만들지 않는다.
 
 ### 조직 기준 정보
 
@@ -383,8 +391,14 @@ STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료
 | POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
 | POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
 | GET | `/minutes` | 회의록 목록/검색 | User/Admin |
+| POST | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 등록 | User/Admin |
+| DELETE | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 해제 | User/Admin |
 
 AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generated` 이벤트 소비다.
+
+`GET /minutes`는 `keyword` query parameter로 `summary`, `content`를 검색할 수 있다.
+목록 응답에는 사용자별 즐겨찾기 여부를 나타내는 `favorite` 필드가 포함된다.
+목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`를 반환한다.
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 
@@ -558,6 +572,19 @@ DELETION_SCHEDULED
 | DELETE | `/workspace/memos/{memoId}` | 개인 메모 삭제 | Owner |
 
 개인 캘린더에서 직접 수정·삭제할 수 있는 대상은 사용자가 작성한 개인 일정으로 제한한다. 회의에서 파생된 일정은 회의 정보가 기준이므로 회의 생성·수정·취소 흐름을 통해서만 변경한다.
+
+### 12.1 개인 드라이브 파일 업로드
+
+`POST /api/v1/workspace/drive/files`
+
+- 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다.
+- 서버는 확장자를 기준으로 신뢰할 Content-Type을 결정하고 파일 원본을 S3 호환 Object Storage에 저장한다.
+- MariaDB에는 파일 원본을 저장하지 않고 파일명, Content-Type, 크기, `storageKey` 등 메타데이터만 저장한다.
+- 저장 성공 후 `document.index.requested` 이벤트를 발행한다. 파일 본문은 이벤트에 싣지 않고 `storageKey`와 `contentType`을 전달하며, AI 서버가 파일을 내려받아 텍스트 추출·임베딩·Qdrant 색인을 수행한다.
+- 개인 드라이브 파일의 `accessScope.userIds`에는 소유자만 포함한다. 조직 미소속 사용자는 `organizationId: null`로 발행할 수 있다.
+- 허용되지 않은 형식은 `FILE_INVALID_EXTENSION`, 20MB 초과 파일은 `FILE_SIZE_EXCEEDED`로 거절한다.
+
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
 | DELETE | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 삭제 | Owner |
@@ -575,6 +602,16 @@ DELETION_SCHEDULED
 | GET | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 파일 버전 목록 조회 | Member |
 | PATCH | `/shared-workspaces/{spaceId}/files/{fileId}/versions/{versionId}` | 버전 변경 내용 메모 수정 | Member |
 공유 워크스페이스 파일은 새 버전이 업로드되어도 기존 버전과 변경 이력을 보존한다.
+
+### 12.2 공유 자료 업로드/새 버전 업로드
+
+`POST /api/v1/shared-workspaces/{spaceId}/files`, `POST /api/v1/shared-workspaces/{spaceId}/files/{fileId}/versions`
+
+- 두 API 모두 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다. 새 버전 업로드는 `expectedCurrentVersion`, `newVersion`, `changeMemo`(선택)를 form 필드로 함께 받는다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다. Content-Type은 서버가 확장자로 결정한다.
+- 파일 원본은 S3 호환 Object Storage에 저장하고, DB에는 메타데이터(파일명, Content-Type, 크기, `storageKey`)만 저장한다. 버전마다 별도 `storageKey`를 두어 이전 버전 원본도 보존한다.
+- 저장 성공 후 `document.index.requested`를 발행한다. 색인 단위는 파일(`documentId=fileId`)이라 새 버전이 올라오면 같은 문서를 최신 내용으로 교체 색인한다.
+- 공유 자료이므로 `accessScope.sharedWorkspaceIds`에 워크스페이스 ID를 담아 멤버 전원이 검색할 수 있게 한다.
 
 ---
 

@@ -13,10 +13,13 @@ import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
+import com.meetbowl.api.user.dto.MyPasswordChangeRequest;
 import com.meetbowl.api.user.dto.MyProfileResponse;
 import com.meetbowl.api.user.dto.MyProfileUpdateRequest;
 import com.meetbowl.api.user.dto.MySettingsResponse;
 import com.meetbowl.api.user.dto.MySettingsUpdateRequest;
+import com.meetbowl.application.user.ChangeMyPasswordCommand;
+import com.meetbowl.application.user.ChangeMyPasswordUseCase;
 import com.meetbowl.application.user.MyProfileUseCase;
 import com.meetbowl.application.user.MySettingsUseCase;
 import com.meetbowl.application.user.UpdateMyProfileCommand;
@@ -28,14 +31,17 @@ public class UserMeController extends BaseController {
 
     private final MyProfileUseCase myProfileUseCase;
     private final MySettingsUseCase mySettingsUseCase;
+    private final ChangeMyPasswordUseCase changeMyPasswordUseCase;
     private final GlobalPermissionChecker globalPermissionChecker;
 
     public UserMeController(
             MyProfileUseCase myProfileUseCase,
             MySettingsUseCase mySettingsUseCase,
+            ChangeMyPasswordUseCase changeMyPasswordUseCase,
             GlobalPermissionChecker globalPermissionChecker) {
         this.myProfileUseCase = myProfileUseCase;
         this.mySettingsUseCase = mySettingsUseCase;
+        this.changeMyPasswordUseCase = changeMyPasswordUseCase;
         this.globalPermissionChecker = globalPermissionChecker;
     }
 
@@ -71,11 +77,26 @@ public class UserMeController extends BaseController {
         return ok(
                 MySettingsResponse.from(
                         mySettingsUseCase.update(
-                                // 개인 설정 수정은 현재 로그인한 사용자 본인 설정만 갱신한다.
+                                // 개인 설정 변경은 현재 로그인한 사용자 기준으로만 갱신한다.
                                 new MySettingsUseCase.UpdateMySettingsCommand(
                                         currentUser.userId(),
                                         request.meetingStartReminderMinutes(),
                                         request.minutesReviewReminderMinutes()))));
+    }
+
+    @PatchMapping("/password")
+    public ApiResponse<Void> changePassword(
+            @CurrentUser AuthenticatedUser currentUser,
+            @Valid @RequestBody MyPasswordChangeRequest request) {
+        // 본인 계정만 변경하도록 현재 로그인 사용자 기준으로 처리한다.
+        requireUserOrAdmin(currentUser);
+        changeMyPasswordUseCase.execute(
+                new ChangeMyPasswordCommand(
+                        currentUser.userId(),
+                        request.currentPassword(),
+                        request.newPassword(),
+                        request.newPasswordConfirm()));
+        return ok();
     }
 
     private void requireUserOrAdmin(AuthenticatedUser currentUser) {

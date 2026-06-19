@@ -10,10 +10,9 @@ import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.common.event.EventEnvelope;
-
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 
 /** 개별 도메인 Publisher가 공통 Envelope와 RabbitMQ 발행 세부 구현을 반복하지 않도록 제공하는 발행기다. */
 @Component

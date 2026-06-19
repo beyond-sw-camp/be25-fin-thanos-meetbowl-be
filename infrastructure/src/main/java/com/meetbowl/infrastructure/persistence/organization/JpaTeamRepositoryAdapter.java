@@ -35,6 +35,11 @@ public class JpaTeamRepositoryAdapter implements TeamRepositoryPort {
     }
 
     @Override
+    public List<Team> findAllForExcelExport() {
+        return repository.findAllForExcelExport().stream().map(TeamEntity::toDomain).toList();
+    }
+
+    @Override
     public List<Team> findAllByIds(Collection<UUID> teamIds) {
         return repository.findAllById(teamIds).stream().map(TeamEntity::toDomain).toList();
     }

@@ -14,6 +14,8 @@ public interface PositionRepositoryPort {
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
     List<Position> findAll();
 
+    List<Position> findAllForExcelExport();
+
     List<Position> findAllByIds(Collection<UUID> positionIds);
 
     boolean existsByName(String name);

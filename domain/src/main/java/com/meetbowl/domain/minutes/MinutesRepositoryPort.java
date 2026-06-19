@@ -1,5 +1,6 @@
 package com.meetbowl.domain.minutes;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,6 +12,10 @@ public interface MinutesRepositoryPort {
     Optional<Minutes> findById(UUID minutesId);
 
     Optional<Minutes> findByMeetingId(UUID meetingId);
+
+    List<Minutes> findByOrganizationId(UUID organizationId);
+
+    List<Minutes> searchByOrganizationId(UUID organizationId, String keyword);
 
     boolean existsByMeetingId(UUID meetingId);
 }

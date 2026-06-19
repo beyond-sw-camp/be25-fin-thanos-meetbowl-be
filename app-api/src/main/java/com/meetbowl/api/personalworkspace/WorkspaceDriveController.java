@@ -1,18 +1,19 @@
 package com.meetbowl.api.personalworkspace;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
-import jakarta.validation.Valid;
-
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
@@ -20,7 +21,6 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
 import com.meetbowl.api.personalworkspace.dto.DriveFileResponse;
-import com.meetbowl.api.personalworkspace.dto.RegisterDriveFileRequest;
 import com.meetbowl.application.personalworkspace.drive.DeleteDriveFileUseCase;
 import com.meetbowl.application.personalworkspace.drive.DriveFileResult;
 import com.meetbowl.application.personalworkspace.drive.GetDriveFileUseCase;
@@ -32,8 +32,8 @@ import com.meetbowl.common.response.ApiResponse;
 /**
  * 개인 워크스페이스 드라이브 파일 API다.
  *
- * <p>현재는 파일 메타데이터 등록/조회/삭제만 제공한다. 실제 바이너리 업로드(multipart)와 다운로드(presigned URL)는 Object Storage 어댑터
- * 연동 후속 작업에서 추가한다.
+ * <p>업로드 파일은 서버가 검증한 뒤 Object Storage에 저장하고 DB에는 메타데이터만 남긴다. 다운로드 응답은 현재 메타데이터 조회이며 원본 다운로드 URL 발급은
+ * 후속 범위다.
  */
 @RequireUserOrAdmin
 @RestController
@@ -62,17 +62,17 @@ public class WorkspaceDriveController extends BaseController {
         return ok(results.stream().map(DriveFileResponse::from).toList());
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DriveFileResponse>> registerFile(
-            @CurrentUser AuthenticatedUser user,
-            @Valid @RequestBody RegisterDriveFileRequest request) {
+            @CurrentUser AuthenticatedUser user, @RequestPart("file") MultipartFile file)
+            throws IOException {
         DriveFileResult result =
                 registerDriveFileUseCase.execute(
                         new RegisterDriveFileCommand(
                                 user.userId(),
-                                request.originalFileName(),
-                                request.contentType(),
-                                request.sizeBytes()));
+                                user.organizationId(),
+                                file.getOriginalFilename(),
+                                file.getBytes()));
         return created(DriveFileResponse.from(result));
     }
 

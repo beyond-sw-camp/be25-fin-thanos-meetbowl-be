@@ -2,6 +2,7 @@ package com.meetbowl.application.sharedworkspace;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -17,20 +18,26 @@ import com.meetbowl.application.sharedworkspace.SharedWorkspaceFakes.FakeMemberR
 import com.meetbowl.application.sharedworkspace.SharedWorkspaceFakes.FakeWorkspaceRepository;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
+import com.meetbowl.domain.storage.ObjectStoragePort;
 
 class AddSharedWorkspaceFileVersionUseCaseTest {
 
     private static final Clock FIXED_CLOCK =
             Clock.fixed(Instant.parse("2026-06-10T00:00:00Z"), ZoneOffset.UTC);
+    private static final byte[] PDF_BYTES = "pdf-content".getBytes();
 
     private FakeWorkspaceRepository workspaceRepository;
     private FakeMemberRepository memberRepository;
     private FakeFileRepository fileRepository;
     private FakeFileVersionRepository versionRepository;
+    private ObjectStoragePort objectStoragePort;
+    private DocumentIndexRequestedEventPort indexEventPort;
     private AddSharedWorkspaceFileVersionUseCase useCase;
 
     private UUID workspaceId;
     private UUID ownerUserId;
+    private UUID organizationId;
     private UUID fileId;
 
     @BeforeEach
@@ -39,13 +46,21 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
         memberRepository = new FakeMemberRepository();
         fileRepository = new FakeFileRepository();
         versionRepository = new FakeFileVersionRepository();
+        objectStoragePort = mock(ObjectStoragePort.class);
+        indexEventPort = mock(DocumentIndexRequestedEventPort.class);
         SharedWorkspaceAccessGuard accessGuard =
                 new SharedWorkspaceAccessGuard(workspaceRepository, memberRepository);
         useCase =
                 new AddSharedWorkspaceFileVersionUseCase(
-                        fileRepository, versionRepository, accessGuard, FIXED_CLOCK);
+                        fileRepository,
+                        versionRepository,
+                        accessGuard,
+                        objectStoragePort,
+                        indexEventPort,
+                        FIXED_CLOCK);
 
         ownerUserId = UUID.randomUUID();
+        organizationId = UUID.randomUUID();
         SharedWorkspaceResult workspace =
                 new CreateSharedWorkspaceUseCase(workspaceRepository, memberRepository, FIXED_CLOCK)
                         .execute(
@@ -55,15 +70,19 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
 
         SharedWorkspaceFileResult file =
                 new UploadSharedWorkspaceFileUseCase(
-                                fileRepository, versionRepository, accessGuard, FIXED_CLOCK)
+                                fileRepository,
+                                versionRepository,
+                                accessGuard,
+                                objectStoragePort,
+                                indexEventPort,
+                                FIXED_CLOCK)
                         .execute(
                                 new UploadSharedWorkspaceFileCommand(
                                         workspaceId,
                                         ownerUserId,
+                                        organizationId,
                                         "spec.pdf",
-                                        "application/pdf",
-                                        1024,
-                                        "s3://bucket/spec-v1"));
+                                        PDF_BYTES));
         fileId = file.fileId();
     }
 
@@ -75,10 +94,9 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
                                 workspaceId,
                                 fileId,
                                 ownerUserId,
+                                organizationId,
                                 "spec.pdf",
-                                "application/pdf",
-                                2048,
-                                "s3://bucket/spec-v2",
+                                PDF_BYTES,
                                 "v.1.0.0",
                                 "v.1.1.0",
                                 "검토 의견 반영"));
@@ -97,10 +115,9 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
                         workspaceId,
                         fileId,
                         ownerUserId,
+                        organizationId,
                         "spec.pdf",
-                        "application/pdf",
-                        2048,
-                        "s3://bucket/spec-v2",
+                        PDF_BYTES,
                         "v.1.0.0",
                         "v.1.1.0",
                         null));
@@ -114,10 +131,9 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
                                                 workspaceId,
                                                 fileId,
                                                 ownerUserId,
+                                                organizationId,
                                                 "spec.pdf",
-                                                "application/pdf",
-                                                4096,
-                                                "s3://bucket/spec-v3",
+                                                PDF_BYTES,
                                                 "v.1.0.0",
                                                 "v.1.2.0",
                                                 null)));
@@ -137,10 +153,9 @@ class AddSharedWorkspaceFileVersionUseCaseTest {
                                                 workspaceId,
                                                 fileId,
                                                 strangerId,
+                                                organizationId,
                                                 "spec.pdf",
-                                                "application/pdf",
-                                                2048,
-                                                "s3://bucket/spec-v2",
+                                                PDF_BYTES,
                                                 "v.1.0.0",
                                                 "v.1.1.0",
                                                 null)));

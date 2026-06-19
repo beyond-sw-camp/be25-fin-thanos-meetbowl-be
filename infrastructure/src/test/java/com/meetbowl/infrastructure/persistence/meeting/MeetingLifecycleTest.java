@@ -20,6 +20,7 @@ import com.meetbowl.application.meeting.CancelMeetingUseCase;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
@@ -172,6 +173,37 @@ class MeetingLifecycleTest {
     }
 
     @Test
+    void listMeetingsIncludesAttendeesAndReviewer() {
+        UUID host = UUID.randomUUID();
+        UUID invitee = UUID.randomUUID();
+        UUID reviewer = UUID.randomUUID();
+        createMeetingUseCase.execute(
+                new CreateMeetingCommand(
+                        "참석자 회의",
+                        START,
+                        END,
+                        host,
+                        null,
+                        null,
+                        null,
+                        List.of(invitee, reviewer),
+                        reviewer,
+                        null));
+
+        List<MeetingResult> meetings =
+                getMeetingUseCase.getMyMeetings(host, MeetingListFilter.HOST, null, null);
+
+        // 목록 응답이 상세와 동일하게 참석자·검토자를 싣는다(빈 배열이 아니다).
+        assertThat(meetings).hasSize(1);
+        assertThat(meetings.get(0).attendees())
+                .extracting(a -> a.userId())
+                .containsExactlyInAnyOrder(host, invitee, reviewer);
+        assertThat(meetings.get(0).attendees())
+                .extracting(a -> a.role())
+                .contains("HOST", "REVIEWER");
+    }
+
+    @Test
     void hostCanUpdateTitleAndTime() {
         UUID host = UUID.randomUUID();
         UUID roomId = givenRoom();
@@ -188,6 +220,8 @@ class MeetingLifecycleTest {
                                 newStart,
                                 newEnd,
                                 roomId,
+                                null,
+                                null,
                                 null));
 
         assertThat(updated.title()).isEqualTo("수정된 회의");
@@ -205,7 +239,15 @@ class MeetingLifecycleTest {
         MeetingResult updated =
                 updateMeetingUseCase.execute(
                         new UpdateMeetingCommand(
-                                created.meetingId(), host, "제목만 변경", START, END, roomId, null));
+                                created.meetingId(),
+                                host,
+                                "제목만 변경",
+                                START,
+                                END,
+                                roomId,
+                                null,
+                                null,
+                                null));
 
         assertThat(updated.title()).isEqualTo("제목만 변경");
     }
@@ -232,6 +274,8 @@ class MeetingLifecycleTest {
                                                 START,
                                                 END,
                                                 roomId,
+                                                null,
+                                                null,
                                                 null)));
 
         assertThat(exception.errorCode()).isEqualTo(ErrorCode.MEETING_ROOM_ALREADY_RESERVED);
@@ -256,9 +300,131 @@ class MeetingLifecycleTest {
                                                 START,
                                                 END,
                                                 roomId,
+                                                null,
+                                                null,
                                                 null)));
 
         assertThat(exception.errorCode()).isEqualTo(ErrorCode.COMMON_FORBIDDEN);
+    }
+
+    @Test
+    void updateReplacesAttendeesAndReviewer() {
+        UUID host = UUID.randomUUID();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        UUID roomId = givenRoom();
+        // 생성: 참석자 [a, b], 검토자 a
+        MeetingResult created =
+                createMeetingUseCase.execute(
+                        new CreateMeetingCommand(
+                                "회의",
+                                START,
+                                END,
+                                host,
+                                roomId,
+                                null,
+                                null,
+                                List.of(a, b),
+                                a,
+                                null));
+
+        // 수정: 참석자 [b, c]로 교체, 검토자 c (기존 검토자 a는 새 목록에 없음 → 제거)
+        MeetingResult updated =
+                updateMeetingUseCase.execute(
+                        new UpdateMeetingCommand(
+                                created.meetingId(),
+                                host,
+                                "회의",
+                                START,
+                                END,
+                                roomId,
+                                List.of(b, c),
+                                c,
+                                null));
+
+        assertThat(updated.attendees())
+                .extracting(att -> att.userId() + ":" + att.role())
+                .containsExactlyInAnyOrder(host + ":HOST", b + ":PARTICIPANT", c + ":REVIEWER");
+        // 기존 참석자 a 는 전체 교체로 제거된다
+        assertThat(updated.attendees()).extracting(att -> att.userId()).doesNotContain(a);
+    }
+
+    @Test
+    void updateRejectedWhenReviewerNotAmongAttendees() {
+        UUID host = UUID.randomUUID();
+        UUID a = UUID.randomUUID();
+        UUID outsider = UUID.randomUUID();
+        UUID roomId = givenRoom();
+        MeetingResult created =
+                createMeetingUseCase.execute(
+                        new CreateMeetingCommand(
+                                "회의", START, END, host, roomId, null, null, List.of(a), a, null));
+
+        // 검토자(outsider)가 참석자 목록[a]에 없음 → 거부
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                updateMeetingUseCase.execute(
+                                        new UpdateMeetingCommand(
+                                                created.meetingId(),
+                                                host,
+                                                "회의",
+                                                START,
+                                                END,
+                                                roomId,
+                                                List.of(a),
+                                                outsider,
+                                                null)));
+
+        assertThat(exception.errorCode()).isEqualTo(ErrorCode.COMMON_INVALID_REQUEST);
+    }
+
+    @Test
+    void createRejectedWhenRoomIsUnavailable() {
+        UUID host = UUID.randomUUID();
+        // 사용 제한(isAvailable=false) 회의실
+        UUID roomId =
+                meetingRoomRepositoryPort
+                        .save(MeetingRoom.of(null, UUID.randomUUID(), "제한 회의실", 3, "본관", 8, false))
+                        .id();
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class, () -> createRoomMeeting(roomId, host, START, END));
+
+        assertThat(exception.errorCode()).isEqualTo(ErrorCode.MEETING_ROOM_UNAVAILABLE);
+    }
+
+    @Test
+    void updateRejectedWhenRoomBecomesUnavailable() {
+        UUID host = UUID.randomUUID();
+        UUID roomId = givenRoom();
+        MeetingResult created = createRoomMeeting(roomId, host, START, END);
+
+        // 회의 생성 후 관리자가 해당 회의실을 사용 제한으로 전환
+        MeetingRoom room = meetingRoomRepositoryPort.findById(roomId).orElseThrow();
+        meetingRoomRepositoryPort.save(room.changeAvailability(false));
+
+        // 사용 제한된 회의실로는 수정도 거부된다(생성과 동일 가드)
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                updateMeetingUseCase.execute(
+                                        new UpdateMeetingCommand(
+                                                created.meetingId(),
+                                                host,
+                                                "회의",
+                                                START,
+                                                END,
+                                                roomId,
+                                                null,
+                                                null,
+                                                null)));
+
+        assertThat(exception.errorCode()).isEqualTo(ErrorCode.MEETING_ROOM_UNAVAILABLE);
     }
 
     @Test
@@ -308,6 +474,7 @@ class MeetingLifecycleTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingUseCase.class,
         UpdateMeetingUseCase.class,

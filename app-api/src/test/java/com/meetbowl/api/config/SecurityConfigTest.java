@@ -184,8 +184,15 @@ class SecurityConfigTest {
         mockMvc.perform(
                         get("/api/v1/admin/dashboard")
                                 .header("Authorization", "Bearer " + accessToken))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void initialPasswordChangeUserTokenCanStillAccessGeneralUserEndpoint() throws Exception {
+        String accessToken = createAccessToken("USER", true);
+
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNotFound());
     }
 
     @Test

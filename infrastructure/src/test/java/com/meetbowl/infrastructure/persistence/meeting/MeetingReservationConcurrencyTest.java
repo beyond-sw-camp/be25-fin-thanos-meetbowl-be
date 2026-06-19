@@ -25,6 +25,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.common.exception.BusinessException;
@@ -181,6 +182,7 @@ class MeetingReservationConcurrencyTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class
     })
     static class TestApplication {}
