@@ -16,10 +16,10 @@ import com.meetbowl.domain.community.CommunityPostQueryPort;
 import com.meetbowl.domain.community.PostLikeRepositoryPort;
 
 /**
- * Hot 게시글 조회 UseCase다. 최근 {@link CommunityHotScore#HOT_WINDOW}(48시간) 내 작성 글 중 인기 점수 상위 {@link
- * CommunityHotScore#HOT_LIMIT}(3)개를 목록 상단 노출용으로 내린다.
+ * Hot 게시글 조회 UseCase다. 최근 {@link CommunityHotScore#HOT_WINDOW}(24시간) 내 작성 글 중 인기 점수 상위 {@link
+ * CommunityHotScore#HOT_LIMIT}(4)개를 목록 상단 노출용으로 내린다.
  *
- * <p>인기순 목록(sort=popular, 전체 기간 페이징)과 성격이 다르다: Hot은 "최근 48시간 · 상위 3개"로 한정한다. 점수식은 동일하다.
+ * <p>인기순 목록(sort=popular, 전체 기간 페이징)과 성격이 다르다: Hot은 "최근 24시간 · 상위 4개"로 한정한다. 점수식은 동일하다.
  */
 @Service
 public class GetHotPostsUseCase {

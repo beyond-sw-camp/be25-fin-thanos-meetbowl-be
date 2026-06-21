@@ -110,25 +110,28 @@ public class CommunityController extends BaseController {
     }
 
     /**
-     * 게시글 목록 조회. {@code sort}는 latest(최신순)/popular(인기순), {@code category}는 카테고리 필터(미지정 시 전체),
-     * {@code keyword}는 제목+내용 부분일치 검색이다. 응답은 conventions의 목록 포맷을 따른다.
+     * 게시글 목록 조회. {@code category}는 카테고리 필터(미지정 시 전체), {@code keyword}는 제목+내용 부분일치 검색이다. 목록은 항상
+     * 최신순이다. {@code hot}이 true면 "Hot 게시글"(좋아요 N개 이상) 목록으로 한정하며, 이때도 category/keyword 검색은 함께 적용된다.
+     * 응답은 conventions의 목록 포맷을 따른다.
+     *
+     * <p>상단 캐러셀용 {@code GET /community/posts/hot}(최근 24h 상위 4개)과는 별개다.
      */
     @GetMapping
     public ApiResponse<PostPageResponse> listPosts(
             @CurrentUser AuthenticatedUser currentUser,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "false") boolean hot,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        // 카테고리/정렬 해석은 UseCase에서 수행한다(app-api는 도메인 타입에 의존하지 않는다).
+        // 카테고리 해석은 UseCase에서 수행한다(app-api는 도메인 타입에 의존하지 않는다).
         return ok(
                 PostPageResponse.from(
                         listPostUseCase.execute(
-                                category, keyword, sort, page, size, currentUser.userId())));
+                                category, keyword, page, size, hot, currentUser.userId())));
     }
 
-    /** Hot 게시글 조회. 최근 48시간 내 글 중 인기 점수 상위 3개를 목록 상단 노출용으로 내린다. */
+    /** Hot 게시글 조회. 최근 24시간 내 글 중 인기 점수 상위 4개를 목록 상단 노출용으로 내린다. */
     @GetMapping("/hot")
     public ApiResponse<List<PostListItemResponse>> hotPosts(
             @CurrentUser AuthenticatedUser currentUser) {

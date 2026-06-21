@@ -56,26 +56,25 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
                     + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
                     + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)";
 
+    // Hot 게시글 목록: 좋아요 수가 임계값 이상인 글만 남긴다. likeCount 는 저장 컬럼이 아닌 집계값이라
+    // WHERE 가 아닌 HAVING 으로 거른다(메모리 필터 X). 임계값은 도메인 CommunityHotScore.HOT_LIKE_THRESHOLD.
+    // category/keyword 검색은 일반 목록과 동일하게 LIST_FILTER 로 함께 적용한다.
+    String LIST_HOT_HAVING = " HAVING COUNT(DISTINCT l.id) >= :minLikeCount";
+
+    // Hot 목록 페이징용 카운트. category/keyword 필터에 더해, 게시글별 좋아요 수를 상관 서브쿼리로 임계값과 비교해 행 수를 센다.
+    String LIST_HOT_COUNT =
+            "SELECT COUNT(p) FROM PostEntity p"
+                    + " WHERE (:category IS NULL OR p.category = :category)"
+                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
+                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)"
+                    + " AND (SELECT COUNT(l.id) FROM PostLikeEntity l WHERE l.postId = p.id)"
+                    + " >= :minLikeCount";
+
     /** 최신순(createdAt DESC) 목록. */
     @Query(
             value = LIST_SELECT + LIST_FILTER + LIST_GROUP_BY + " ORDER BY p.createdAt DESC",
             countQuery = LIST_COUNT)
     Page<CommunityPostListItem> searchLatest(
-            @Param("category") CommunityCategory category,
-            @Param("keyword") String keyword,
-            Pageable pageable);
-
-    /** 인기순(전체 기간, 점수 DESC, 동률 시 최신 우선) 목록. */
-    @Query(
-            value =
-                    LIST_SELECT
-                            + LIST_FILTER
-                            + LIST_GROUP_BY
-                            + " ORDER BY "
-                            + SCORE_EXPR
-                            + " DESC, p.createdAt DESC",
-            countQuery = LIST_COUNT)
-    Page<CommunityPostListItem> searchPopular(
             @Param("category") CommunityCategory category,
             @Param("keyword") String keyword,
             Pageable pageable);
@@ -89,6 +88,21 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
                     + SCORE_EXPR
                     + " DESC, p.createdAt DESC")
     List<CommunityPostListItem> findHot(@Param("since") Instant since, Pageable pageable);
+
+    /** Hot 게시글 목록: 좋아요 minLikeCount개 이상(+선택 category/keyword), 최신순, 페이징. */
+    @Query(
+            value =
+                    LIST_SELECT
+                            + LIST_FILTER
+                            + LIST_GROUP_BY
+                            + LIST_HOT_HAVING
+                            + " ORDER BY p.createdAt DESC",
+            countQuery = LIST_HOT_COUNT)
+    Page<CommunityPostListItem> searchHotByLikes(
+            @Param("category") CommunityCategory category,
+            @Param("keyword") String keyword,
+            @Param("minLikeCount") int minLikeCount,
+            Pageable pageable);
 
     /** 상세 화면용 단건 조회. 좋아요/댓글 수와 작성 시각을 함께 집계한다. */
     @Query(LIST_SELECT + " WHERE p.id = :postId" + LIST_GROUP_BY)

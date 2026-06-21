@@ -3,16 +3,13 @@ package com.meetbowl.domain.community;
 import java.time.Duration;
 
 /**
- * 커뮤니티 인기/Hot 점수 규칙을 한 곳에 모은 도메인 상수다.
+ * 커뮤니티 Hot 점수 규칙을 한 곳에 모은 도메인 상수다.
  *
  * <p>점수식: {@code viewCount * 0.1 + likeCount * 2 + commentCount * 3}. 댓글이 좋아요보다, 좋아요가 조회보다 더 큰 참여로
  * 가중된다.
  *
- * <p><b>Hot 과 인기순(sort=popular)의 구분</b> — 점수식은 같지만 적용 범위가 다르다.
- *
  * <ul>
- *   <li>Hot: 최근 {@link #HOT_WINDOW}(48h) 내 작성 글 중 점수 상위 {@link #HOT_LIMIT}(3)개. 목록 상단 노출용.
- *   <li>인기순: 전체 기간 글을 점수 내림차순으로 정렬해 페이징.
+ *   <li>Hot: 최근 {@link #HOT_WINDOW}(24h) 내에 작성 글 중 점수 상위 {@link #HOT_LIMIT}(4)개. 목록 상단 노출용
  * </ul>
  *
  * <p>주의: 정렬을 DB에서 수행하는 조회 어댑터(JPQL/SQL)는 페이징 정합성을 위해 같은 가중치 숫자(0.1/2/3)를 쿼리에 직접 사용한다. 가중치를 바꿀 때는 이
@@ -29,11 +26,17 @@ public final class CommunityHotScore {
     /** 댓글 가중치. */
     public static final double COMMENT_WEIGHT = 3.0;
 
-    /** Hot 대상 기간(최근 48시간). */
-    public static final Duration HOT_WINDOW = Duration.ofHours(48);
+    /** Hot 대상 기간(최근 24시간). */
+    public static final Duration HOT_WINDOW = Duration.ofHours(24);
 
-    /** Hot 반환 개수(상위 3개). */
-    public static final int HOT_LIMIT = 3;
+    /** Hot 반환 개수(상위 4개). */
+    public static final int HOT_LIMIT = 4;
+
+    /**
+     * "Hot 게시글" 목록(F-커뮤니티)의 좋아요 임계값이다. 좋아요 수가 이 값 이상인 게시글을 Hot으로 본다. 캐러셀용 {@link #HOT_LIMIT}(상위
+     * N개)과는 별개의 기준으로, 점수가 아닌 좋아요 절대 개수로 필터링한다. 기준을 바꾸려면 이 상수만 수정하면 된다.
+     */
+    public static final int HOT_LIKE_THRESHOLD = 3;
 
     private CommunityHotScore() {}
 
