@@ -37,10 +37,14 @@ public class MeetingAttendeeEntity extends BaseEntity {
     @Column(nullable = false, columnDefinition = "BINARY(16)")
     private UUID userId;
 
-    /** 회의 내 역할(HOST/PARTICIPANT/REVIEWER). */
+    /** 회의 내 신분(HOST/PARTICIPANT). */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AttendeeRole role;
+
+    /** 회의록 검토자 여부. 신분과 독립적이라 주최자도 검토자가 될 수 있다. 회의당 최대 1명. */
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean reviewer;
 
     /** 참석 응답 상태(INVITED/ACCEPTED/DECLINED). */
     @Enumerated(EnumType.STRING)
@@ -50,10 +54,15 @@ public class MeetingAttendeeEntity extends BaseEntity {
     protected MeetingAttendeeEntity() {}
 
     private MeetingAttendeeEntity(
-            UUID meetingId, UUID userId, AttendeeRole role, AttendanceStatus attendanceStatus) {
+            UUID meetingId,
+            UUID userId,
+            AttendeeRole role,
+            boolean reviewer,
+            AttendanceStatus attendanceStatus) {
         this.meetingId = meetingId;
         this.userId = userId;
         this.role = role;
+        this.reviewer = reviewer;
         this.attendanceStatus = attendanceStatus;
     }
 
@@ -63,12 +72,13 @@ public class MeetingAttendeeEntity extends BaseEntity {
                         attendee.meetingId(),
                         attendee.userId(),
                         attendee.role(),
+                        attendee.reviewer(),
                         attendee.attendanceStatus());
         entity.setId(attendee.id());
         return entity;
     }
 
     MeetingAttendee toDomain() {
-        return MeetingAttendee.of(getId(), meetingId, userId, role, attendanceStatus);
+        return MeetingAttendee.of(getId(), meetingId, userId, role, reviewer, attendanceStatus);
     }
 }

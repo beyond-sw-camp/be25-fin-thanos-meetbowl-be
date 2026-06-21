@@ -200,7 +200,12 @@ class MeetingLifecycleTest {
                 .containsExactlyInAnyOrder(host, invitee, reviewer);
         assertThat(meetings.get(0).attendees())
                 .extracting(a -> a.role())
-                .contains("HOST", "REVIEWER");
+                .contains("HOST", "PARTICIPANT");
+        // 검토자는 신분(role)과 별개의 reviewer 플래그로 식별한다.
+        assertThat(meetings.get(0).attendees())
+                .filteredOn(a -> a.reviewer())
+                .extracting(a -> a.userId())
+                .containsExactly(reviewer);
     }
 
     @Test
@@ -345,7 +350,12 @@ class MeetingLifecycleTest {
 
         assertThat(updated.attendees())
                 .extracting(att -> att.userId() + ":" + att.role())
-                .containsExactlyInAnyOrder(host + ":HOST", b + ":PARTICIPANT", c + ":REVIEWER");
+                .containsExactlyInAnyOrder(host + ":HOST", b + ":PARTICIPANT", c + ":PARTICIPANT");
+        // 검토자 c 는 신분(PARTICIPANT)과 별개의 reviewer 플래그로 식별한다.
+        assertThat(updated.attendees())
+                .filteredOn(att -> att.reviewer())
+                .extracting(att -> att.userId())
+                .containsExactly(c);
         // 기존 참석자 a 는 전체 교체로 제거된다
         assertThat(updated.attendees()).extracting(att -> att.userId()).doesNotContain(a);
     }

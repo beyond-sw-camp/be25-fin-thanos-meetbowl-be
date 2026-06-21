@@ -51,7 +51,8 @@ class EndMeetingUseCaseTest {
                                                 UUID.randomUUID(),
                                                 meetingId,
                                                 reviewerUserId,
-                                                AttendeeRole.REVIEWER,
+                                                AttendeeRole.PARTICIPANT,
+                                                true,
                                                 AttendanceStatus.ACCEPTED))),
                         eventPublisher,
                         new MeetingGuestNameAllocator());
