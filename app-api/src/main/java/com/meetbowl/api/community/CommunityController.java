@@ -131,7 +131,7 @@ public class CommunityController extends BaseController {
                                 category, keyword, page, size, hot, currentUser.userId())));
     }
 
-    /** Hot 게시글 조회. 최근 24시간 내 글 중 인기 점수 상위 4개를 목록 상단 노출용으로 내린다. */
+    /** Hot 게시글 조회. 최근 24시간 내에 글 중 인기 점수 상위 4개를 목록 상단 노출용으로 내린다. */
     @GetMapping("/hot")
     public ApiResponse<List<PostListItemResponse>> hotPosts(
             @CurrentUser AuthenticatedUser currentUser) {
