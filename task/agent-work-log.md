@@ -437,3 +437,30 @@
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
 - 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+2026-06-22 Organization code auto generation API
+
+- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
+- Changed files:
+  `application/admin/OrganizationCodeGenerator`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/dto/AdminDepartmentRequest`,
+  `app-api/admin/dto/AdminTeamRequest`,
+  `app-api/admin/dto/AdminPositionRequest`,
+  related admin organization / excel tests, and this log.
+- Behavior:
+  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
+  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
+  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
+  Code generation ignores client-sent `code` values for department/team/position create and update requests.
+  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
+  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
+- Notes:
+  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
+  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
+- Verification:
+  Passed `.\gradlew.bat spotlessApply`
+  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
+  `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
