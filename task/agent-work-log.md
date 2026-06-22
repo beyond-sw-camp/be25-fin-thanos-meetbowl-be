@@ -396,6 +396,34 @@
   Passed `./gradlew spotlessApply`
   Passed `./gradlew :app-api:compileJava`
 
+2026-06-19 Admin member/org delete APIs
+
+- Purpose: add admin delete APIs for members, departments, teams, and positions with safe deletion policies, reference validation, audit logging, and user-search impact handling.
+- Changed files:
+  `app-api/admin/AdminUserController`,
+  `app-api/admin/AdminOrganizationController`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `domain/organization/DepartmentRepositoryPort`,
+  `domain/organization/TeamRepositoryPort`,
+  `domain/organization/PositionRepositoryPort`,
+  `infrastructure/persistence/organization/JpaDepartmentRepositoryAdapter`,
+  `infrastructure/persistence/organization/JpaTeamRepositoryAdapter`,
+  `infrastructure/persistence/organization/JpaPositionRepositoryAdapter`,
+  `infrastructure/persistence/organization/SpringDataTeamRepository`,
+  related admin/user tests, and this log.
+- Behavior:
+  Added `DELETE /api/v1/admin/users/{userId}` and implemented it as `INACTIVE` status change instead of hard delete so meetings, mail, audit logs, and other linked data keep referential integrity.
+  Member delete now blocks self-delete and duplicate delete for already inactive members, revokes active sessions immediately, writes success/failure `AdminAuditLog`, and publishes targeted user-search reindex events so admin/user search results reflect the inactive state.
+  Existing admin status update flow now also blocks self-inactivation to prevent bypassing the new self-delete policy.
+  Added `DELETE /api/v1/admin/organizations/departments/{departmentId}` with child-team/member reference checks before physical delete.
+  Added `DELETE /api/v1/admin/organizations/teams/{teamId}` with member reference checks before physical delete.
+  Added `DELETE /api/v1/admin/organizations/positions/{positionId}` with member reference checks before physical delete.
+  Organization delete paths write success/failure `AdminAuditLog`. They do not trigger user-search reindex because delete is allowed only when no member reference remains, so there is no affected user document to refresh.
+- Verification:
+  Passed `./gradlew.bat spotlessApply`
+  Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `./gradlew.bat :app-api:test --tests "*AdminUser*" --tests "*Organization*" --tests "*Position*"`
 2026-06-19 회의 팝업 라우팅 수정 및 입장 가능 시각 제한
 
 - 작업 목적: 회의 입장 팝업이 `/app/dashboard`로 잘못 이동하는 라우팅 문제를 수정하고, 예약 회의는 시작 15분 전부터만 입장 가능하도록 서버 규칙을 추가한다.
@@ -409,43 +437,30 @@
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
 - 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+2026-06-22 Organization code auto generation API
 
-2026-06-22 회의 종료 시 STT 세션 강제 정리 연동
-
-- 작업 목적: 호스트가 회의를 종료하면 서버 기준으로 STT 세션도 함께 종료되어 다른 참석자 화면까지 일관되게 닫히도록 내부 연동 경로를 추가한다.
-- 변경 파일: `application/meeting/EndMeetingUseCase.java`, 새 `application/meeting/MeetingRealtimeSessionStopper.java`, `application` 회의 종료 테스트 `EndMeetingUseCaseTest.java`, 새 `infrastructure/stt/HttpMeetingRealtimeSessionStopper.java`, `app-api/config/SecurityConfigTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  `EndMeetingUseCase`는 회의 DB 상태와 `meeting.ended` RabbitMQ 이벤트를 확정한 뒤 STT 내부 API로 회의 기준 세션 종료를 best-effort 호출한다.
-  STT 종료 호출이 실패해도 회의 종료 authoritative state와 후속 이벤트 발행은 되돌리지 않고 경고 로그만 남긴다.
-  보안 컨텍스트 테스트는 새 stopper port를 MockitoBean으로 대체해 기존 테스트 부트스트랩을 유지한다.
-- 제외 범위:
-  STT 서버 내부의 DataChannel 브로드캐스트와 자막 세그먼트 조정 자체는 이 레포에서 구현하지 않았다.
-- 검증 방법:
-  통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"` 실행 중 `:app-api:compileJava`, `:infrastructure:compileJava`, `:application:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.EndMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest` 등) 때문에 막혔다.
-  실패(기존 테스트 기대값): `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"`는 `protectedEndpointWithoutTokenReturnsCommonUnauthorizedResponse` 1건이 기존 기대 문자열 문제로 실패했지만, 새 stopper 추가로 인한 컴파일/빈 주입 문제는 재현되지 않았다.
-
-2026-06-22 STT 장애 시 회의 입장 fallback 허용
-
-- 작업 목적: STT 내부 API가 일시적으로 실패할 때 `/meetings/{meetingId}/join`까지 503으로 막혀 메인 회의 화면에 아예 들어가지 못하는 문제를 줄인다.
-- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  회의 입장 직전 STT 세션 자동 시작은 그대로 시도하되, `STT_PROVIDER_UNAVAILABLE`가 발생하면 경고 로그만 남기고 LiveKit join token 발급은 계속 진행한다.
-  따라서 STT가 잠시 불안정한 상태에서도 영상/음성 회의 입장 자체는 가능하고, 자막만 지연되거나 비어 있을 수 있다.
-  로컬 프로필 기본값은 `server.address=0.0.0.0`, `meetbowl.livekit.server-url=127.0.0.1`, `meetbowl.stt.base-url=127.0.0.1`로 맞춰 `localhost`의 IPv4/IPv6 해석 차이 때문에 join/STT 내부 호출이 흔들리는 상황을 줄였다.
-- 제외 범위:
-  STT 서버 내부 연결 실패 원인 자체를 이 레포에서 제거하지는 않았다.
-- 검증 방법:
-  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 이번 변경 파일이 아니라 기존 `GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`의 `:application:compileTestJava` 오류 때문에 중단됐다.
-
-2026-06-22 회의 입장 상태 차단 보강
-
-- 작업 목적: 예약 시작 15분 전보다 이른 회의와 취소된 회의가 입장 가능한 상태로 남아 있던 문제를 막는다.
-- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  회의 입장 API는 `ENDED`뿐 아니라 `CANCELLED` 상태도 차단한다.
-  따라서 취소된 회의는 `/meetings/{meetingId}/join` 단계에서 다시 한 번 막힌다.
-- 검증 방법:
-  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패 때문에 실행되지 않았다.
+- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
+- Changed files:
+  `application/admin/OrganizationCodeGenerator`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/dto/AdminDepartmentRequest`,
+  `app-api/admin/dto/AdminTeamRequest`,
+  `app-api/admin/dto/AdminPositionRequest`,
+  related admin organization / excel tests, and this log.
+- Behavior:
+  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
+  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
+  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
+  Code generation ignores client-sent `code` values for department/team/position create and update requests.
+  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
+  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
+- Notes:
+  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
+  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
+- Verification:
+  Passed `.\gradlew.bat spotlessApply`
+  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
+  `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.

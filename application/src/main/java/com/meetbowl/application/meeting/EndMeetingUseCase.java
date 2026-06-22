@@ -9,8 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
+import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 
@@ -78,8 +78,8 @@ public class EndMeetingUseCase {
          */
         UUID reviewerUserId =
                 meetingAttendeeRepositoryPort.findByMeetingId(savedMeeting.id()).stream()
-                        .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
-                        .map(attendee -> attendee.userId())
+                        .filter(MeetingAttendee::reviewer)
+                        .map(MeetingAttendee::userId)
                         .findFirst()
                         .orElse(null);
 

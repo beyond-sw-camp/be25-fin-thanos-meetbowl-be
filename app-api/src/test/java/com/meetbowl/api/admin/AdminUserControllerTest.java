@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -244,6 +245,27 @@ class AdminUserControllerTest {
     }
 
     @Test
+    void deleteUserSuccess() throws Exception {
+        given(adminUserManagementUseCase.delete(any())).willReturn(userSummary("USER", "INACTIVE"));
+
+        mockMvc.perform(
+                        delete("/api/v1/admin/users/{userId}", USER_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminUserControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(USER_ID.toString()))
+                .andExpect(jsonPath("$.data.status").value("INACTIVE"));
+
+        ArgumentCaptor<AdminUserManagementUseCase.DeleteCommand> commandCaptor =
+                ArgumentCaptor.forClass(AdminUserManagementUseCase.DeleteCommand.class);
+        verify(adminUserManagementUseCase).delete(commandCaptor.capture());
+        assertEquals(USER_ID, commandCaptor.getValue().userId());
+        assertEquals(ADMIN_ID, commandCaptor.getValue().adminId());
+    }
+
+    @Test
     void updateStatusLockedFailsWhenRequestIsInvalid() throws Exception {
         mockMvc.perform(
                         patch("/api/v1/admin/users/{userId}/status", USER_ID)
@@ -267,6 +289,19 @@ class AdminUserControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.USER))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
+
+        verifyNoInteractions(adminUserManagementUseCase);
+    }
+
+    @Test
+    void deleteFailsWhenNotAdmin() throws Exception {
+        mockMvc.perform(
+                        delete("/api/v1/admin/users/{userId}", USER_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.USER)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("COMMON_FORBIDDEN"));
 

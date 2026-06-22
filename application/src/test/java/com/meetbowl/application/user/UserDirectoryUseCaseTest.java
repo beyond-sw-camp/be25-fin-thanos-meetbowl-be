@@ -499,6 +499,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID departmentId) {
+            departments.remove(departmentId);
+        }
+
+        @Override
         public Optional<Department> findById(UUID departmentId) {
             return Optional.ofNullable(departments.get(departmentId));
         }
@@ -543,6 +548,11 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID teamId) {
+            teams.remove(teamId);
+        }
+
+        @Override
         public Optional<Team> findById(UUID teamId) {
             return Optional.ofNullable(teams.get(teamId));
         }
@@ -560,6 +570,13 @@ class UserDirectoryUseCaseTest {
         @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).filter(java.util.Objects::nonNull).toList();
+        }
+
+        @Override
+        public List<Team> findAllByDepartmentId(UUID departmentId) {
+            return teams.values().stream()
+                    .filter(team -> team.departmentId().equals(departmentId))
+                    .toList();
         }
 
         @Override
@@ -581,6 +598,11 @@ class UserDirectoryUseCaseTest {
         public Position save(Position position) {
             positions.put(position.id(), position);
             return position;
+        }
+
+        @Override
+        public void deleteById(UUID positionId) {
+            positions.remove(positionId);
         }
 
         @Override

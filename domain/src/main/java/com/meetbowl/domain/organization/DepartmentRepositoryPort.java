@@ -9,6 +9,8 @@ public interface DepartmentRepositoryPort {
 
     Department save(Department department);
 
+    void deleteById(UUID departmentId);
+
     Optional<Department> findById(UUID departmentId);
 
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회

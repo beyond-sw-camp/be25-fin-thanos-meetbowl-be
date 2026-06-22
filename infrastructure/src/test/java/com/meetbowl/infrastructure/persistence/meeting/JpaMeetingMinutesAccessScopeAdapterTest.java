@@ -34,7 +34,7 @@ class JpaMeetingMinutesAccessScopeAdapterTest {
                                 entity(
                                         meetingId,
                                         hostUserId,
-                                        AttendeeRole.REVIEWER,
+                                        AttendeeRole.PARTICIPANT,
                                         AttendanceStatus.INVITED),
                                 entity(
                                         meetingId,
@@ -50,6 +50,7 @@ class JpaMeetingMinutesAccessScopeAdapterTest {
     private MeetingAttendeeEntity entity(
             UUID meetingId, UUID userId, AttendeeRole role, AttendanceStatus attendanceStatus) {
         return MeetingAttendeeEntity.from(
-                MeetingAttendee.of(UUID.randomUUID(), meetingId, userId, role, attendanceStatus));
+                MeetingAttendee.of(
+                        UUID.randomUUID(), meetingId, userId, role, false, attendanceStatus));
     }
 }
