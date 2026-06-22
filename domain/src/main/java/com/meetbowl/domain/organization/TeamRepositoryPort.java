@@ -9,6 +9,8 @@ public interface TeamRepositoryPort {
 
     Team save(Team team);
 
+    void deleteById(UUID teamId);
+
     Optional<Team> findById(UUID teamId);
 
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회
@@ -17,6 +19,8 @@ public interface TeamRepositoryPort {
     List<Team> findAllForExcelExport();
 
     List<Team> findAllByIds(Collection<UUID> teamIds);
+
+    List<Team> findAllByDepartmentId(UUID departmentId);
 
     // 팀명 중복 규칙은 같은 Department 내부 범위에서만 적용된다.
     boolean existsByDepartmentIdAndName(UUID departmentId, String name);
