@@ -276,6 +276,9 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 
 프론트엔드는 이 API를 통해서만 LiveKit join info/token을 발급받는다.
 
+- 회의가 `ENDED` 상태면 `409 MEETING_ALREADY_ENDED`를 반환한다.
+- 예약 회의는 `scheduledAt` 15분 전부터만 입장할 수 있으며, 더 이르면 `409 MEETING_JOIN_TOO_EARLY`를 반환한다.
+
 - 브라우저는 LiveKit API Secret을 보유하지 않는다.
 - 응답 `livekitUrl`, `token`, `roomName`을 그대로 사용해 `room.connect()`를 호출한다.
 - 인증 사용자가 있으면 서버가 `user-{userId}` 규칙으로 participant identity를 결정한다.

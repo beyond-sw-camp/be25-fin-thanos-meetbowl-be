@@ -424,3 +424,16 @@
   Passed `./gradlew.bat spotlessApply`
   Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `./gradlew.bat :app-api:test --tests "*AdminUser*" --tests "*Organization*" --tests "*Position*"`
+2026-06-19 회의 팝업 라우팅 수정 및 입장 가능 시각 제한
+
+- 작업 목적: 회의 입장 팝업이 `/app/dashboard`로 잘못 이동하는 라우팅 문제를 수정하고, 예약 회의는 시작 15분 전부터만 입장 가능하도록 서버 규칙을 추가한다.
+- 변경 파일: `app-api` 라우팅 문서 `docs/api-spec.md`, `common/exception/ErrorCode.java`, `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
+- 동작 변경:
+  회의 입장 API는 종료된 회의뿐 아니라 시작 15분 전보다 이른 입장도 `MEETING_JOIN_TOO_EARLY`(409)로 거절한다.
+  회의가 DB에 없는 로컬 fallback room 경로는 기존처럼 즉시 입장을 허용해 개발용 진입 흐름은 유지한다.
+  API 문서에 새 입장 제한 규칙과 에러 코드를 반영했다.
+- 검증 방법:
+  통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.meeting.MeetingControllerTest"`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
+  실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
+- 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
