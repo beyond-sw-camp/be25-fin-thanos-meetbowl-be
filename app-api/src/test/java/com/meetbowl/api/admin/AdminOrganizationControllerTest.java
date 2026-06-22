@@ -176,6 +176,29 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void createDepartmentSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createDepartment(any())).willReturn(departmentResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/departments")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "affiliateId": "%s",
+                                          "name": "Engineering",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """
+                                                .formatted(AFFILIATE_ID)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void updateDepartmentSuccess() throws Exception {
         given(useCase.updateDepartment(any())).willReturn(departmentResult("ACTIVE"));
 
@@ -272,6 +295,29 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void createTeamSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createTeam(any())).willReturn(teamResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/teams")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "departmentId": "%s",
+                                          "name": "Backend",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """
+                                                .formatted(DEPARTMENT_ID)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void updateTeamSuccess() throws Exception {
         given(useCase.updateTeam(any())).willReturn(teamResult("ACTIVE"));
 
@@ -357,6 +403,27 @@ class AdminOrganizationControllerTest {
                                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.positionId").value(POSITION_ID.toString()));
+    }
+
+    @Test
+    void createPositionSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createPosition(any())).willReturn(positionResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/positions")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "name": "Manager",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """))
+                .andExpect(status().isOk());
     }
 
     @Test

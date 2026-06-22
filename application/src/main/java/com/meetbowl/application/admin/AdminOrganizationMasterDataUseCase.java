@@ -155,7 +155,7 @@ public class AdminOrganizationMasterDataUseCase {
     @Transactional
     public DepartmentResult createDepartment(CreateDepartmentCommand command) {
         String name = requiredText(command.name(), "Department name is required.");
-        String code = requiredText(command.code(), "Department code is required.");
+        String code = nextDepartmentCode();
         // 부서는 Affiliate 하위 기준정보이므로 상위 Affiliate가 실제로 존재해야 한다.
         loadAffiliate(command.affiliateId());
         // 같은 Affiliate 안에서는 동일한 부서명을 허용하지 않는다.
@@ -178,7 +178,6 @@ public class AdminOrganizationMasterDataUseCase {
     public DepartmentResult updateDepartment(UpdateDepartmentCommand command) {
         Department department = loadDepartment(command.departmentId());
         String name = requiredText(command.name(), "Department name is required.");
-        String code = requiredText(command.code(), "Department code is required.");
         loadAffiliate(command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
         Department saved =
@@ -188,7 +187,8 @@ public class AdminOrganizationMasterDataUseCase {
                                 command.affiliateId(),
                                 department.parentDepartmentId(),
                                 name,
-                                code,
+                                // 수정 시 code를 바꾸면 기존 식별/엑셀 참조 흐름이 흔들릴 수 있어 서버가 기존 값을 고정한다.
+                                department.code(),
                                 department.status(),
                                 command.sortOrder(),
                                 department.createdAt(),
@@ -286,7 +286,7 @@ public class AdminOrganizationMasterDataUseCase {
     @Transactional
     public TeamResult createTeam(CreateTeamCommand command) {
         String name = requiredText(command.name(), "Team name is required.");
-        String code = requiredText(command.code(), "Team code is required.");
+        String code = nextTeamCode();
         // 팀은 Department에 소속되므로 상위 Department 존재 여부를 먼저 확인한다.
         loadDepartment(command.departmentId());
         // 같은 Department 안에서는 동일한 팀명을 허용하지 않는다.
@@ -308,7 +308,6 @@ public class AdminOrganizationMasterDataUseCase {
     public TeamResult updateTeam(UpdateTeamCommand command) {
         Team team = loadTeam(command.teamId());
         String name = requiredText(command.name(), "Team name is required.");
-        String code = requiredText(command.code(), "Team code is required.");
         loadDepartment(command.departmentId());
         ensureTeamNameUnique(command.departmentId(), name, team.id());
         Team saved =
@@ -317,7 +316,8 @@ public class AdminOrganizationMasterDataUseCase {
                                 team.id(),
                                 command.departmentId(),
                                 name,
-                                code,
+                                // 수정 시 code를 바꾸면 기존 식별/엑셀 참조 흐름이 흔들릴 수 있어 서버가 기존 값을 고정한다.
+                                team.code(),
                                 team.status(),
                                 command.sortOrder(),
                                 team.createdAt(),
@@ -401,9 +401,10 @@ public class AdminOrganizationMasterDataUseCase {
     @Transactional
     public PositionResult createPosition(CreatePositionCommand command) {
         String name = requiredText(command.name(), "Position name is required.");
-        String code = requiredText(command.code(), "Position code is required.");
+        // 직급 코드는 P-prefix 자동 채번 정책을 따르고, 이름 중복만 별도로 막는다.
+        ensurePositionNameUnique(name, null);
+        String code = nextPositionCode();
         // 직급은 독립 기준정보이므로 이름/코드를 전역으로 유니크하게 관리한다.
-        ensurePositionUnique(name, code, null);
         return toPositionResult(
                 positionRepositoryPort.save(
                         new Position(
@@ -420,14 +421,14 @@ public class AdminOrganizationMasterDataUseCase {
     public PositionResult updatePosition(UpdatePositionCommand command) {
         Position position = loadPosition(command.positionId());
         String name = requiredText(command.name(), "Position name is required.");
-        String code = requiredText(command.code(), "Position code is required.");
-        ensurePositionUnique(name, code, position.id());
+        ensurePositionNameUnique(name, position.id());
         Position saved =
                 positionRepositoryPort.save(
                         new Position(
                                 position.id(),
                                 name,
-                                code,
+                                // 수정 시 code를 바꾸면 기존 식별/엑셀 참조 흐름이 흔들릴 수 있어 서버가 기존 값을 고정한다.
+                                position.code(),
                                 position.status(),
                                 command.sortOrder(),
                                 position.createdAt(),
@@ -543,7 +544,7 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
-    private void ensurePositionUnique(String name, String code, UUID positionId) {
+    private void ensurePositionNameUnique(String name, UUID positionId) {
         boolean duplicatedName =
                 positionId == null
                         ? positionRepositoryPort.existsByName(name)
@@ -551,13 +552,27 @@ public class AdminOrganizationMasterDataUseCase {
         if (duplicatedName) {
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "Position name already exists.");
         }
-        boolean duplicatedCode =
-                positionId == null
-                        ? positionRepositoryPort.existsByCode(code)
-                        : positionRepositoryPort.existsByCodeAndIdNot(code, positionId);
-        if (duplicatedCode) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "Position code already exists.");
-        }
+    }
+
+    private String nextDepartmentCode() {
+        // 부서 코드는 D-prefix별 최대 번호 다음 값을 써서 중간 빈 번호가 있어도 재사용하지 않는다.
+        return OrganizationCodeGenerator.forDepartmentCodes(
+                        departmentRepositoryPort.findAll().stream().map(Department::code).toList())
+                .nextCode();
+    }
+
+    private String nextTeamCode() {
+        // 팀 코드는 T-prefix 기준으로 별도 채번한다.
+        return OrganizationCodeGenerator.forTeamCodes(
+                        teamRepositoryPort.findAll().stream().map(Team::code).toList())
+                .nextCode();
+    }
+
+    private String nextPositionCode() {
+        // 직급 코드는 P-prefix 기준으로 별도 채번한다.
+        return OrganizationCodeGenerator.forPositionCodes(
+                        positionRepositoryPort.findAll().stream().map(Position::code).toList())
+                .nextCode();
     }
 
     private Affiliate loadAffiliate(UUID affiliateId) {
@@ -803,15 +818,10 @@ public class AdminOrganizationMasterDataUseCase {
     public record UpdateAffiliateStatusCommand(UUID affiliateId, String status) {}
 
     public record CreateDepartmentCommand(
-            UUID affiliateId, String name, String code, String status, Integer sortOrder) {}
+            UUID affiliateId, String name, String status, Integer sortOrder) {}
 
     public record UpdateDepartmentCommand(
-            UUID departmentId,
-            UUID affiliateId,
-            String name,
-            String code,
-            Integer sortOrder,
-            UUID adminId) {}
+            UUID departmentId, UUID affiliateId, String name, Integer sortOrder, UUID adminId) {}
 
     public record UpdateDepartmentStatusCommand(UUID departmentId, String status) {}
 
@@ -823,26 +833,20 @@ public class AdminOrganizationMasterDataUseCase {
             String userAgent) {}
 
     public record CreateTeamCommand(
-            UUID departmentId, String name, String code, String status, Integer sortOrder) {}
+            UUID departmentId, String name, String status, Integer sortOrder) {}
 
     public record UpdateTeamCommand(
-            UUID teamId,
-            UUID departmentId,
-            String name,
-            String code,
-            Integer sortOrder,
-            UUID adminId) {}
+            UUID teamId, UUID departmentId, String name, Integer sortOrder, UUID adminId) {}
 
     public record UpdateTeamStatusCommand(UUID teamId, String status) {}
 
     public record DeleteTeamCommand(
             UUID teamId, UUID adminId, String adminName, String ipAddress, String userAgent) {}
 
-    public record CreatePositionCommand(
-            String name, String code, String status, Integer sortOrder) {}
+    public record CreatePositionCommand(String name, String status, Integer sortOrder) {}
 
     public record UpdatePositionCommand(
-            UUID positionId, String name, String code, Integer sortOrder, UUID adminId) {}
+            UUID positionId, String name, Integer sortOrder, UUID adminId) {}
 
     public record UpdatePositionStatusCommand(UUID positionId, String status) {}
 

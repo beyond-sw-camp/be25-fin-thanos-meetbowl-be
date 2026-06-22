@@ -120,7 +120,7 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.DepartmentResult created =
                 useCase.createDepartment(
                         new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
-                                AFFILIATE_ID, "Engineering", "ENG", "ACTIVE", 1));
+                                AFFILIATE_ID, "Engineering", "ACTIVE", 1));
 
         AdminOrganizationMasterDataUseCase.DepartmentResult updated =
                 useCase.updateDepartment(
@@ -128,7 +128,6 @@ class AdminOrganizationMasterDataUseCaseTest {
                                 created.departmentId(),
                                 AFFILIATE_ID,
                                 "Core Engineering",
-                                "CENG",
                                 2,
                                 UUID.randomUUID()));
 
@@ -141,7 +140,9 @@ class AdminOrganizationMasterDataUseCaseTest {
 
         assertEquals(1, items.size());
         assertEquals("Engineering", created.name());
+        assertEquals("D001", created.code());
         assertEquals("Core Engineering", updated.name());
+        assertEquals("D001", updated.code());
         assertEquals("INACTIVE", changedStatus.status());
         assertEquals(
                 created.departmentId(),
@@ -156,7 +157,7 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.TeamResult created =
                 useCase.createTeam(
                         new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
-                                DEPARTMENT_ID, "Backend", "BE", "ACTIVE", 1));
+                                DEPARTMENT_ID, "Backend", "ACTIVE", 1));
 
         AdminOrganizationMasterDataUseCase.TeamResult updated =
                 useCase.updateTeam(
@@ -164,7 +165,6 @@ class AdminOrganizationMasterDataUseCaseTest {
                                 created.teamId(),
                                 DEPARTMENT_ID,
                                 "Platform Backend",
-                                "PBE",
                                 2,
                                 UUID.randomUUID()));
 
@@ -177,7 +177,9 @@ class AdminOrganizationMasterDataUseCaseTest {
 
         assertEquals(1, items.size());
         assertEquals("Backend", created.name());
+        assertEquals("T001", created.code());
         assertEquals("Platform Backend", updated.name());
+        assertEquals("T001", updated.code());
         assertEquals("INACTIVE", changedStatus.status());
         assertEquals(created.teamId(), userSearchReindexEventPublisherPort.lastEvent.teamId());
     }
@@ -187,16 +189,12 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.PositionResult created =
                 useCase.createPosition(
                         new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
-                                "Manager", "MGR", "ACTIVE", 1));
+                                "Manager", "ACTIVE", 1));
 
         AdminOrganizationMasterDataUseCase.PositionResult updated =
                 useCase.updatePosition(
                         new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
-                                created.positionId(),
-                                "Senior Manager",
-                                "SMGR",
-                                2,
-                                UUID.randomUUID()));
+                                created.positionId(), "Senior Manager", 2, UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.PositionResult changedStatus =
                 useCase.updatePositionStatus(
@@ -207,10 +205,50 @@ class AdminOrganizationMasterDataUseCaseTest {
 
         assertEquals(1, items.size());
         assertEquals("Manager", created.name());
+        assertEquals("P001", created.code());
         assertEquals("Senior Manager", updated.name());
+        assertEquals("P001", updated.code());
         assertEquals("INACTIVE", changedStatus.status());
         assertEquals(
                 created.positionId(), userSearchReindexEventPublisherPort.lastEvent.positionId());
+    }
+
+    @Test
+    void organizationCodesUseNextSequenceWithoutReusingGaps() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Platform", "D002"));
+        departmentRepository.save(department(UUID.randomUUID(), AFFILIATE_ID, "Ops", "D001"));
+        departmentRepository.save(department(UUID.randomUUID(), AFFILIATE_ID, "Sales", "D003"));
+        departmentRepository.save(
+                new Department(
+                        UUID.randomUUID(),
+                        AFFILIATE_ID,
+                        null,
+                        "Legacy",
+                        "DX99",
+                        ReferenceStatus.INACTIVE,
+                        9,
+                        NOW,
+                        NOW));
+        teamRepository.save(team(UUID.randomUUID(), DEPARTMENT_ID, "Core", "T002"));
+        positionRepository.save(position(UUID.randomUUID(), "Lead", "P009"));
+
+        AdminOrganizationMasterDataUseCase.DepartmentResult createdDepartment =
+                useCase.createDepartment(
+                        new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
+                                AFFILIATE_ID, "Engineering", "ACTIVE", 1));
+        AdminOrganizationMasterDataUseCase.TeamResult createdTeam =
+                useCase.createTeam(
+                        new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
+                                DEPARTMENT_ID, "Backend", "ACTIVE", 1));
+        AdminOrganizationMasterDataUseCase.PositionResult createdPosition =
+                useCase.createPosition(
+                        new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
+                                "Manager", "ACTIVE", 1));
+
+        assertEquals("D004", createdDepartment.code());
+        assertEquals("T003", createdTeam.code());
+        assertEquals("P010", createdPosition.code());
     }
 
     @Test
@@ -250,8 +288,7 @@ class AdminOrganizationMasterDataUseCaseTest {
                         () ->
                                 useCase.createPosition(
                                         new AdminOrganizationMasterDataUseCase
-                                                .CreatePositionCommand(
-                                                "manager", "MGR-2", "ACTIVE", 1)));
+                                                .CreatePositionCommand("manager", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
     }
@@ -265,7 +302,7 @@ class AdminOrganizationMasterDataUseCaseTest {
                                 useCase.createDepartment(
                                         new AdminOrganizationMasterDataUseCase
                                                 .CreateDepartmentCommand(
-                                                AFFILIATE_ID, "Engineering", "ENG", "ACTIVE", 1)));
+                                                AFFILIATE_ID, "Engineering", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.COMMON_NOT_FOUND, exception.errorCode());
     }
@@ -278,7 +315,7 @@ class AdminOrganizationMasterDataUseCaseTest {
                         () ->
                                 useCase.createTeam(
                                         new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
-                                                DEPARTMENT_ID, "Backend", "BE", "ACTIVE", 1)));
+                                                DEPARTMENT_ID, "Backend", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.COMMON_NOT_FOUND, exception.errorCode());
     }

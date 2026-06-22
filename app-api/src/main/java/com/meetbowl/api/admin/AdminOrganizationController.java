@@ -128,7 +128,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
                                         request.affiliateId(),
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -146,7 +145,6 @@ public class AdminOrganizationController extends BaseController {
                                         departmentId,
                                         request.affiliateId(),
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
@@ -197,7 +195,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
                                         request.departmentId(),
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -215,7 +212,6 @@ public class AdminOrganizationController extends BaseController {
                                         teamId,
                                         request.departmentId(),
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
@@ -266,7 +262,6 @@ public class AdminOrganizationController extends BaseController {
                         useCase.createPosition(
                                 new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -283,7 +278,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
                                         positionId,
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
