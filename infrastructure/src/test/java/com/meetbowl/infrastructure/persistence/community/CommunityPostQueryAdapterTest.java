@@ -24,7 +24,6 @@ import com.meetbowl.domain.community.CommunityCategory;
 import com.meetbowl.domain.community.CommunityPostListItem;
 import com.meetbowl.domain.community.CommunityPostQuery;
 import com.meetbowl.domain.community.CommunityPostQueryPort;
-import com.meetbowl.domain.community.CommunityPostSort;
 import com.meetbowl.domain.community.Post;
 import com.meetbowl.domain.community.PostLike;
 import com.meetbowl.domain.community.PostLikeRepositoryPort;
@@ -32,7 +31,7 @@ import com.meetbowl.domain.community.PostRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 
 /**
- * 게시글 조회 전용 어댑터의 쿼리 실행을 검증한다. 핵심은 (1) 좋아요/댓글 수를 한 번에 집계해 읽기 모델로 매핑하는지, (2) 인기 점수 정렬/검색/카테고리 필터/Hot
+ * 게시글 조회 전용 어댑터의 쿼리 실행을 검증한다. 핵심은 (1) 좋아요/댓글 수를 한 번에 집계해 읽기 모델로 매핑하는지, (2) 검색/카테고리 필터/Hot
  * 한정이 의도대로 동작하는지다.
  */
 @SpringBootTest(classes = CommunityPostQueryAdapterTest.TestApplication.class)
@@ -68,7 +67,7 @@ class CommunityPostQueryAdapterTest {
 
         Paged<CommunityPostListItem> page =
                 communityPostQueryPort.search(
-                        new CommunityPostQuery(null, null, CommunityPostSort.LATEST, 1, 10));
+                        new CommunityPostQuery(null, null, 1, 10));
 
         assertThat(page.totalElements()).isEqualTo(1);
         CommunityPostListItem item = page.content().get(0);
@@ -76,32 +75,6 @@ class CommunityPostQueryAdapterTest {
         assertThat(item.commentCount()).isEqualTo(3);
         assertThat(item.authorUserId()).isEqualTo(author);
         assertThat(item.createdAt()).isNotNull();
-    }
-
-    @Test
-    void popularSortOrdersByScoreDescending() {
-        UUID author = UUID.randomUUID();
-        // 낮은 점수: 좋아요 1건만 → score 2.
-        Post low =
-                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "낮은 점수", "내용", author));
-        postLikeRepositoryPort.save(PostLike.create(low.id(), UUID.randomUUID()));
-        // 높은 점수: 댓글 3건 → score 9.
-        Post high =
-                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "높은 점수", "내용", author));
-        commentRepositoryPort.save(Comment.create(high.id(), "c1", UUID.randomUUID()));
-        commentRepositoryPort.save(Comment.create(high.id(), "c2", UUID.randomUUID()));
-        commentRepositoryPort.save(Comment.create(high.id(), "c3", UUID.randomUUID()));
-
-        List<CommunityPostListItem> items =
-                communityPostQueryPort
-                        .search(
-                                new CommunityPostQuery(
-                                        null, null, CommunityPostSort.POPULAR, 1, 10))
-                        .content();
-
-        assertThat(items)
-                .extracting(CommunityPostListItem::id)
-                .containsExactly(high.id(), low.id());
     }
 
     @Test
@@ -113,7 +86,7 @@ class CommunityPostQueryAdapterTest {
 
         Paged<CommunityPostListItem> page =
                 communityPostQueryPort.search(
-                        new CommunityPostQuery(null, "spring", CommunityPostSort.LATEST, 1, 10));
+                        new CommunityPostQuery(null, "spring", 1, 10));
 
         // 제목 또는 본문에 spring(대소문자 무시) 포함된 2건만.
         assertThat(page.totalElements()).isEqualTo(2);
@@ -127,12 +100,7 @@ class CommunityPostQueryAdapterTest {
 
         Paged<CommunityPostListItem> page =
                 communityPostQueryPort.search(
-                        new CommunityPostQuery(
-                                CommunityCategory.RESTAURANT,
-                                null,
-                                CommunityPostSort.LATEST,
-                                1,
-                                10));
+                        new CommunityPostQuery(CommunityCategory.RESTAURANT, null, 1, 10));
 
         assertThat(page.content())
                 .extracting(CommunityPostListItem::category)
@@ -159,6 +127,61 @@ class CommunityPostQueryAdapterTest {
 
         // 점수 상위 2개(B=9, C=6)가 순서대로.
         assertThat(hot).extracting(CommunityPostListItem::id).containsExactly(b.id(), c.id());
+    }
+
+    @Test
+    void hotOnlyFiltersByLikeThresholdLatestFirst() {
+        UUID author = UUID.randomUUID();
+        // below: 좋아요 2건(임계값 3 미만) → 제외.
+        Post below =
+                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "좋아요2", "내용", author));
+        for (int i = 0; i < 2; i++) {
+            postLikeRepositoryPort.save(PostLike.create(below.id(), UUID.randomUUID()));
+        }
+        // hot1: 좋아요 3건(임계값 충족).
+        Post hot1 =
+                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "핫1", "내용", author));
+        for (int i = 0; i < 3; i++) {
+            postLikeRepositoryPort.save(PostLike.create(hot1.id(), UUID.randomUUID()));
+        }
+        // hot2: 좋아요 4건. hot1보다 나중에 생성 → 최신순 상단.
+        Post hot2 =
+                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "핫2", "내용", author));
+        for (int i = 0; i < 4; i++) {
+            postLikeRepositoryPort.save(PostLike.create(hot2.id(), UUID.randomUUID()));
+        }
+
+        Paged<CommunityPostListItem> page =
+                communityPostQueryPort.search(
+                        new CommunityPostQuery(null, null, 1, 10, true));
+
+        // 임계값(3) 이상인 hot2, hot1만 최신순으로.
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.content())
+                .extracting(CommunityPostListItem::id)
+                .containsExactly(hot2.id(), hot1.id());
+    }
+
+    @Test
+    void hotOnlyStillAppliesKeywordSearch() {
+        UUID author = UUID.randomUUID();
+        // 둘 다 좋아요 3건으로 임계값 충족하지만, 키워드 "스프링"은 하나만 매칭.
+        Post matching =
+                postRepositoryPort.save(
+                        Post.create(CommunityCategory.FREE, "스프링 핫글", "내용", author));
+        Post other =
+                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "다른 핫글", "내용", author));
+        for (int i = 0; i < 3; i++) {
+            postLikeRepositoryPort.save(PostLike.create(matching.id(), UUID.randomUUID()));
+            postLikeRepositoryPort.save(PostLike.create(other.id(), UUID.randomUUID()));
+        }
+
+        Paged<CommunityPostListItem> page =
+                communityPostQueryPort.search(
+                        new CommunityPostQuery(null, "스프링", 1, 10, true));
+
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content().get(0).id()).isEqualTo(matching.id());
     }
 
     @Test

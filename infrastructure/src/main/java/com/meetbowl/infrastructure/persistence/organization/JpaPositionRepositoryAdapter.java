@@ -24,6 +24,11 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     }
 
     @Override
+    public void deleteById(UUID positionId) {
+        repository.deleteById(positionId);
+    }
+
+    @Override
     public Optional<Position> findById(UUID positionId) {
         return repository.findById(positionId).map(PositionEntity::toDomain);
     }

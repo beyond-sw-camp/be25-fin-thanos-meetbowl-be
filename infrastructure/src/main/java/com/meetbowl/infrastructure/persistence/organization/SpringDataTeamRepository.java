@@ -27,6 +27,8 @@ public interface SpringDataTeamRepository extends JpaRepository<TeamEntity, UUID
             """)
     java.util.List<TeamEntity> findAllForExcelExport();
 
+    java.util.List<TeamEntity> findByDepartmentId(UUID departmentId);
+
     boolean existsByDepartmentIdAndNameIgnoreCase(UUID departmentId, String name);
 
     boolean existsByDepartmentIdAndNameIgnoreCaseAndIdNot(UUID departmentId, String name, UUID id);
