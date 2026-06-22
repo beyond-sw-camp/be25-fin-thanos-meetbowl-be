@@ -1,12 +1,13 @@
 package com.meetbowl.application.sharedworkspace;
 
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.UUID;
 
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.storage.StoredObject;
 
-/** 공유 자료 다운로드 응답에 필요한 메타데이터와 원본 바이트다. */
+/** 공유 자료 다운로드 응답에 필요한 메타데이터와 원본 스트림이다. */
 public record SharedWorkspaceFileDownloadResult(
         UUID fileId,
         UUID workspaceId,
@@ -15,7 +16,7 @@ public record SharedWorkspaceFileDownloadResult(
         long sizeBytes,
         String currentVersion,
         Instant uploadedAt,
-        byte[] content) {
+        InputStream content) {
 
     public static SharedWorkspaceFileDownloadResult from(
             SharedWorkspaceFile file, StoredObject storedObject) {

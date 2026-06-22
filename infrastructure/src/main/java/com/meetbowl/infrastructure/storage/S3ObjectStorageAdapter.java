@@ -8,7 +8,7 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.storage.ObjectStoragePort;
 import com.meetbowl.domain.storage.StoredObject;
 
-import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -54,16 +54,17 @@ public class S3ObjectStorageAdapter implements ObjectStoragePort {
             // 권한 검증은 Application 계층에서 끝낸 뒤 이 Adapter에는 확정된 storageKey만 전달한다.
             GetObjectRequest request =
                     GetObjectRequest.builder().bucket(bucket).key(storageKey).build();
-            ResponseBytes<GetObjectResponse> responseBytes = s3Client.getObjectAsBytes(request);
-            GetObjectResponse response = responseBytes.response();
-            byte[] content = responseBytes.asByteArray();
+            // 원본을 byte[]로 적재하지 않고 스트림으로 받아 흘려보낸다(대용량/동시 다운로드 OOM 방지).
+            // 이 스트림은 응답 전송을 끝낸 컨트롤러가 닫는다.
+            ResponseInputStream<GetObjectResponse> responseStream = s3Client.getObject(request);
+            GetObjectResponse response = responseStream.response();
             String contentType =
                     response.contentType() == null || response.contentType().isBlank()
                             ? "application/octet-stream"
                             : response.contentType();
             long contentLength =
-                    response.contentLength() == null ? content.length : response.contentLength();
-            return new StoredObject(content, contentType, contentLength);
+                    response.contentLength() == null ? -1L : response.contentLength();
+            return new StoredObject(responseStream, contentType, contentLength);
         } catch (NoSuchKeyException exception) {
             throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "파일 원본을 찾을 수 없습니다.");
         } catch (SdkException exception) {

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -134,7 +135,7 @@ class DriveUseCaseTest {
     }
 
     @Test
-    void downloadFile_reads_storage_after_owner_check() {
+    void downloadFile_reads_storage_after_owner_check() throws Exception {
         DownloadDriveFileUseCase useCase = new DownloadDriveFileUseCase(filePort, storagePort);
         UUID userId = UUID.randomUUID();
         UUID fileId = UUID.randomUUID();
@@ -142,7 +143,11 @@ class DriveUseCaseTest {
         byte[] content = "file-body".getBytes();
         when(filePort.findById(fileId)).thenReturn(Optional.of(file));
         when(storagePort.download(file.storageKey()))
-                .thenReturn(new StoredObject(content, "application/pdf", content.length));
+                .thenReturn(
+                        new StoredObject(
+                                new ByteArrayInputStream(content),
+                                "application/pdf",
+                                content.length));
 
         DriveFileDownloadResult result = useCase.execute(userId, fileId);
 
@@ -150,7 +155,7 @@ class DriveUseCaseTest {
         assertEquals("spec.pdf", result.originalFileName());
         assertEquals("application/pdf", result.contentType());
         assertEquals(content.length, result.sizeBytes());
-        assertEquals("file-body", new String(result.content()));
+        assertEquals("file-body", new String(result.content().readAllBytes()));
         verify(storagePort).download(file.storageKey());
     }
 
