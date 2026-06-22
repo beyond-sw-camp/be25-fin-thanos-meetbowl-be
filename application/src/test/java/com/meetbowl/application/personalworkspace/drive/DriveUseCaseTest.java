@@ -25,6 +25,7 @@ import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceDriveFile;
 import com.meetbowl.domain.personalworkspace.PersonalWorkspaceDriveFileRepositoryPort;
 import com.meetbowl.domain.storage.ObjectStoragePort;
+import com.meetbowl.domain.storage.StoredObject;
 
 /** 드라이브 파일 등록 시 저장 경로 생성, 다운로드/삭제의 소유자 검증과 멱등 처리를 검증한다. */
 class DriveUseCaseTest {
@@ -130,6 +131,27 @@ class DriveUseCaseTest {
                 assertThrows(BusinessException.class, () -> useCase.execute(userId, fileId));
 
         assertEquals(ErrorCode.COMMON_FORBIDDEN, ex.errorCode());
+    }
+
+    @Test
+    void downloadFile_reads_storage_after_owner_check() {
+        DownloadDriveFileUseCase useCase = new DownloadDriveFileUseCase(filePort, storagePort);
+        UUID userId = UUID.randomUUID();
+        UUID fileId = UUID.randomUUID();
+        PersonalWorkspaceDriveFile file = activeFileOf(fileId, userId);
+        byte[] content = "file-body".getBytes();
+        when(filePort.findById(fileId)).thenReturn(Optional.of(file));
+        when(storagePort.download(file.storageKey()))
+                .thenReturn(new StoredObject(content, "application/pdf", content.length));
+
+        DriveFileDownloadResult result = useCase.execute(userId, fileId);
+
+        assertEquals(fileId, result.fileId());
+        assertEquals("spec.pdf", result.originalFileName());
+        assertEquals("application/pdf", result.contentType());
+        assertEquals(content.length, result.sizeBytes());
+        assertEquals("file-body", new String(result.content()));
+        verify(storagePort).download(file.storageKey());
     }
 
     @Test

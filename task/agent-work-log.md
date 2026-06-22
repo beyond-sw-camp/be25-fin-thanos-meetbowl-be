@@ -464,3 +464,28 @@
   Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
   `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+
+2026-06-22 Workspace file download and preview APIs
+
+- Purpose: 개인/공유 워크스페이스에 업로드된 S3 파일을 사용자가 다운로드하고 브라우저에서 미리볼 수 있도록 원본 파일 반환 경로를 추가한다.
+- Changed files:
+  `domain/storage/ObjectStoragePort`,
+  `domain/storage/StoredObject`,
+  `infrastructure/storage/S3ObjectStorageAdapter`,
+  `application/personalworkspace/drive/DownloadDriveFileUseCase`,
+  `application/personalworkspace/drive/DriveFileDownloadResult`,
+  `application/sharedworkspace/GetSharedWorkspaceFileUseCase`,
+  `application/sharedworkspace/DownloadSharedWorkspaceFileUseCase`,
+  `application/sharedworkspace/SharedWorkspaceFileDownloadResult`,
+  `app-api/personalworkspace/WorkspaceDriveController`,
+  `app-api/sharedworkspace/SharedWorkspaceFileController`,
+  related storage/drive tests, `docs/api-spec.md`, and this log.
+- Behavior:
+  Added Object Storage download support using `storageKey`, returning original bytes, content type, and length.
+  Personal drive download now verifies owner and deleted state before reading S3.
+  Shared workspace download now verifies active workspace membership and file workspace ownership before reading S3.
+  Existing metadata endpoints remain JSON responses, while `/download` returns `Content-Disposition: attachment` and `/preview` returns `Content-Disposition: inline`.
+  Korean filenames are encoded through Spring `ContentDisposition.filename(..., UTF_8)` so browser download names do not break.
+- Verification:
+  Passed `./gradlew :app-api:compileJava :application:compileJava :infrastructure:compileJava`
+  `./gradlew spotlessApply :application:test --tests '*DriveUseCaseTest' :infrastructure:test --tests '*S3ObjectStorageAdapterTest'` was blocked before executing the target tests because existing unrelated test sources in `meeting`, `minutes`, `transcript`, and messaging packages do not compile against the current domain/port contracts.

@@ -1,9 +1,12 @@
 package com.meetbowl.api.personalworkspace;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +25,8 @@ import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
 import com.meetbowl.api.personalworkspace.dto.DriveFileResponse;
 import com.meetbowl.application.personalworkspace.drive.DeleteDriveFileUseCase;
+import com.meetbowl.application.personalworkspace.drive.DownloadDriveFileUseCase;
+import com.meetbowl.application.personalworkspace.drive.DriveFileDownloadResult;
 import com.meetbowl.application.personalworkspace.drive.DriveFileResult;
 import com.meetbowl.application.personalworkspace.drive.GetDriveFileUseCase;
 import com.meetbowl.application.personalworkspace.drive.GetDriveFilesUseCase;
@@ -32,8 +37,8 @@ import com.meetbowl.common.response.ApiResponse;
 /**
  * 개인 워크스페이스 드라이브 파일 API다.
  *
- * <p>업로드 파일은 서버가 검증한 뒤 Object Storage에 저장하고 DB에는 메타데이터만 남긴다. 다운로드 응답은 현재 메타데이터 조회이며 원본 다운로드 URL 발급은
- * 후속 범위다.
+ * <p>업로드 파일은 서버가 검증한 뒤 Object Storage에 저장하고 DB에는 메타데이터만 남긴다. 원본 다운로드와 미리보기는 소유자 검증 후 서버가 S3에서 읽어
+ * 내려준다.
  */
 @RequireUserOrAdmin
 @RestController
@@ -43,16 +48,19 @@ public class WorkspaceDriveController extends BaseController {
     private final GetDriveFilesUseCase getDriveFilesUseCase;
     private final RegisterDriveFileUseCase registerDriveFileUseCase;
     private final GetDriveFileUseCase getDriveFileUseCase;
+    private final DownloadDriveFileUseCase downloadDriveFileUseCase;
     private final DeleteDriveFileUseCase deleteDriveFileUseCase;
 
     public WorkspaceDriveController(
             GetDriveFilesUseCase getDriveFilesUseCase,
             RegisterDriveFileUseCase registerDriveFileUseCase,
             GetDriveFileUseCase getDriveFileUseCase,
+            DownloadDriveFileUseCase downloadDriveFileUseCase,
             DeleteDriveFileUseCase deleteDriveFileUseCase) {
         this.getDriveFilesUseCase = getDriveFilesUseCase;
         this.registerDriveFileUseCase = registerDriveFileUseCase;
         this.getDriveFileUseCase = getDriveFileUseCase;
+        this.downloadDriveFileUseCase = downloadDriveFileUseCase;
         this.deleteDriveFileUseCase = deleteDriveFileUseCase;
     }
 
@@ -83,10 +91,39 @@ public class WorkspaceDriveController extends BaseController {
         return ok(DriveFileResponse.from(result));
     }
 
+    @GetMapping("/{fileId}/download")
+    public ResponseEntity<byte[]> downloadFile(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID fileId) {
+        DriveFileDownloadResult result = downloadDriveFileUseCase.execute(user.userId(), fileId);
+        return fileResponse(result, ContentDisposition.attachment());
+    }
+
+    @GetMapping("/{fileId}/preview")
+    public ResponseEntity<byte[]> previewFile(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID fileId) {
+        DriveFileDownloadResult result = downloadDriveFileUseCase.execute(user.userId(), fileId);
+        return fileResponse(result, ContentDisposition.inline());
+    }
+
     @DeleteMapping("/{fileId}")
     public ApiResponse<Void> deleteFile(
             @CurrentUser AuthenticatedUser user, @PathVariable UUID fileId) {
         deleteDriveFileUseCase.execute(user.userId(), fileId);
         return ok();
+    }
+
+    private ResponseEntity<byte[]> fileResponse(
+            DriveFileDownloadResult result, ContentDisposition.Builder dispositionBuilder) {
+        // 한글 파일명은 RFC 5987 방식으로 인코딩해 브라우저 저장 이름이 깨지지 않게 한다.
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(result.contentType()))
+                .contentLength(result.content().length)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        dispositionBuilder
+                                .filename(result.originalFileName(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .body(result.content());
     }
 }
