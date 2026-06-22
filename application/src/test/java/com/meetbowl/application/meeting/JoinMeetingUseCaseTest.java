@@ -281,6 +281,78 @@ class JoinMeetingUseCaseTest {
         assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
     }
 
+    @Test
+    void 취소된회의는입장할수없다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "취소된 회의",
+                                        Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-cancelled",
+                                        MeetingStatus.CANCELLED,
+                                        null,
+                                        null,
+                                        "취소 회의 입장 차단 테스트")),
+                        new RecordingTokenIssuer(),
+                        new RecordingRealtimeSessionStarter(),
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new JoinMeetingCommand(
+                                                meetingId, null, "게스트", "guest-cancelled-test")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+    }
+
+    @Test
+    void stt세션자동시작이실패해도회의입장은계속할수있다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "STT 장애 허용 회의",
+                                        Instant.parse("2026-06-12T00:55:00Z"),
+                                        Instant.parse("2026-06-12T01:55:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-stt-warning",
+                                        MeetingStatus.SCHEDULED,
+                                        null,
+                                        null,
+                                        "STT 장애 허용 테스트")),
+                        tokenIssuer,
+                        new FailingRealtimeSessionStarter(),
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
+
+        JoinMeetingResult result =
+                useCase.execute(
+                        new JoinMeetingCommand(
+                                meetingId, null, "게스트", "guest-stt-warning-test"));
+
+        assertEquals("provider-room-stt-warning", result.roomName());
+        assertEquals("issued-token", result.token());
+        assertEquals("guest-stt-warning-test", tokenIssuer.lastCommand.participantIdentity());
+    }
+
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {
 
         private LiveKitTokenIssueCommand lastCommand;
@@ -309,6 +381,15 @@ class JoinMeetingUseCaseTest {
             this.called = true;
             this.lastMeetingId = meetingId;
             this.lastRoomName = roomName;
+        }
+    }
+
+    private static final class FailingRealtimeSessionStarter
+            implements MeetingRealtimeSessionStarter {
+
+        @Override
+        public void ensureStarted(UUID meetingId, String roomName) {
+            throw new BusinessException(ErrorCode.STT_PROVIDER_UNAVAILABLE);
         }
     }
 
