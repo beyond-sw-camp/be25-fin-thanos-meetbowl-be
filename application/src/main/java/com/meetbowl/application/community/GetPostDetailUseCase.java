@@ -71,7 +71,8 @@ public class GetPostDetailUseCase {
                                 detail.authorUserId(),
                                 CommunityAliasDisplayResolver.FALLBACK_DISPLAY_NAME);
         boolean liked = postLikeRepositoryPort.existsByPostIdAndUserId(postId, requesterId);
+        boolean mine = detail.authorUserId().equals(requesterId);
 
-        return PostDetailResult.of(detail, authorAlias, liked);
+        return PostDetailResult.of(detail, authorAlias, mine, liked);
     }
 }

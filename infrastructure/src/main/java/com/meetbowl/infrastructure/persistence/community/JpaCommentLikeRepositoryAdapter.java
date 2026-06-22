@@ -1,5 +1,8 @@
 package com.meetbowl.infrastructure.persistence.community;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
@@ -27,6 +30,15 @@ public class JpaCommentLikeRepositoryAdapter implements CommentLikeRepositoryPor
     @Override
     public boolean existsByCommentIdAndUserId(UUID commentId, UUID userId) {
         return springDataCommentLikeRepository.existsByCommentIdAndUserId(commentId, userId);
+    }
+
+    @Override
+    public Set<UUID> findLikedCommentIds(UUID userId, Collection<UUID> commentIds) {
+        if (userId == null || commentIds == null || commentIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(
+                springDataCommentLikeRepository.findLikedCommentIds(userId, commentIds));
     }
 
     @Override

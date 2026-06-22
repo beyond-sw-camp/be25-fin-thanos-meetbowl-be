@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.community.CommentLikeRepositoryPort;
 import com.meetbowl.domain.community.CommunityCommentListItem;
 import com.meetbowl.domain.community.CommunityCommentQueryPort;
 import com.meetbowl.domain.community.PostRepositoryPort;
@@ -28,18 +29,25 @@ public class ListCommentsUseCase {
     private final PostRepositoryPort postRepositoryPort;
     private final CommunityCommentQueryPort communityCommentQueryPort;
     private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommentLikeRepositoryPort commentLikeRepositoryPort;
 
     public ListCommentsUseCase(
             PostRepositoryPort postRepositoryPort,
             CommunityCommentQueryPort communityCommentQueryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver) {
+            CommunityAliasDisplayResolver aliasDisplayResolver,
+            CommentLikeRepositoryPort commentLikeRepositoryPort) {
         this.postRepositoryPort = postRepositoryPort;
         this.communityCommentQueryPort = communityCommentQueryPort;
         this.aliasDisplayResolver = aliasDisplayResolver;
+        this.commentLikeRepositoryPort = commentLikeRepositoryPort;
     }
 
+    /**
+     * 한 게시글의 댓글 목록을 조회한다. {@code requesterId}는 현재 로그인 사용자로, 각 댓글의 작성자 여부(mine)·좋아요 여부(liked)를 계산해
+     * 내린다. 좋아요는 댓글 ID를 모아 한 번에 배치 조회해 N+1을 피한다.
+     */
     @Transactional(readOnly = true)
-    public List<CommentListItemResult> execute(UUID postId) {
+    public List<CommentListItemResult> execute(UUID postId, UUID requesterId) {
         if (postRepositoryPort.findById(postId).isEmpty()) {
             throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다.");
         }
@@ -53,6 +61,12 @@ public class ListCommentsUseCase {
                         .collect(Collectors.toSet());
         Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
 
+        // 이 목록의 댓글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피).
+        Set<UUID> commentIds =
+                items.stream().map(CommunityCommentListItem::id).collect(Collectors.toSet());
+        Set<UUID> likedCommentIds =
+                commentLikeRepositoryPort.findLikedCommentIds(requesterId, commentIds);
+
         return items.stream()
                 .map(
                         item ->
@@ -61,7 +75,9 @@ public class ListCommentsUseCase {
                                         aliasByUser.getOrDefault(
                                                 item.authorUserId(),
                                                 CommunityAliasDisplayResolver
-                                                        .FALLBACK_DISPLAY_NAME)))
+                                                        .FALLBACK_DISPLAY_NAME),
+                                        item.authorUserId().equals(requesterId),
+                                        likedCommentIds.contains(item.id())))
                 .toList();
     }
 }
