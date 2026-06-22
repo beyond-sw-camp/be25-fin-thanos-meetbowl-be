@@ -52,4 +52,12 @@ interface SpringDataPersonalWorkspaceCalendarEventRepository
     @Transactional
     long deleteByIdAndOwnerUserIdAndSource(
             UUID eventId, UUID ownerUserId, CalendarEventSource source);
+
+    // 회의 일정 멱등 upsert: 한 사용자의 특정 회의 일정(있으면 1건)을 찾는다.
+    Optional<PersonalWorkspaceCalendarEventEntity> findByOwnerUserIdAndSourceAndSourceId(
+            UUID ownerUserId, CalendarEventSource source, UUID sourceId);
+
+    // 회의 취소 시 해당 회의로 투영된 전 참석자 일정을 일괄 삭제한다.
+    @Transactional
+    long deleteBySourceIdAndSource(UUID sourceId, CalendarEventSource source);
 }
