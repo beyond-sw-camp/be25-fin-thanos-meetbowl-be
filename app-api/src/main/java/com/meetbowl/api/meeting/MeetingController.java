@@ -23,15 +23,15 @@ import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
 import com.meetbowl.api.meeting.dto.EndMeetingResponse;
-import com.meetbowl.api.meeting.dto.TransferMeetingHostRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingResponse;
+import com.meetbowl.api.meeting.dto.TransferMeetingHostRequest;
 import com.meetbowl.application.meeting.CancelMeetingUseCase;
+import com.meetbowl.application.meeting.CreateMeetingCommand;
+import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.EndMeetingCommand;
 import com.meetbowl.application.meeting.EndMeetingResult;
 import com.meetbowl.application.meeting.EndMeetingUseCase;
-import com.meetbowl.application.meeting.CreateMeetingCommand;
-import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
 import com.meetbowl.application.meeting.JoinMeetingCommand;
 import com.meetbowl.application.meeting.JoinMeetingResult;
@@ -176,6 +176,7 @@ public class MeetingController extends BaseController {
                         new JoinMeetingCommand(
                                 meetingId,
                                 currentUser != null ? currentUser.userId() : null,
+                                currentUser != null ? currentUser.organizationId() : null,
                                 request.displayName(),
                                 request.participantIdentity()));
         return ok(JoinMeetingResponse.from(result));
@@ -184,8 +185,7 @@ public class MeetingController extends BaseController {
     /**
      * 회의 종료를 요청한다.
      *
-     * <p>현재는 회의 생성자(로그인 사용자) 기준으로만 종료를 허용하고, 회의가 끝나면 FE가 LiveKit DataChannel로 나머지 참여자를 함께
-     * 내보낸다.
+     * <p>현재는 회의 생성자(로그인 사용자) 기준으로만 종료를 허용하고, 회의가 끝나면 FE가 LiveKit DataChannel로 나머지 참여자를 함께 내보낸다.
      */
     @PostMapping("/{meetingId}/end")
     public ApiResponse<EndMeetingResponse> endMeeting(
@@ -193,7 +193,8 @@ public class MeetingController extends BaseController {
             @CurrentUser(required = false) AuthenticatedUser currentUser) {
         if (currentUser != null) {
             MeetingResult meeting =
-                    getMeetingUseCase.getById(meetingId, currentUser.userId(), currentUser.isAdmin());
+                    getMeetingUseCase.getById(
+                            meetingId, currentUser.userId(), currentUser.isAdmin());
             if (!meeting.hostUserId().equals(currentUser.userId())) {
                 throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "회의 주최자만 종료할 수 있습니다.");
             }
@@ -205,7 +206,9 @@ public class MeetingController extends BaseController {
                                 Instant.now(),
                                 UUID.randomUUID(),
                                 "meeting-ended",
-                                currentUser != null ? currentUser.displayName() : "meeting-client"));
+                                currentUser != null
+                                        ? currentUser.displayName()
+                                        : "meeting-client"));
         return ok(EndMeetingResponse.from(result));
     }
 

@@ -13,14 +13,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueCommand;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
-import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.common.exception.ErrorCode;
 
 class JoinMeetingUseCaseTest {
 
@@ -60,6 +60,7 @@ class JoinMeetingUseCaseTest {
                         new JoinMeetingCommand(
                                 meetingId,
                                 UUID.fromString("31f73d71-c04e-4410-a98c-fdc15e918091"),
+                                UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
                                 "이지연",
                                 "ignored-client-identity"));
 
@@ -69,6 +70,9 @@ class JoinMeetingUseCaseTest {
         assertEquals("이지연", result.participantName());
         assertEquals("provider-room-123", tokenIssuer.lastCommand.roomName());
         assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
+        assertEquals(
+                UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                realtimeSessionStarter.lastOrganizationId);
         assertEquals("provider-room-123", realtimeSessionStarter.lastRoomName);
     }
 
@@ -94,10 +98,7 @@ class JoinMeetingUseCaseTest {
         assertEquals("meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39", result.roomName());
         assertEquals("frontend-participant", result.participantIdentity());
         assertEquals("frontend-participant", tokenIssuer.lastCommand.participantIdentity());
-        assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
-        assertEquals(
-                "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
-                realtimeSessionStarter.lastRoomName);
+        assertTrue(!realtimeSessionStarter.called);
     }
 
     @Test
@@ -116,9 +117,16 @@ class JoinMeetingUseCaseTest {
 
         useCase.execute(
                 new JoinMeetingCommand(
-                        meetingId, null, "자동 자막 테스트", "frontend-participant"));
+                        meetingId,
+                        UUID.randomUUID(),
+                        UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                        "자동 자막 테스트",
+                        "frontend-participant"));
 
         assertTrue(realtimeSessionStarter.called);
+        assertEquals(
+                UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
+                realtimeSessionStarter.lastOrganizationId);
         assertEquals("meeting-" + meetingId, realtimeSessionStarter.lastRoomName);
     }
 
@@ -143,7 +151,7 @@ class JoinMeetingUseCaseTest {
 
         assertTrue(result.participantName().startsWith("게스트 "));
         assertEquals(result.participantName(), tokenIssuer.lastCommand.participantName());
-        assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
+        assertTrue(!realtimeSessionStarter.called);
     }
 
     @Test
@@ -162,11 +170,9 @@ class JoinMeetingUseCaseTest {
                         FIXED_CLOCK);
 
         JoinMeetingResult first =
-                useCase.execute(
-                        new JoinMeetingCommand(meetingId, null, "", "guest-1"));
+                useCase.execute(new JoinMeetingCommand(meetingId, null, "", "guest-1"));
         JoinMeetingResult second =
-                useCase.execute(
-                        new JoinMeetingCommand(meetingId, null, "", "guest-2"));
+                useCase.execute(new JoinMeetingCommand(meetingId, null, "", "guest-2"));
 
         assertEquals("게스트 1", first.participantName());
         assertEquals("게스트 2", second.participantName());
@@ -273,12 +279,10 @@ class JoinMeetingUseCaseTest {
                         FIXED_CLOCK);
 
         JoinMeetingResult result =
-                useCase.execute(
-                        new JoinMeetingCommand(
-                                meetingId, null, "게스트", "guest-open-test"));
+                useCase.execute(new JoinMeetingCommand(meetingId, null, "게스트", "guest-open-test"));
 
         assertEquals("provider-room-open", result.roomName());
-        assertEquals(meetingId, realtimeSessionStarter.lastMeetingId);
+        assertTrue(!realtimeSessionStarter.called);
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {
@@ -301,13 +305,15 @@ class JoinMeetingUseCaseTest {
 
         private boolean called;
         private UUID lastMeetingId;
+        private UUID lastOrganizationId;
         private String lastRoomName;
 
         @Override
-        public void ensureStarted(UUID meetingId, String roomName) {
+        public void ensureStarted(UUID meetingId, UUID organizationId, String roomName) {
             // 회의 입장 직전에 STT room 준비를 보장하는지만 검증하면 충분하다.
             this.called = true;
             this.lastMeetingId = meetingId;
+            this.lastOrganizationId = organizationId;
             this.lastRoomName = roomName;
         }
     }

@@ -65,8 +65,12 @@ public class JoinMeetingUseCase {
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
 
-        // 사용자가 회의 화면에 입장하는 시점에 STT 세션도 같이 보장해야, 자막 탭이 빈 상태로 오래 머무르지 않는다.
-        meetingRealtimeSessionStarter.ensureStarted(command.meetingId(), roomName);
+        // STT가 최종 자막/피드백 이벤트에 조직 ID를 넣어야 하므로 인증 컨텍스트의 조직이 있을 때만 세션을 생성한다.
+        // 조직이 없는 로컬 fallback/비로그인 입장은 LiveKit 자체를 막지 않고, 인증 사용자의 입장 시 세션을 보장한다.
+        if (command.organizationId() != null) {
+            meetingRealtimeSessionStarter.ensureStarted(
+                    command.meetingId(), command.organizationId(), roomName);
+        }
 
         LiveKitTokenIssueResult issuedToken =
                 liveKitTokenIssuer.issue(
@@ -118,13 +122,15 @@ public class JoinMeetingUseCase {
     /**
      * 게스트는 화면에 같은 이름으로만 보이면 누가 누구인지 구분이 안 되므로, 서버에서 구분 가능한 번호를 붙인다.
      *
-     * <p>비로그인 게스트는 입력한 이름이 비어 있거나 기본값인 경우만 "게스트 {번호}"로 만든다. 번호는 participantIdentity를 기반으로
-     * 계산해 같은 입장 흐름에서는 일관되게 유지되도록 한다.
+     * <p>비로그인 게스트는 입력한 이름이 비어 있거나 기본값인 경우만 "게스트 {번호}"로 만든다. 번호는 participantIdentity를 기반으로 계산해 같은 입장
+     * 흐름에서는 일관되게 유지되도록 한다.
      */
     private String resolveParticipantName(JoinMeetingCommand command) {
         String requestedDisplayName = normalizeDisplayName(command.displayName());
         if (command.authenticatedUserId() != null) {
-            return requestedDisplayName.isBlank() ? DEFAULT_GUEST_DISPLAY_NAME : requestedDisplayName;
+            return requestedDisplayName.isBlank()
+                    ? DEFAULT_GUEST_DISPLAY_NAME
+                    : requestedDisplayName;
         }
         if (!isDefaultGuestDisplayName(requestedDisplayName)) {
             return requestedDisplayName;
@@ -142,8 +148,7 @@ public class JoinMeetingUseCase {
         if (displayName == null || displayName.isBlank()) {
             return true;
         }
-        return DEFAULT_GUEST_DISPLAY_NAME.equals(displayName)
-                || "참석자".equals(displayName);
+        return DEFAULT_GUEST_DISPLAY_NAME.equals(displayName) || "참석자".equals(displayName);
     }
 
     /**
@@ -161,5 +166,4 @@ public class JoinMeetingUseCase {
             throw new BusinessException(ErrorCode.MEETING_JOIN_TOO_EARLY);
         }
     }
-
 }

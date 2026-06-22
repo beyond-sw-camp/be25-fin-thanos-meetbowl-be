@@ -9,5 +9,5 @@ import java.util.UUID;
  */
 public interface MeetingRealtimeSessionStarter {
 
-    void ensureStarted(UUID meetingId, String roomName);
+    void ensureStarted(UUID meetingId, UUID organizationId, String roomName);
 }

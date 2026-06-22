@@ -409,3 +409,17 @@
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
 - 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+2026-06-22 BE local environment duplicate secret cleanup
+
+- Purpose: fix local login returning `COMMON_INTERNAL_ERROR` after the BE environment file was extended for LiveKit/STT configuration.
+- Changed files: `.env`, `.env.example`, and this log.
+- Behavior: removed the later empty duplicate declarations that overwrote `MEETBOWL_JWT_SECRET` and `MEETBOWL_INTERNAL_TOKEN`. The optional `MEETBOWL_STT_INTERNAL_TOKEN` is now commented out by default so Spring falls back to the shared internal token instead of receiving an explicit empty value.
+- Excluded scope: did not change authentication logic, token format, CORS, database configuration, or LiveKit/STT implementation.
+- Verification: confirmed `.env` and `.env.example` have no duplicate keys, then loaded the corrected `.env` into a separately started backend on port 18080 and confirmed the local seed login returns HTTP 200 with access/refresh tokens.
+
+2026-06-22 Meeting join STT session contract fix
+
+- Purpose: fix meeting join returning HTTP 503 after STT startup because BE omitted the organization ID required by the STT `ensure-started` contract.
+- Changed files: `JoinMeetingCommand`, `MeetingRealtimeSessionStarter`, `JoinMeetingUseCase`, `MeetingController`, `HttpMeetingRealtimeSessionStarter`, related meeting tests, local BE/Infra environment files, and this log.
+- Behavior: authenticated meeting joins now propagate the JWT organization ID through the application port into the STT `organizationId` request field. Organization-less local/guest fallback joins skip STT session creation instead of blocking LiveKit token issuance. Local BE-to-STT internal token values and the LiveKit secret were aligned, and the LiveKit container was recreated with the corrected secret.
+- Verification: passed application/infrastructure/app-api compilation, Spotless, and `MeetingControllerTest`. A separately started BE completed `login -> meeting join -> STT RUNNING -> LiveKit token response` with HTTP 200; both diagnostic STT sessions were stopped afterward. The targeted `JoinMeetingUseCaseTest` could not run because the existing application test source set has 14 unrelated compile failures in transcript/minutes/meeting tests caused by stale domain and repository signatures.
