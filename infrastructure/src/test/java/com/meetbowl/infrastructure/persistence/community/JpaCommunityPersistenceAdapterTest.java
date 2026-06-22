@@ -24,6 +24,10 @@ import com.meetbowl.domain.community.CommentRepositoryPort;
 import com.meetbowl.domain.community.CommunityAlias;
 import com.meetbowl.domain.community.CommunityAliasRepositoryPort;
 import com.meetbowl.domain.community.CommunityCategory;
+import com.meetbowl.domain.community.CommunityHotScore;
+import com.meetbowl.domain.community.CommunityPostListItem;
+import com.meetbowl.domain.community.CommunityPostQuery;
+import com.meetbowl.domain.community.CommunityPostQueryPort;
 import com.meetbowl.domain.community.Post;
 import com.meetbowl.domain.community.PostLike;
 import com.meetbowl.domain.community.PostLikeRepositoryPort;
@@ -47,6 +51,60 @@ class JpaCommunityPersistenceAdapterTest {
     @Autowired private PostLikeRepositoryPort postLikeRepositoryPort;
     @Autowired private CommentLikeRepositoryPort commentLikeRepositoryPort;
     @Autowired private CommunityAliasRepositoryPort communityAliasRepositoryPort;
+    @Autowired private CommunityPostQueryPort communityPostQueryPort;
+
+    @Test
+    void searchKeywordIgnoresSpacesHyphensAndSlashes() {
+        UUID author = UUID.randomUUID();
+        postRepositoryPort.save(Post.create(CommunityCategory.FREE, "스프링 핫글", "내용", author));
+
+        // 검색어에 공백/하이픈/슬래시를 섞어도 저장 제목과 매칭된다(양쪽 모두 공백·하이픈·슬래시 제거 후 비교).
+        for (String keyword : List.of("스프링-핫글", "스프링/핫글", "스프링 핫 글", "스프링핫글")) {
+            Paged<CommunityPostListItem> result =
+                    communityPostQueryPort.search(
+                            new CommunityPostQuery(null, keyword, 1, 10, false));
+            assertThat(result.totalElements()).as("keyword=%s", keyword).isEqualTo(1);
+        }
+
+        // 정규화로도 매칭되지 않는 검색어는 결과 없음.
+        Paged<CommunityPostListItem> noMatch =
+                communityPostQueryPort.search(new CommunityPostQuery(null, "코틀린", 1, 10, false));
+        assertThat(noMatch.totalElements()).isZero();
+    }
+
+    @Test
+    void searchHotByLikesCountsOnlyPostsAtOrAboveLikeThreshold() {
+        UUID author = UUID.randomUUID();
+        int threshold = CommunityHotScore.HOT_LIKE_THRESHOLD;
+
+        Post hot = postRepositoryPort.save(Post.create(CommunityCategory.FREE, "hot", "c", author));
+        Post alsoHot =
+                postRepositoryPort.save(
+                        Post.create(CommunityCategory.FREE, "alsoHot", "c", author));
+        Post below =
+                postRepositoryPort.save(Post.create(CommunityCategory.FREE, "below", "c", author));
+        postRepositoryPort.save(
+                Post.create(CommunityCategory.FREE, "none", "c", author)); // 0 likes
+
+        likePostByDistinctUsers(hot.id(), threshold); // 임계값 정확히
+        likePostByDistinctUsers(alsoHot.id(), threshold + 2); // 임계값 초과
+        likePostByDistinctUsers(below.id(), threshold - 1); // 임계값 미만
+
+        Paged<CommunityPostListItem> result =
+                communityPostQueryPort.search(new CommunityPostQuery(null, null, 1, 10, true));
+
+        // 카운트 쿼리(IN+GROUP BY+HAVING)와 본문 쿼리(HAVING)가 일치해, 임계값 이상 글만 카운트·노출된다.
+        assertThat(result.totalElements()).isEqualTo(2);
+        assertThat(result.content())
+                .extracting(CommunityPostListItem::title)
+                .containsExactlyInAnyOrder("hot", "alsoHot");
+    }
+
+    private void likePostByDistinctUsers(UUID postId, int distinctUsers) {
+        for (int i = 0; i < distinctUsers; i++) {
+            postLikeRepositoryPort.save(PostLike.create(postId, UUID.randomUUID()));
+        }
+    }
 
     @Test
     void postRoundTripPreservesValues() {
@@ -196,7 +254,8 @@ class JpaCommunityPersistenceAdapterTest {
         JpaCommentRepositoryAdapter.class,
         JpaPostLikeRepositoryAdapter.class,
         JpaCommentLikeRepositoryAdapter.class,
-        JpaCommunityAliasRepositoryAdapter.class
+        JpaCommunityAliasRepositoryAdapter.class,
+        CommunityPostQueryAdapter.class
     })
     static class TestApplication {}
 }

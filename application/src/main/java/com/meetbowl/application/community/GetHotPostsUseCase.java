@@ -40,6 +40,10 @@ public class GetHotPostsUseCase {
     /**
      * Hot 게시글을 조회한다. {@code requesterId}는 현재 로그인 사용자로, 각 글의 작성자 여부(mine)·좋아요 여부(liked)를 계산해 내린다.
      * 좋아요는 Hot 글 ID를 모아 한 번에 배치 조회해 N+1을 피한다.
+     *
+     * <p>커뮤니티는 로그인 전용이라 {@code requesterId}는 정상 흐름에서 null이 아니다(SecurityConfig +
+     * {@code @RequireUser}로 비로그인 차단). 다만 방어적으로, requesterId가 null이면 좋아요 배치 조회를 생략하고 mine·liked를 모두
+     * false로 내린다(NPE 방지).
      */
     @Transactional(readOnly = true)
     public List<PostListItemResult> execute(UUID requesterId) {
@@ -53,10 +57,13 @@ public class GetHotPostsUseCase {
                         .collect(Collectors.toSet());
         Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
 
-        // Hot 글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피).
+        // Hot 글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피). 비로그인(null)이면 조회 생략 → 빈 집합.
         Set<UUID> postIds =
                 hotItems.stream().map(CommunityPostListItem::id).collect(Collectors.toSet());
-        Set<UUID> likedPostIds = postLikeRepositoryPort.findLikedPostIds(requesterId, postIds);
+        Set<UUID> likedPostIds =
+                requesterId == null
+                        ? Set.of()
+                        : postLikeRepositoryPort.findLikedPostIds(requesterId, postIds);
 
         return hotItems.stream()
                 .map(
@@ -67,7 +74,8 @@ public class GetHotPostsUseCase {
                                                 item.authorUserId(),
                                                 CommunityAliasDisplayResolver
                                                         .FALLBACK_DISPLAY_NAME),
-                                        item.authorUserId().equals(requesterId),
+                                        requesterId != null
+                                                && item.authorUserId().equals(requesterId),
                                         likedPostIds.contains(item.id())))
                 .toList();
     }

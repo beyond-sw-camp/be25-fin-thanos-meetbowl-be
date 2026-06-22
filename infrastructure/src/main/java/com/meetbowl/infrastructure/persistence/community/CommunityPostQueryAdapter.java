@@ -17,8 +17,8 @@ import com.meetbowl.domain.community.CommunityPostQuery;
 import com.meetbowl.domain.community.CommunityPostQueryPort;
 
 /**
- * 커뮤니티 게시글 조회 전용 포트의 JPA 구현 adapter다. 검색/Hot 조건을 Spring Data 프로젝션 쿼리로 위임하고, 도메인 조회 모델로의 변환은 이
- * 경계에서만 수행한다.
+ * 커뮤니티 게시글 조회 전용 포트의 JPA 구현 adapter다. 검색/Hot 조건을 Spring Data 프로젝션 쿼리로 위임하고, 도메인 조회 모델로의 변환은 이 경계에서만
+ * 수행한다.
  */
 @Repository
 public class CommunityPostQueryAdapter implements CommunityPostQueryPort {
@@ -63,9 +63,10 @@ public class CommunityPostQueryAdapter implements CommunityPostQueryPort {
     }
 
     /**
-     * 검색어를 대소문자·공백 무시 부분일치 LIKE 패턴으로 정규화한다. 앞뒤 공백 제거 → 소문자 변환 → 내부 공백까지 모두 제거한 뒤 {@code %...%} 로
-     * 감싼다. 쿼리도 제목/내용의 공백을 제거하고 비교하므로 "테 스트" ↔ "테스트" 가 매칭된다. null/공백이면 검색 미적용을 의미하는 null 을 반환한다(쿼리의
-     * {@code :keyword IS NULL} 분기와 연결).
+     * 검색어를 대소문자·공백·구분기호 무시 부분일치 LIKE 패턴으로 정규화한다. 앞뒤 공백 제거 → 소문자 변환 → 내부 공백·하이픈(-)·슬래시(/)까지 모두 제거한 뒤
+     * {@code %...%} 로 감싼다. 쿼리도 제목/내용을 동일하게 정규화해 비교하므로(SpringDataPostRepository의 {@code
+     * NORM_TITLE/NORM_CONTENT}) "테 스트" ↔ "테스트", "스프링-핫글" ↔ "스프링 핫글" 이 매칭된다. null/공백이면 검색 미적용을 의미하는
+     * null 을 반환한다(쿼리의 {@code :keyword IS NULL} 분기와 연결). 정규화 문자 집합을 바꿀 때는 쿼리 쪽 표현식과 반드시 함께 수정한다.
      */
     private String toLikePattern(String keyword) {
         if (keyword == null) {
@@ -75,6 +76,6 @@ public class CommunityPostQueryAdapter implements CommunityPostQueryPort {
         if (trimmed.isEmpty()) {
             return null;
         }
-        return "%" + trimmed.toLowerCase().replace(" ", "") + "%";
+        return "%" + trimmed.toLowerCase().replace(" ", "").replace("-", "").replace("/", "") + "%";
     }
 }

@@ -36,12 +36,24 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
                     + " LEFT JOIN PostLikeEntity l ON l.postId = p.id"
                     + " LEFT JOIN CommentEntity c ON c.postId = p.id";
 
-    // 공백 무시 검색: 저장된 제목/내용에서 공백을 제거하고 비교한다(검색어도 어댑터에서 공백 제거).
-    // 예) 제목 "테 스트" ↔ 검색어 "테스트" 매칭. :keyword 는 소문자·공백제거 %like% 패턴이다.
+    /*
+     * 검색 정규화 표현식이다. 소문자화 후 공백/하이픈(-)/슬래시(/)를 모두 제거해 비교한다(검색어도 어댑터 toLikePattern 에서 동일하게 정규화한다).
+     * 예) 제목 "테 스트" ↔ 검색어 "테스트", "스프링-핫글" ↔ "스프링 핫글" 매칭.
+     *
+     * 한계: 정규화로 가공한 값을 LIKE 비교하므로 제목/내용 컬럼 인덱스를 타지 못한다(Full Scan). 게시글이 크게 늘면 검색이 느려지므로,
+     * 그 시점에는 MySQL Full-text(N-gram 파서)나 검색엔진(Elasticsearch) 도입 또는 정규화 컬럼 사전 저장으로 고도화한다.
+     * 구두점/이음동의어(예: 슬래시·하이픈 외 기호, 유의어)까지는 의도적으로 다루지 않는다(현재 규모에서는 공백/하이픈/슬래시 무시로 충분).
+     */
+    String NORM_TITLE = "REPLACE(REPLACE(REPLACE(LOWER(p.title), ' ', ''), '-', ''), '/', '')";
+    String NORM_CONTENT = "REPLACE(REPLACE(REPLACE(LOWER(p.content), ' ', ''), '-', ''), '/', '')";
+
     String LIST_FILTER =
             " WHERE (:category IS NULL OR p.category = :category)"
-                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
-                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)";
+                    + " AND (:keyword IS NULL OR "
+                    + NORM_TITLE
+                    + " LIKE :keyword OR "
+                    + NORM_CONTENT
+                    + " LIKE :keyword)";
 
     String LIST_GROUP_BY =
             " GROUP BY p.id, p.category, p.title, p.content, p.authorUserId, p.viewCount,"
@@ -53,22 +65,30 @@ public interface SpringDataPostRepository extends JpaRepository<PostEntity, UUID
     String LIST_COUNT =
             "SELECT COUNT(p) FROM PostEntity p"
                     + " WHERE (:category IS NULL OR p.category = :category)"
-                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
-                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)";
+                    + " AND (:keyword IS NULL OR "
+                    + NORM_TITLE
+                    + " LIKE :keyword OR "
+                    + NORM_CONTENT
+                    + " LIKE :keyword)";
 
     // Hot 게시글 목록: 좋아요 수가 임계값 이상인 글만 남긴다. likeCount 는 저장 컬럼이 아닌 집계값이라
     // WHERE 가 아닌 HAVING 으로 거른다(메모리 필터 X). 임계값은 도메인 CommunityHotScore.HOT_LIKE_THRESHOLD.
     // category/keyword 검색은 일반 목록과 동일하게 LIST_FILTER 로 함께 적용한다.
     String LIST_HOT_HAVING = " HAVING COUNT(DISTINCT l.id) >= :minLikeCount";
 
-    // Hot 목록 페이징용 카운트. category/keyword 필터에 더해, 게시글별 좋아요 수를 상관 서브쿼리로 임계값과 비교해 행 수를 센다.
+    // Hot 목록 페이징용 카운트. category/keyword 필터에 더해, 좋아요가 임계값 이상인 게시글만 센다.
+    // 게시글마다 좋아요 테이블을 다시 세는 상관 서브쿼리(O(글 수 × 좋아요 스캔)) 대신, 좋아요를 postId로 한 번만
+    // GROUP BY/HAVING 집계해 '임계값 이상' 게시글 ID 집합을 만들고 IN 으로 거른다(좋아요 집계 1회, post_id 인덱스 활용).
     String LIST_HOT_COUNT =
             "SELECT COUNT(p) FROM PostEntity p"
                     + " WHERE (:category IS NULL OR p.category = :category)"
-                    + " AND (:keyword IS NULL OR REPLACE(LOWER(p.title), ' ', '') LIKE :keyword"
-                    + " OR REPLACE(LOWER(p.content), ' ', '') LIKE :keyword)"
-                    + " AND (SELECT COUNT(l.id) FROM PostLikeEntity l WHERE l.postId = p.id)"
-                    + " >= :minLikeCount";
+                    + " AND (:keyword IS NULL OR "
+                    + NORM_TITLE
+                    + " LIKE :keyword OR "
+                    + NORM_CONTENT
+                    + " LIKE :keyword)"
+                    + " AND p.id IN (SELECT pl.postId FROM PostLikeEntity pl"
+                    + " GROUP BY pl.postId HAVING COUNT(pl.id) >= :minLikeCount)";
 
     /** 최신순(createdAt DESC) 목록. */
     @Query(
