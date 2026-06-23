@@ -745,3 +745,24 @@
   `./gradlew test --no-daemon` 통과
 - 남은 작업:
   현재 로컬 기준 남은 테스트 실패는 없다. 이후 PR Actions에서도 동일한 checkout SHA 기준으로 재확인하면 된다.
+
+2026-06-24 prod Flyway MariaDB 지원 모듈 추가
+
+- 작업 목적: 운영 배포 후 `prod` 프로필에서 테이블이 없다는 오류가 발생해, Flyway migration이 실제 MariaDB에서 실행되지 않는 원인을 제거한다.
+- 변경 파일:
+  `infrastructure/build.gradle`
+  `task/agent-work-log.md`
+- 변경 내용:
+  `infrastructure` 런타임 의존성에 `org.flywaydb:flyway-mysql`을 추가했다.
+  현재 해석된 Flyway 버전은 `11.14.1`인데, 이 버전대에서는 MariaDB/MySQL 지원이 `flyway-core` 단독이 아니라 별도 DB 모듈로 분리되어 있어 prod jar에 해당 모듈이 함께 포함돼야 한다.
+  주석으로 왜 별도 모듈이 필요한지도 함께 남겼다.
+- 동작 변경:
+  새로 빌드한 운영 jar에는 `BOOT-INF/lib/flyway-core-11.14.1.jar`와 함께 `BOOT-INF/lib/flyway-mysql-11.14.1.jar`가 포함된다.
+  따라서 prod 기동 시 Flyway가 `jdbc:mariadb:` datasource를 인식하고 `classpath:db/migration`의 baseline migration을 실제로 수행할 수 있는 조건이 갖춰진다.
+- 제외 범위:
+  운영 DB URL, 계정 권한, 기존 스키마 상태, 배포 스크립트의 환경 변수 주입 문제는 이번 변경 범위에 포함하지 않았다.
+- 검증:
+  `./gradlew :app-api:bootJar test --no-daemon` 통과
+  `jar tf app-api/build/libs/app-api-0.0.1-SNAPSHOT.jar | rg 'BOOT-INF/lib/.*flyway'` 결과로 `flyway-mysql-11.14.1.jar` 포함 확인
+- 남은 작업:
+  운영 재배포 후 애플리케이션 시작 로그에서 Flyway migration 실행 로그와 `flyway_schema_history` 생성 여부를 확인해야 한다.
