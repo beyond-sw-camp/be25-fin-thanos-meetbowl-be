@@ -652,3 +652,34 @@
   Passed `./gradlew spotlessApply`
   Passed `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'`
   Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava`
+
+2026-06-23 Flyway 도입 및 baseline migration 준비
+
+- 작업 목적: AWS RDS 운영 배포 전에 `meetbowl-be` 스키마를 JPA `ddl-auto` 의존에서 Flyway migration 기준으로 전환하고, 현재 엔티티 기준 baseline SQL을 고정할 준비를 마친다.
+- 변경 내용: `infrastructure/build.gradle`에 Flyway 의존성을 추가했다. `application-local.properties`, `application-prod.properties`를 Flyway + `ddl-auto=validate` 기준으로 바꾸고 migration 위치를 고정했다. `application-schema-export.properties`를 추가해 H2 메모리 DB와 MariaDB dialect 조합으로 현재 JPA 매핑 SQL을 `build/generated-schema/meetbowl-baseline.sql`로 추출할 수 있게 했다. 추출 결과를 `app-api/src/main/resources/db/migration/V1__baseline.sql`에 baseline migration으로 반영했다. `README.md`에는 schema export 실행 경로와 migration 운영 방식을 정리했다.
+- 동작 변경: 로컬/운영 프로필은 Flyway migration을 먼저 적용한 뒤 JPA validate만 수행하는 구조가 됐다. 운영 baseline은 리포지토리의 `V1__baseline.sql`이 기준이 되며, 이후 스키마 변경은 새 migration 파일로만 누적해야 한다.
+- 제외 범위: 운영 마스터 데이터 seed, 최초 관리자 bootstrap, MariaDB Testcontainers 전환, 운영 compose와 CI/CD 반영은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootRun --args='--spring.profiles.active=schema-export'`를 실행해 baseline SQL 추출 파일 생성을 확인했다. 이어 테스트 프로필에 `spring.flyway.enabled=false`를 명시하고, 다운로드 UseCase mock 누락이 있던 `MailControllerTest`, `WorkspaceDriveControllerTest`, 컨텍스트 격리가 필요했던 `AuthTokenStatePrecisionTest`를 보정했다. 이후 `./gradlew :app-api:test --tests com.meetbowl.api.auth.AuthTokenStatePrecisionTest`는 통과했고, 전체 `./gradlew test`는 `app-api:test`가 통과한 뒤 `application:test`의 기존 `UserDirectoryUseCaseTest#searchByOrganizationFiltersSuccess` 단일 assertion 실패 1건만 남았다.
+
+2026-06-23 GitHub Actions 워크플로 재작성
+
+- 작업 목적: 기존 다른 프로젝트용 GHCR 배포 워크플로를 Meetbowl BE 기준 AWS/ECR 방향으로 교체하고, 아직 없는 Dockerfile/배포 스크립트 때문에 main 파이프라인이 즉시 깨지지 않게 안전장치를 둔다.
+- 변경 내용: `.github/workflows/backend-deploy.yml`을 전면 교체했다. PR/main push/workflow_dispatch 트리거, Java 25, MariaDB/Redis/RabbitMQ service 기반 테스트 job, AWS OIDC + ECR push job, EC2 SSH deploy job 구조로 재작성했다. 아직 `Dockerfile` 또는 `deploy-be.sh`가 없는 상태를 감지해 build/deploy를 skip하는 `detect-build-assets`와 `deploy-skip-notice` job도 추가했다.
+- 동작 변경: PR에서는 테스트만 수행한다. main push에서는 테스트 후 Dockerfile/배포 스크립트 유무를 확인하고, 둘 다 준비됐을 때만 ECR push와 EC2 배포를 진행한다. 준비 전에는 skip notice만 남기고 실패시키지 않는다.
+- 제외 범위: 실제 `Dockerfile`, `deploy-be.sh`, 운영 compose, smoke test 스크립트, GitHub secrets 등록, AWS IAM role 생성은 아직 하지 않았다.
+- 검증: 워크플로 YAML을 로컬 diff로 검토했다. 실제 GitHub Actions 실행 검증은 아직 하지 않았다.
+
+2026-06-23 meetbowl-be Dockerfile 추가
+
+- 작업 목적: GitHub Actions의 ECR build 단계와 운영 compose가 공통으로 사용할 `meetbowl-be` 런타임 이미지를 만든다.
+- 변경 내용: 루트 `Dockerfile`을 추가해 Temurin 25 JDK/JRE 기반 멀티스테이지 빌드로 `:app-api:bootJar` 결과만 런타임 이미지에 포함하도록 구성했다. `.dockerignore`를 추가해 `.git`, 각 모듈 `build`, 로컬 task 로그 등 불필요한 파일이 빌드 컨텍스트에 들어가지 않게 했다. `README.md`에는 로컬 이미지 빌드 명령을 추가했다.
+- 동작 변경: 컨테이너 빌드 시 Gradle wrapper로 `app-api` bootJar를 생성하고, 런타임 이미지는 `/app/app.jar`만 가진 `prod` 기본 프로필 컨테이너로 실행된다. `JAVA_OPTS`를 환경변수로 주입할 수 있고 기본 timezone은 UTC다.
+- 제외 범위: healthcheck, Actuator endpoint, 운영 compose, deploy script 연결은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootJar -x test`를 실행해 `app-api/build/libs/app-api-0.0.1-SNAPSHOT.jar` 생성과 Dockerfile의 jar copy 경로가 맞는 것을 확인했다. 실제 `docker build` 실행 검증은 아직 하지 않았다.
+- 2026-06-23: backend GitHub Actions 배포 워크플로를 운영 저장소 구조에 맞게 다시 단순화했다.
+  - 요청 목적: `meetbowl-infra`에 배포 스크립트를 두는 구조로 결정된 뒤, `meetbowl-be` 워크플로가 GitHub runner에서 다른 레포 파일을 찾으려는 잘못된 가정을 제거해야 했다.
+  - 변경 파일: `.github/workflows/backend-deploy.yml`
+  - 변경 내용: `detect-build-assets`와 배포 스킵 분기 로직을 제거하고, `main` push 시 테스트 후 이미지 빌드/푸시, 이후 EC2의 `DEPLOY_PATH/scripts/deploy-be.sh`를 직접 실행하도록 고정했다.
+  - 동작 변화: 배포 가능 여부를 runner 로컬 파일 존재 여부로 판단하지 않고, 운영 서버에 checkout 되어 있는 infra 레포 루트를 기준으로 배포를 수행한다.
+  - 검증: 워크플로 YAML diff를 확인했고, infra 쪽 실제 배포 스크립트 경로 규약과 맞춰 검토했다.
+  - 남은 작업: GitHub Secrets의 `MEETBOWL_DEPLOY_PATH`를 infra 레포 루트로 맞추고, EC2에 `meetbowl-infra`가 배포 경로에 clone 되어 있어야 한다.
