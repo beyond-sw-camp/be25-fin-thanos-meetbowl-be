@@ -183,11 +183,13 @@ class MinutesUseCaseTest {
     void syncGeneratedMinutesCreatesDraftWhenMissing() {
         Fixture fixture = new Fixture();
         fixture.repository.minutes = null;
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
                         new SyncGeneratedMinutesCommand(
+                                UUID.randomUUID(),
                                 fixture.meetingId,
                                 fixture.organizationId,
                                 fixture.reviewerUserId,
@@ -204,11 +206,13 @@ class MinutesUseCaseTest {
     @Test
     void syncGeneratedMinutesReplacesUnapprovedDraft() {
         Fixture fixture = new Fixture();
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
                         new SyncGeneratedMinutesCommand(
+                                UUID.randomUUID(),
                                 fixture.meetingId,
                                 fixture.organizationId,
                                 fixture.reviewerUserId,
@@ -227,7 +231,8 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         fixture.repository.minutes =
                 fixture.repository.minutes.approve(fixture.reviewerUserId, fixture.now);
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         BusinessException exception =
                 assertThrows(
@@ -235,6 +240,7 @@ class MinutesUseCaseTest {
                         () ->
                                 useCase.execute(
                                         new SyncGeneratedMinutesCommand(
+                                                UUID.randomUUID(),
                                                 fixture.meetingId,
                                                 fixture.organizationId,
                                                 fixture.reviewerUserId,
@@ -277,6 +283,23 @@ class MinutesUseCaseTest {
                                 null,
                                 null,
                                 null));
+        private final FakeMinutesGeneratedEventRepository eventRepository =
+                new FakeMinutesGeneratedEventRepository();
+    }
+
+    private static class FakeMinutesGeneratedEventRepository
+            implements com.meetbowl.domain.minutes.MinutesGeneratedEventRepositoryPort {
+        private final java.util.Set<UUID> eventIds = new java.util.HashSet<>();
+
+        @Override
+        public boolean existsByEventId(UUID eventId) {
+            return eventIds.contains(eventId);
+        }
+
+        @Override
+        public void save(UUID eventId, UUID meetingId) {
+            eventIds.add(eventId);
+        }
     }
 
     private static class FakeMeetingAttendeeRepository implements MeetingMinutesAccessScopePort {
@@ -332,6 +355,24 @@ class MinutesUseCaseTest {
         @Override
         public boolean existsByMeetingId(UUID meetingId) {
             return findByMeetingId(meetingId).isPresent();
+        }
+
+        @Override
+        public List<Minutes> findByOrganizationId(UUID organizationId) {
+            return Optional.ofNullable(minutes)
+                    .filter(value -> value.organizationId().equals(organizationId))
+                    .stream()
+                    .toList();
+        }
+
+        @Override
+        public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
+            return findByOrganizationId(organizationId).stream()
+                    .filter(
+                            value ->
+                                    value.summary().contains(keyword)
+                                            || value.content().contains(keyword))
+                    .toList();
         }
     }
 }

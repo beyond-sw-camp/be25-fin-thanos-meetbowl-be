@@ -27,6 +27,7 @@ class EndMeetingUseCaseTest {
         UUID meetingId = UUID.randomUUID();
         UUID hostUserId = UUID.randomUUID();
         UUID reviewerUserId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
         RecordingMeetingEndedEventPublisher eventPublisher =
                 new RecordingMeetingEndedEventPublisher();
         StubMeetingRepository meetingRepository =
@@ -35,11 +36,13 @@ class EndMeetingUseCaseTest {
                                 meetingId,
                                 "주간 전략 회의",
                                 Instant.parse("2026-06-12T01:00:00Z"),
+                                Instant.parse("2026-06-12T02:00:00Z"),
                                 hostUserId,
                                 null,
                                 "LIVEKIT",
                                 "provider-room-1",
                                 MeetingStatus.SCHEDULED,
+                                null,
                                 null,
                                 null));
         EndMeetingUseCase useCase =
@@ -53,6 +56,7 @@ class EndMeetingUseCaseTest {
                                                 reviewerUserId,
                                                 AttendeeRole.REVIEWER,
                                                 AttendanceStatus.ACCEPTED))),
+                        hostId -> organizationId,
                         eventPublisher,
                         new MeetingGuestNameAllocator());
 
@@ -69,6 +73,7 @@ class EndMeetingUseCaseTest {
         assertTrue(result.meetingEndedEventPublished());
         assertEquals("주간 전략 회의", eventPublisher.title);
         assertEquals(reviewerUserId, eventPublisher.reviewerUserId);
+        assertEquals(organizationId, eventPublisher.organizationId);
     }
 
     @Test
@@ -83,14 +88,17 @@ class EndMeetingUseCaseTest {
                                         meetingId,
                                         "이미 종료된 회의",
                                         Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
                                         UUID.randomUUID(),
                                         null,
                                         "LIVEKIT",
                                         "provider-room-1",
                                         MeetingStatus.ENDED,
                                         Instant.parse("2026-06-12T01:00:00Z"),
-                                        Instant.parse("2026-06-12T02:00:00Z"))),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        null)),
                         new StubMeetingAttendeeRepository(List.of()),
+                        hostId -> UUID.randomUUID(),
                         eventPublisher,
                         new MeetingGuestNameAllocator());
 
@@ -131,6 +139,23 @@ class EndMeetingUseCaseTest {
         }
 
         @Override
+        public List<Meeting> findActiveRoomOverlaps(
+                UUID meetingRoomId, Instant scheduledStartAt, Instant scheduledEndAt) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findActiveOverlapsInRooms(
+                List<UUID> meetingRoomIds, Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
         public void deleteById(UUID id) {}
     }
 
@@ -167,18 +192,35 @@ class EndMeetingUseCaseTest {
         }
 
         @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return attendees.stream()
+                    .filter(attendee -> meetingIds.contains(attendee.meetingId()))
+                    .toList();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return findByMeetingId(meetingId).stream()
+                    .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
+                    .map(MeetingAttendee::userId)
+                    .findFirst();
+        }
+
+        @Override
         public void deleteByMeetingId(UUID meetingId) {}
     }
 
     private static final class RecordingMeetingEndedEventPublisher
             implements MeetingEndedEventPublisher {
         private boolean called;
+        private UUID organizationId;
         private UUID reviewerUserId;
         private String title;
 
         @Override
         public void publishMeetingEnded(
                 UUID meetingId,
+                UUID organizationId,
                 UUID hostUserId,
                 UUID reviewerUserId,
                 String title,
@@ -186,6 +228,7 @@ class EndMeetingUseCaseTest {
                 Instant endedAt,
                 UUID correlationId) {
             this.called = true;
+            this.organizationId = organizationId;
             this.reviewerUserId = reviewerUserId;
             this.title = title;
         }

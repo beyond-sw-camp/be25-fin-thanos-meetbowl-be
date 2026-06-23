@@ -399,6 +399,16 @@ STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료
 
 AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generated` 이벤트 소비다.
 
+AI 서버는 RabbitMQ `meeting.ended`를 받은 뒤 시스템 전용
+`GET /api/v1/internal/meetings/{meetingId}/minutes-generation-context`로 생성 Context를 조회한다.
+
+- `X-Internal-Token` SYSTEM 인증이 필요하다.
+- 회의 제목, 조직, Host, Reviewer, 참석자, 실제 시작·종료 시각을 반환한다.
+- MariaDB의 Final Transcript segment를 sequence 순으로 정렬해 `rawTranscript`로 결합한다.
+- Final Transcript가 없거나 Reviewer·조직 정보가 없으면 Context를 반환하지 않는다.
+- 원문은 AI 입력으로만 사용하며 `minutes.content`에는 AI가 생성한 Tiptap 초안만 저장한다.
+- `minutes.generated`는 `eventId` inbox로 멱등 처리하며 `DRAFT`만 재생성 결과로 교체할 수 있다.
+
 `GET /minutes`는 `keyword` query parameter로 `summary`, `content`를 검색할 수 있다.
 목록 응답에는 사용자별 즐겨찾기 여부를 나타내는 `favorite` 필드가 포함된다.
 목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`를 반환한다.

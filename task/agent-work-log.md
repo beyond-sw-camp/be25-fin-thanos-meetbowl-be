@@ -423,3 +423,11 @@
 - Changed files: `JoinMeetingCommand`, `MeetingRealtimeSessionStarter`, `JoinMeetingUseCase`, `MeetingController`, `HttpMeetingRealtimeSessionStarter`, related meeting tests, local BE/Infra environment files, and this log.
 - Behavior: authenticated meeting joins now propagate the JWT organization ID through the application port into the STT `organizationId` request field. Organization-less local/guest fallback joins skip STT session creation instead of blocking LiveKit token issuance. Local BE-to-STT internal token values and the LiveKit secret were aligned, and the LiveKit container was recreated with the corrected secret.
 - Verification: passed application/infrastructure/app-api compilation, Spotless, and `MeetingControllerTest`. A separately started BE completed `login -> meeting join -> STT RUNNING -> LiveKit token response` with HTTP 200; both diagnostic STT sessions were stopped afterward. The targeted `JoinMeetingUseCaseTest` could not run because the existing application test source set has 14 unrelated compile failures in transcript/minutes/meeting tests caused by stale domain and repository signatures.
+
+2026-06-23 AI 회의록 생성 Context 및 저장 멱등성 연결
+
+- 작업 목적: `meeting.ended` 필수 식별자를 정상 발행하고, AI가 실제 Final Transcript로 생성한 Tiptap 회의록 초안을 안전하게 저장한다.
+- 변경 내용: Host 조직 기반 `organizationId` 해석 Port, Reviewer 필수 검증, 시스템 전용 minutes-generation-context API, 회의·참석자·사용자·Transcript 조립 Adapter, 공통 Final Transcript 텍스트 조립 컴포넌트, `minutes.generated` payload 검증과 durable inbox를 추가했다.
+- 동작 변경: Context API는 Final Transcript를 sequence 순으로 결합한다. AI 생성 결과는 `summary`와 Tiptap `editorContent` JSON으로 저장한다. 동일 `eventId`는 다시 처리하지 않고, 재생성 결과는 `DRAFT`만 교체해 `IN_REVIEW` 검토자 수정본을 보호한다.
+- 제외 범위: FE 회의록 편집·승인 연결, 회의록 공유, 별도 agenda/action 컬럼 저장은 변경하지 않았다.
+- 검증: `:app-api:compileJava` 성공. 오래된 회의/Transcript/Minutes 테스트 Stub을 현재 Port 계약에 맞춘 뒤 `EndMeetingUseCaseTest`, `FinalTranscriptTextAssemblerTest`, `GetMeetingTranscriptUseCaseTest`, `GetMinutesGenerationContextUseCaseTest`, `MinutesUseCaseTest`와 app-api 회의록 Controller/Consumer 테스트가 통과했다. 전체 Spotless 검사는 이번 작업과 무관한 기존 domain/application 파일 포맷 위반으로 차단됐다.
