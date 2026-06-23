@@ -1,0 +1,21 @@
+dependencies {
+    implementation project(':domain')
+    implementation project(':application')
+    implementation project(':common')
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.springframework:spring-context'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework:spring-web'
+    implementation 'com.nimbusds:nimbus-jose-jwt:10.0.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'software.amazon.awssdk:s3:2.31.77'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'com.h2database:h2'
+}

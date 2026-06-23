@@ -22,8 +22,6 @@
 
 프론트엔드는 원칙적으로 `meetbowl-be`만 직접 호출한다.
 
----
-
 ## 2. 공통 규칙
 
 ### Base URL
@@ -43,6 +41,10 @@ Authorization: Bearer {accessToken}
 ```http
 X-Internal-Token: {internalToken}
 ```
+
+- 내부 서버 전용 API와 System 전용 API는 `X-Internal-Token`으로만 인증한다.
+- `SYSTEM` 역할의 JWT 발급과 일반 로그인은 허용하지 않는다.
+- 내부 토큰은 일반 사용자, 관리자, Guest API 인증에 사용할 수 없다.
 
 ### 공통 성공 응답
 
@@ -113,14 +115,18 @@ X-Internal-Token: {internalToken}
 | `COMMON_CONFLICT` | 409 | 상태 충돌 |
 | `AUTH_INVALID_CREDENTIALS` | 401 | 로그인 정보 오류 |
 | `AUTH_TOKEN_EXPIRED` | 401 | 토큰 만료 |
+| `AUTH_REFRESH_TOKEN_INVALID` | 401 | Refresh Token이 유효하지 않거나 이미 사용됨 |
 | `AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED` | 403 | 초기 비밀번호 변경 필요 |
 | `USER_NOT_FOUND` | 404 | 사용자 없음 |
 | `MEETING_NOT_FOUND` | 404 | 회의 없음 |
 | `MEETING_ROOM_ALREADY_RESERVED` | 409 | 회의실 중복 예약 |
+| `MEETING_ROOM_UNAVAILABLE` | 409 | 사용 제한된 회의실(isAvailable=false) 예약 불가 |
 | `MEETING_FORBIDDEN_GUEST_ACCESS` | 403 | 게스트 접근 불가 |
 | `MINUTES_REVIEW_REQUIRED` | 409 | 검토자 승인 필요 |
 | `MINUTES_ALREADY_APPROVED` | 409 | 이미 승인된 회의록 |
+| `MAIL_NOT_FOUND` | 404 | 메일 없음 |
 | `MAIL_FORBIDDEN_ACCESS` | 403 | 메일 접근 불가 |
+| `MAIL_IDEMPOTENCY_CONFLICT` | 409 | 동일한 멱등성 키의 요청 내용 충돌 |
 | `FILE_INVALID_EXTENSION` | 415 | 허용되지 않은 파일 형식 |
 | `FILE_SIZE_EXCEEDED` | 413 | 파일 크기 초과 |
 | `AI_RAG_ACCESS_DENIED` | 403 | AI 자료 접근 권한 없음 |
@@ -134,12 +140,29 @@ X-Internal-Token: {internalToken}
 |---|---|---|---|
 | POST | `/auth/login` | 로그인 | Public |
 | POST | `/auth/logout` | 로그아웃 | User/Admin |
+| POST | `/auth/token/refresh` | Access/Refresh Token 재발급 및 Refresh Token Rotation | Public |
 | POST | `/auth/password/change-initial` | 최초 로그인 초기 비밀번호 변경 | User |
 | POST | `/auth/password/reset-request` | 비밀번호 재설정 요청 | User |
-| POST | `/auth/password/reset-by-admin` | 관리자가 비밀번호 초기화 | Admin |
+| POST | `/admin/users/{userId}/password/reset` | 관리자가 비밀번호를 `1234`로 초기화 | Admin |
 | GET | `/auth/me` | 현재 로그인 사용자 정보 조회 | User/Admin |
 
-Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 Admin 계정의 동시 접속은 하나의 세션만 유지한다.
+로그인 성공 시 짧은 수명의 JWT Access Token과 opaque Refresh Token을 발급한다.
+
+- 로그인 응답 `data.user.initialPasswordChangeRequired`는 비밀번호 변경 필요 여부를 나타낸다.
+
+- Refresh Token은 원문을 저장하지 않고 SHA-256 해시를 Redis에 TTL과 함께 저장한다.
+- Token 재발급 시 기존 Refresh Token을 폐기하고 새 Refresh Token을 발급한다.
+- 로그아웃 시 Refresh Token을 폐기하고 현재 Access Token의 `jti`를 남은 만료 시간 동안 Redis blacklist에 저장한다.
+- Access Token은 서명, 만료 시간과 함께 `issuer=meetbowl`을 검증하며 `iat`가 없는 토큰은 허용하지 않는다.
+- 관리자에 의한 사용자 상태 변경과 비밀번호 초기화 시 해당 사용자의 모든 Refresh Token을 폐기하고, 변경 시각 이전에 발급된 Access Token을 거부한다.
+- 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
+  Refresh Token은 발급받지 않는다.
+- 관리자 비밀번호 초기화 응답에는 초기 비밀번호 원문 `1234`가 1회 포함되며, 이후에는 저장되지 않는다.
+- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
+- 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
+- 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
+- 시스템 계정은 로그인과 Refresh Token 재발급을 사용할 수 없으며 내부 토큰 인증만 사용한다.
 
 ---
 
@@ -151,6 +174,7 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 |---|---|---|---|
 | GET | `/users/me` | 내 정보 조회 | User/Admin |
 | PATCH | `/users/me` | 내 프로필 수정 | User/Admin |
+| PATCH | `/users/me/password` | 내 비밀번호 변경 | User/Admin |
 | GET | `/users` | 회원 목록 조회 | Admin |
 | GET | `/users/{userId}` | 회원 상세 조회 | Admin |
 | POST | `/users` | 회원 계정 생성 | Admin |
@@ -160,6 +184,10 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 | GET | `/users/export` | 회원/조직도 엑셀 다운로드 | Admin |
 | GET | `/users/{userId}/simple-profile` | 조직도용 간단 회원 정보 조회 | User/Admin |
 | GET | `/users/recipients/search` | 메일 수신자 및 소속 정보 검색 | User/Admin |
+
+- 관리자 회원 계정 생성 시 초기 비밀번호는 항상 `1234`이며, DB에는 PasswordEncoder로 암호화된 해시만 저장한다.
+- 관리자 회원 계정 생성 및 관리자 비밀번호 초기화 대상 사용자는 `initialPasswordChangeRequired: true`로 저장한다.
+- 로컬 seed 계정 `admin`, `user1`, `user2`는 모두 `1234`를 사용하지만 `initialPasswordChangeRequired`를 강제로 `true`로 만들지 않는다.
 
 ### 조직 기준 정보
 
@@ -172,12 +200,6 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 | POST | `/organizations/positions` | 직급 등록 | Admin |
 | PATCH | `/organizations/positions/{positionId}` | 직급 수정 | Admin |
 | DELETE | `/organizations/positions/{positionId}` | 직급 삭제 | Admin |
-| POST | `/organizations/duties` | 직책 등록 | Admin |
-| PATCH | `/organizations/duties/{dutyId}` | 직책 수정 | Admin |
-| DELETE | `/organizations/duties/{dutyId}` | 직책 삭제 | Admin |
-| POST | `/organizations/jobs` | 직무 등록 | Admin |
-| PATCH | `/organizations/jobs/{jobId}` | 직무 수정 | Admin |
-| DELETE | `/organizations/jobs/{jobId}` | 직무 삭제 | Admin |
 
 ---
 
@@ -186,19 +208,25 @@ Admin 계정은 공유 시스템 계정으로 운영될 수 있으므로 동일 
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
 | GET | `/settings/me` | 개인 설정 조회 | User/Admin |
-| PATCH | `/settings/me` | 회의 알림 시간, 자동 백업 여부, 자동 백업 시각 수정 | User/Admin |
+| PATCH | `/settings/me` | 회의 알림 시간, 회의록 미검토 알림 주기 수정 | User/Admin |
 
 ---
 
-## 7. Meeting Room API
+### `/settings/me` fields
 
-관련 요구사항:
+`GET /api/v1/users/me/settings` and `PATCH /api/v1/users/me/settings` use the fields below.
 
-```text
-FR-016~021
-FR-124
-NFR-014
+```json
+{
+  "meetingStartReminderMinutes": 10,
+  "minutesReviewReminderMinutes": 60
+}
 ```
+
+- `minutesReviewReminderMinutes` is the reminder interval for unreviewed meeting minutes.
+- Allowed values are `60`, `120`, `180`, `240`.
+
+## 7. Meeting Room API
 
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
@@ -232,25 +260,60 @@ NFR-014
 | GET | `/meetings/{meetingId}` | 회의 상세 조회 | Participant/Admin |
 | PATCH | `/meetings/{meetingId}` | 회의 일정, 회의실, 참석자, 검토자 수정 | Host/Admin |
 | DELETE | `/meetings/{meetingId}` | 회의 취소 | Host/Admin |
-| POST | `/meetings/{meetingId}/join` | 회의 참여 정보 조회 | Participant/Guest |
-| POST | `/meetings/{meetingId}/leave` | 회의 퇴장 | Participant/Guest |
-| POST | `/meetings/{meetingId}/end` | 회의 종료 | Host/Admin/System |
+| POST | `/meetings/{meetingId}/join` | LiveKit 회의 참여 정보 조회 | Participant/Guest |
+| POST | `/meetings/{meetingId}/end` | 회의 종료 확정 | Host |
+| POST | `/meetings/{meetingId}/transfer-host` | 회의 관리자 이전 | Host |
 | POST | `/meetings/{meetingId}/invite-link` | 회의 초대 코드/URL 생성 | Host |
 | POST | `/meetings/guest-join` | 게스트 초대 코드로 회의 참여 | Public |
-| POST | `/meetings/{meetingId}/recording/start` | 회의 녹음 시작 | Host/System |
-| POST | `/meetings/{meetingId}/recording/stop` | 회의 녹음 종료 | Host/System |
-| POST | `/meetings/{meetingId}/attachments` | 회의 참고자료 첨부파일 등록 | Host/Admin |
-| GET | `/meetings/{meetingId}/attachments` | 회의 참고자료 첨부파일 목록 조회 | Participant/Admin |
-| GET | `/meetings/{meetingId}/attachments/{attachmentId}` | 회의 참고자료 첨부파일 다운로드 | Participant/Admin |
-| DELETE | `/meetings/{meetingId}/attachments/{attachmentId}` | 회의 참고자료 첨부파일 삭제 | Host/Admin |
-| GET | `/meetings/{meetingId}/caption-language` | 현재 자막 표시 언어 조회 | Participant/Guest |
-| PATCH | `/meetings/{meetingId}/caption-language` | KOR/ENG 자막 표시 언어 변경 | Participant/Guest |
 
 회의 생성/수정 시 회의록 검토자를 지정할 수 있다.
 
 회의 일정 수정 시 기존 참석자와 새 참석자에게 알림을 발송한다.
 
 Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
+
+### POST `/meetings/{meetingId}/join`
+
+프론트엔드는 이 API를 통해서만 LiveKit join info/token을 발급받는다.
+
+- 회의가 `ENDED` 상태면 `409 MEETING_ALREADY_ENDED`를 반환한다.
+- 회의가 `CANCELLED` 상태면 `409 COMMON_CONFLICT`를 반환한다.
+- 예약 회의는 `scheduledAt` 15분 전부터만 입장할 수 있으며, 더 이르면 `409 MEETING_JOIN_TOO_EARLY`를 반환한다.
+
+- 브라우저는 LiveKit API Secret을 보유하지 않는다.
+- 응답 `livekitUrl`, `token`, `roomName`을 그대로 사용해 `room.connect()`를 호출한다.
+- 인증 사용자가 있으면 서버가 `user-{userId}` 규칙으로 participant identity를 결정한다.
+- 인증 연동 전 개발 화면에서는 요청 `participantIdentity`를 fallback 값으로 사용할 수 있다.
+- 응답에는 현재 회의 주최자 `hostUserId`도 포함되어 회의 화면에서 관리자 UI를 제어할 수 있다.
+
+요청 예시:
+
+```json
+{
+  "displayName": "이지연",
+  "participantIdentity": "u-user"
+}
+```
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "roomName": "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "livekitUrl": "http://localhost:7880",
+    "hostUserId": "31f73d71-c04e-4410-a98c-fdc15e918091",
+    "participantIdentity": "u-user",
+    "participantName": "이지연",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "issuedAt": "2026-06-12T01:00:00Z",
+    "expiresAt": "2026-06-12T02:00:00Z"
+  },
+  "message": null
+}
+```
 
 ---
 
@@ -262,7 +325,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 |---|---|---|---|
 | GET | `/meetings/{meetingId}/transcripts` | 회의 STT 원문 조회 | Participant/Admin |
 | POST | `/internal/meetings/{meetingId}/transcripts/final` | STT Final Transcript 저장 | Internal |
-| POST | `/internal/meetings/{meetingId}/recordings` | 회의 녹음 파일 메타데이터 저장 | Internal |
+| POST | `/internal/meetings/{meetingId}/end` | STT/시스템 기준 회의 종료 처리 | Internal |
 
 Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본 경로는 RabbitMQ 이벤트 소비다.
 
@@ -270,6 +333,54 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 - 녹음 파일 메타데이터 저장: `recording.completed`
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
+
+### GET `/meetings/{meetingId}/transcripts`
+
+한 회의의 최종 STT 원문을 sequence 순서대로 조회한다.
+
+- `segments`는 발화 단위 리스트다.
+- `fullText`는 같은 회의의 `sourceText`를 순서대로 이어 붙인 전체 원문이다.
+- 중간 `STREAMING`은 저장되지 않고 `FINALIZED`만 내려간다.
+
+응답 예시:
+
+```json
+{
+  "success": true,
+  "data": {
+    "meetingId": "3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
+    "fullText": "첫 문장\n둘째 문장",
+    "segments": [
+      {
+        "segmentId": "segment-1",
+        "sequence": 1,
+        "language": "KO",
+        "sourceText": "첫 문장",
+        "startedAtMs": 0,
+        "endedAtMs": 500
+      },
+      {
+        "segmentId": "segment-2",
+        "sequence": 2,
+        "language": "KO",
+        "sourceText": "둘째 문장",
+        "startedAtMs": 600,
+        "endedAtMs": 1000
+      }
+    ]
+  },
+  "message": null
+}
+```
+
+### POST `/internal/meetings/{meetingId}/end`
+
+STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료 상태로 정리할 때 사용한다.
+
+- 내부 토큰 인증이 필요하다.
+- 회의 상태를 먼저 `ENDED`로 정리한다.
+- 이후 `meeting.ended`를 RabbitMQ로 발행해 AI 회의록 생성 같은 후속 처리를 시작한다.
+- 이미 종료된 회의는 멱등하게 처리하고 이벤트를 다시 발행하지 않는다.
 
 ---
 
@@ -279,19 +390,31 @@ Final Transcript 저장과 녹음 파일 메타데이터 저장의 운영 기본
 |---|---|---|---|
 | POST | `/meetings/{meetingId}/minutes/generate` | AI 회의록 초안 생성 요청 | Host/Admin |
 | GET | `/meetings/{meetingId}/minutes` | 회의록 조회 | Participant/Admin |
-| PATCH | `/meetings/{meetingId}/minutes` | 회의록 검토 및 수정 | Reviewer |
-| POST | `/meetings/{meetingId}/minutes/approve` | 회의록 공유 수락 | Reviewer |
-| POST | `/meetings/{meetingId}/minutes/review-remind` | 검토 지연 재알림 발송 | System/Admin |
-| POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
-| POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
+| PATCH | `/meetings/{meetingId}/minutes` | 회의록 요약/본문 검토 및 수정 | Reviewer |
+| POST | `/meetings/{meetingId}/minutes/approve` | 회의록 승인, 참석자 자동 내부 메일 공유 및 AI 색인 요청 | Reviewer |
+| POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 추가 공유 | Participant |
 | GET | `/minutes` | 회의록 목록/검색 | User/Admin |
-| GET | `/minutes/deletion-scheduled` | 삭제 예정 회의록 조회 | Admin |
-| PATCH | `/minutes/{minutesId}/deletion-status` | 삭제 예정 회의록 상태 관리 | Admin |
-| GET | `/admin/minutes/settings` | 회의록 자동 발송 설정 조회 | Admin |
-| PATCH | `/admin/minutes/settings` | 회의록 자동 발송 여부 설정 | Admin |
-| POST | `/internal/meetings/{meetingId}/minutes/draft` | ai-server가 생성한 회의록 초안 저장 | Internal |
+| POST | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 등록 | User/Admin |
+| DELETE | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 해제 | User/Admin |
 
 AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generated` 이벤트 소비다.
+
+AI 서버는 RabbitMQ `meeting.ended`를 받은 뒤 시스템 전용
+`GET /api/v1/internal/meetings/{meetingId}/minutes-generation-context`로 생성 Context를 조회한다.
+
+- `X-Internal-Token` SYSTEM 인증이 필요하다.
+- 회의 제목, 조직, Host, Reviewer, 참석자, 실제 시작·종료 시각을 반환한다.
+- MariaDB의 Final Transcript segment를 sequence 순으로 정렬해 `rawTranscript`로 결합한다.
+- Final Transcript가 없거나 Reviewer·조직 정보가 없으면 Context를 반환하지 않는다.
+- 원문은 AI 입력으로만 사용하며 `minutes.content`에는 AI가 생성한 Tiptap 초안만 저장한다.
+- `minutes.generated`는 `eventId` inbox로 멱등 처리하며 `DRAFT`만 재생성 결과로 교체할 수 있다.
+
+`GET /minutes`는 `keyword` query parameter로 `summary`, `content`를 검색할 수 있다.
+목록 응답에는 사용자별 즐겨찾기 여부를 나타내는 `favorite` 필드가 포함된다.
+목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`와
+화면 표시용 회의 메타데이터 `meetingTitle`, `meetingStartedAt`, `meetingEndedAt`, `attendeeCount`,
+`reviewerName`, `reviewerDepartment`를 반환한다. `GET /meetings/{meetingId}/minutes` 상세 응답도 같은
+회의 메타데이터와 `content` Tiptap JSON 문자열을 함께 반환한다.
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 
@@ -305,7 +428,18 @@ SHARED
 DELETION_SCHEDULED
 ```
 
-검토자 승인 전 자동 공유는 금지한다.
+검토자 승인 전 자동 공유와 수동 공유는 금지한다.
+
+`POST /meetings/{meetingId}/minutes/approve` 성공 시 `meetbowl-be`는 승인된 회의록 본문을 담은 RabbitMQ
+`document.index.requested` 이벤트를 발행한다. 회의·참석자 테이블이 구현되기 전에는 임시 제목 `회의록`을 사용하고,
+`accessScope.userIds`에는 지정 검토자만 포함해 권한 없는 AI 검색 노출을 방지한다.
+문서 타입 분리를 위해 회의록 이벤트에는 `metadata.meetingId`, `metadata.approvedAt`를 함께 담는다.
+승인이 완료되면 회의 참여자에게 `MINUTES_SHARE` 내부 메일을 자동 발송한다. 메일 발신자는 승인자이며,
+메일 도메인의 자기 자신 발송 금지 규칙 때문에 승인자는 자동 수신자에서 제외한다.
+
+`POST /meetings/{meetingId}/minutes/share`는 승인 이후 회의에 참여하지 않은 사용자에게 회의록을 별도로 보내는
+수동 공유 API다. 요청 본문은 `recipientUserIds`, `subject`, `body`, `idempotencyKey`를 포함한다.
+수신자에 회의 참여자가 포함되면 `COMMON_INVALID_REQUEST`로 거절한다. 회의 참여자는 승인 시 자동 공유 대상이기 때문이다.
 
 ---
 
@@ -329,6 +463,110 @@ DELETION_SCHEDULED
 | GET | `/mails/{mailId}/attachments/{attachmentId}` | 첨부파일 다운로드 | Owner |
 | POST | `/internal/mails/send` | 시스템 내부 메일 발송 요청 | Internal/System |
 
+### 11.1 구현 범위
+
+현재 사용자 API는 발송, 받은/보낸/휴지통 목록, 상세 조회, 읽음 상태 변경, 휴지통 이동, 복구, 영구 삭제, 선택 메일 백업, 메일 검색, 공지 메일 발송을 제공한다.
+첨부파일 업로드/다운로드와 시스템 내부 발송 API는 Object Storage 및 RabbitMQ Adapter 계약과 함께 후속 구현한다.
+
+#### 메일 검색
+
+`GET /api/v1/mails/search?q={keyword}&page=1&size=20`
+
+- `q`는 필수이며 공백만 입력하면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 현재 사용자가 소유한 메일함 항목 중 제목 또는 본문에 키워드를 포함한 항목을 대소문자 구분 없이 검색한다.
+- 휴지통과 영구 삭제 항목은 검색 대상에서 제외한다.
+- 응답은 받은/보낸 메일함 목록과 동일한 페이지 형식을 사용한다.
+
+#### 공지 메일 발송
+
+`POST /api/v1/mails/announcements` (Admin)
+
+```json
+{
+  "subject": "전사 공지",
+  "body": "공지 내용",
+  "bodyType": "TEXT",
+  "idempotencyKey": "uuid"
+}
+```
+
+- 수신자는 요청 본문으로 받지 않고, 발신 관리자와 같은 조직(affiliate)의 활성 사용자로 서버가 계산한다.
+- 발신자 본인과 시스템 계정은 수신자에서 제외한다. 수신 가능 사용자가 없으면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 메일 유형은 `ANNOUNCEMENT`로 고정하고, 일반 메일과 동일하게 발송 즉시 `SENT` 상태로 저장한다.
+- 같은 `idempotencyKey`로 내용이 동일하면 기존 발송 결과를 반환하고, 다르면 `MAIL_IDEMPOTENCY_CONFLICT`를 반환한다.
+
+### 11.2 메일 발송
+
+`POST /api/v1/mails`
+
+```json
+{
+  "recipientUserIds": ["uuid"],
+  "subject": "회의 자료 공유",
+  "body": "자료를 확인해 주세요.",
+  "bodyType": "TEXT",
+  "relatedResourceType": null,
+  "relatedResourceId": null,
+  "idempotencyKey": "uuid"
+}
+```
+
+- 일반 사용자 발송의 `mailType`은 `NORMAL`로 고정한다.
+- 수신자는 발신자와 같은 조직에 속한 활성 User/Admin 계정이어야 한다.
+- 발신자를 수신자 목록에 포함할 수 없다.
+- `relatedResourceType`과 `relatedResourceId`는 함께 지정하거나 모두 생략한다.
+- 같은 `idempotencyKey`와 동일한 요청은 기존 발송 결과를 반환한다.
+- 같은 `idempotencyKey`로 다른 내용을 요청하면 `MAIL_IDEMPOTENCY_CONFLICT`를 반환한다.
+- 성공 시 메일 상태는 `SENT`이며, 발신자의 `SENT` 항목과 수신자의 `INBOX` 항목을 같은 트랜잭션에서 생성한다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "mailId": "uuid",
+    "deliveryStatus": "SENT",
+    "requestedAt": "2026-06-10T03:00:00Z"
+  }
+}
+```
+
+### 11.3 메일함 목록
+
+`GET /api/v1/mails/inbox?page=1&size=20`
+
+`GET /api/v1/mails/sent?page=1&size=20`
+
+`GET /api/v1/mails/trash?page=1&size=20`
+
+- `page`는 1부터 시작하며 기본값은 1이다.
+- `size` 기본값은 20, 최댓값은 100이다.
+- 받은/보낸 메일함은 휴지통 및 영구 삭제 항목을 제외한다.
+- 휴지통은 받은/보낸 메일함 유형을 모두 포함하며 영구 삭제 항목은 제외한다.
+- 최신 메일함 항목 순서로 반환한다.
+
+### 11.4 메일 상세 및 상태 변경
+
+- `GET /api/v1/mails/{mailId}`는 현재 사용자가 소유한 메일함 항목이 있을 때만 반환한다.
+- `PATCH /api/v1/mails/{mailId}/read` 요청은 `{ "read": true }` 형식이며 받은 메일에만 허용한다.
+- `DELETE /api/v1/mails/{mailId}`는 현재 사용자의 메일함 항목만 휴지통으로 이동한다.
+- `POST /api/v1/mails/{mailId}/restore`는 현재 사용자의 휴지통 항목만 복구한다.
+- `DELETE /api/v1/mails/{mailId}/permanent`는 휴지통에 있는 현재 사용자의 항목만 영구 삭제 표시한다.
+- 다른 사용자의 메일함 상태나 공용 메일 본문은 변경하지 않는다.
+
+### 11.5 선택 메일 백업
+
+`POST /api/v1/mails/backup`
+
+```json
+{
+  "mailIds": ["uuid"]
+}
+```
+
+- 현재 사용자가 소유한 받은/보낸 메일만 개인 워크스페이스 백업으로 등록한다.
+- 같은 메일을 다시 요청하면 기존 백업을 반환해 멱등하게 처리한다.
+- 생성 결과는 `GET /api/v1/workspace/backups`에서 `sourceType: MAIL`로 조회된다.
+
 ---
 
 ## 12. Workspace API
@@ -346,33 +584,64 @@ DELETION_SCHEDULED
 | GET | `/workspace/backups/search` | 백업 자료 검색 | User/Admin |
 | POST | `/workspace/backups/{backupId}/bookmark` | 백업 자료 북마크 등록 | User/Admin |
 | DELETE | `/workspace/backups/{backupId}/bookmark` | 백업 자료 북마크 해제 | User/Admin |
-| GET | `/workspace/address-book` | 개인/조직 주소록 조회 | User/Admin |
-| POST | `/workspace/address-book` | 개인 주소록 등록 | User/Admin |
-| PATCH | `/workspace/address-book/{contactId}` | 개인 주소록 수정 | Owner |
-| DELETE | `/workspace/address-book/{contactId}` | 개인 주소록 삭제 | Owner |
 | GET | `/workspace/drive/files` | 개인 드라이브 파일 목록 조회 | User/Admin |
 | POST | `/workspace/drive/files` | 개인 드라이브 파일 업로드 | User/Admin |
-| GET | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 다운로드 | Owner |
+| GET | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 메타데이터 조회 | Owner |
+| GET | `/workspace/drive/files/{fileId}/download` | 개인 드라이브 파일 다운로드 | Owner |
+| GET | `/workspace/drive/files/{fileId}/preview` | 개인 드라이브 파일 미리보기 | Owner |
 | DELETE | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 삭제 | Owner |
 | GET | `/workspace/memos` | 개인 메모 목록 조회 | User/Admin |
 | POST | `/workspace/memos` | 개인 메모 작성 | User/Admin |
 | PATCH | `/workspace/memos/{memoId}` | 개인 메모 수정 | Owner |
 | DELETE | `/workspace/memos/{memoId}` | 개인 메모 삭제 | Owner |
-| POST | `/workspace/calendar/google/connect` | 구글 캘린더 연동 연결 | User/Admin |
-| DELETE | `/workspace/calendar/google/connect` | 구글 캘린더 연동 해제 | Owner |
+
+개인 캘린더에서 직접 수정·삭제할 수 있는 대상은 사용자가 작성한 개인 일정으로 제한한다. 회의에서 파생된 일정은 회의 정보가 기준이므로 회의 생성·수정·취소 흐름을 통해서만 변경한다.
+
+### 12.1 개인 드라이브 파일 업로드
+
+`POST /api/v1/workspace/drive/files`
+
+- 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다.
+- 서버는 확장자를 기준으로 신뢰할 Content-Type을 결정하고 파일 원본을 S3 호환 Object Storage에 저장한다.
+- MariaDB에는 파일 원본을 저장하지 않고 파일명, Content-Type, 크기, `storageKey` 등 메타데이터만 저장한다.
+- 저장 성공 후 `document.index.requested` 이벤트를 발행한다. 파일 본문은 이벤트에 싣지 않고 `storageKey`와 `contentType`을 전달하며, AI 서버가 파일을 내려받아 텍스트 추출·임베딩·Qdrant 색인을 수행한다.
+- 개인 드라이브 파일의 `accessScope.userIds`에는 소유자만 포함한다. 조직 미소속 사용자는 `organizationId: null`로 발행할 수 있다.
+- 허용되지 않은 형식은 `FILE_INVALID_EXTENSION`, 20MB 초과 파일은 `FILE_SIZE_EXCEEDED`로 거절한다.
+- 다운로드와 미리보기는 모두 소유자 권한 검사를 통과한 뒤 S3 원본을 서버가 읽어 반환한다.
+- `/download` 응답은 `Content-Disposition: attachment`, `/preview` 응답은 `Content-Disposition: inline`을 사용한다.
+
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
+| DELETE | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 삭제 | Owner |
 | GET | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 상세 조회 | Member |
-| POST | `/shared-workspaces/{spaceId}/invite-link` | 초대 링크 생성 | Owner |
-| POST | `/shared-workspaces/join` | 초대 링크로 참여 | User/Admin |
+| PATCH | `/shared-workspaces/{spaceId}` | 공유 워크스페이스 정보 수정 | Owner |
+| POST | `/shared-workspaces/{spaceId}/members` | 공유 워크스페이스 멤버 초대 | Owner |
+| GET | `/shared-workspaces/{spaceId}/members` | 멤버 목록 조회 | Member |
+| DELETE | `/shared-workspaces/{spaceId}/members/{userId}` | 멤버 추방/탈퇴 | Owner/Self |
 | PATCH | `/shared-workspaces/{spaceId}/audience` | 전 직원 공유 대상 설정 | Owner/Admin |
 | GET | `/shared-workspaces/{spaceId}/files` | 공유 자료 목록 조회 | Member |
 | POST | `/shared-workspaces/{spaceId}/files` | 공유 자료 업로드 | Member |
-| GET | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 다운로드 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 메타데이터 조회 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}/download` | 공유 자료 다운로드 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}/preview` | 공유 자료 미리보기 | Member |
+| DELETE | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 삭제 | Member/Owner |
 | POST | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 새 버전 업로드 | Member |
 | GET | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 파일 버전 목록 조회 | Member |
-
+| PATCH | `/shared-workspaces/{spaceId}/files/{fileId}/versions/{versionId}` | 버전 변경 내용 메모 수정 | Member |
 공유 워크스페이스 파일은 새 버전이 업로드되어도 기존 버전과 변경 이력을 보존한다.
+
+### 12.2 공유 자료 업로드/새 버전 업로드
+
+`POST /api/v1/shared-workspaces/{spaceId}/files`, `POST /api/v1/shared-workspaces/{spaceId}/files/{fileId}/versions`
+
+- 두 API 모두 요청 형식은 `multipart/form-data`이며 파일 파트 이름은 `file`이다. 새 버전 업로드는 `expectedCurrentVersion`, `newVersion`, `changeMemo`(선택)를 form 필드로 함께 받는다.
+- 허용 확장자는 PDF, PNG, JPG/JPEG, DOCX, TXT이며 최대 크기는 20MB다. Content-Type은 서버가 확장자로 결정한다.
+- 파일 원본은 S3 호환 Object Storage에 저장하고, DB에는 메타데이터(파일명, Content-Type, 크기, `storageKey`)만 저장한다. 버전마다 별도 `storageKey`를 두어 이전 버전 원본도 보존한다.
+- 저장 성공 후 `document.index.requested`를 발행한다. 색인 단위는 파일(`documentId=fileId`)이라 새 버전이 올라오면 같은 문서를 최신 내용으로 교체 색인한다.
+- 공유 자료이므로 `accessScope.sharedWorkspaceIds`에 워크스페이스 ID를 담아 멤버 전원이 검색할 수 있게 한다.
+- 다운로드와 미리보기는 모두 워크스페이스 멤버 권한 검사를 통과한 뒤 S3 원본을 서버가 읽어 반환한다.
+- `/download` 응답은 `Content-Disposition: attachment`, `/preview` 응답은 `Content-Disposition: inline`을 사용한다.
 
 ---
 
@@ -384,14 +653,23 @@ DELETION_SCHEDULED
 
 | Method | Endpoint | 설명 | 권한 |
 |---|---|---|---|
-| POST | `/ai/chat` | 권한 있는 자료 기반 AI 챗봇 질의 | User/Admin |
-| GET | `/ai/chat/sessions` | 챗봇 대화 목록 조회 | User/Admin |
-| GET | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 상세 조회 | Owner |
-| DELETE | `/ai/chat/sessions/{sessionId}` | 챗봇 대화 삭제 | Owner |
+| POST | `/ai/chat/messages` | 현재 화면의 대화 문맥으로 챗봇 질의 | User/Admin |
 
 `meetbowl-be`는 사용자 권한 context를 구성해 `meetbowl-ai`에 전달한다.
 
-권한 context에는 백업 메일, 즐겨찾기한 회의록, 개인 워크스페이스 자료, 사용자가 초대된 공유 워크스페이스 자료, 공유 워크스페이스 파일/버전 자료가 포함될 수 있다.
+`meetbowl-be`는 챗봇 질문마다 현재 인증 사용자의 권한 context를 다시 계산해 `meetbowl-ai`에 전달한다.
+
+챗봇 대화는 영속 데이터가 아니다. 프론트엔드는 현재 챗봇 화면의 메모리에서만 질문, 답변, citation을 유지하고 후속 질문에 필요한 범위만 `messageHistory`로 전송한다. `meetbowl-be`와 `meetbowl-ai`는 요청 처리 중에만 이를 사용하며 MariaDB, Qdrant, Redis, 로그에 저장하지 않는다. 사용자가 챗봇 화면을 나가거나 새로고침하거나 브라우저 탭을 닫으면 대화는 즉시 폐기되며 복구 API를 제공하지 않는다.
+
+검색 대상은 다음으로 제한한다.
+
+- 사용자가 수동 또는 자동으로 백업한 메일
+- 사용자가 Host 또는 Participant인 회의 중 상태가 `APPROVED` 또는 `SHARED`인 회의록
+- 사용자가 소유한 개인 메모
+- 사용자가 소유한 개인 드라이브 파일
+- 사용자가 현재 Owner 또는 Member인 공유 워크스페이스의 파일 버전
+
+개인 자료는 인증 사용자 ID를 기준으로 전체 검색하고, 공유 자료는 현재 접근 가능한 공유 워크스페이스 ID 목록으로 제한한다. 공유 워크스페이스 권한을 잃으면 다음 질문부터 검색 대상에서 제외한다.
 
 권한 없는 자료는 검색과 답변에 포함하면 안 된다.
 
@@ -403,6 +681,7 @@ DELETION_SCHEDULED
 |---|---|---|---|
 | GET | `/notifications` | 내 알림 목록 | User/Admin |
 | PATCH | `/notifications/{notificationId}/read` | 알림 읽음 처리 | Owner |
+| PATCH | `/notifications/read-all` | 알림 전체 읽음 처리 | User/Admin |
 | POST | `/internal/notifications/meeting-reminders` | 회의 시작 전 알림 발송 | System |
 | POST | `/internal/notifications/meeting-updated` | 회의 일정 수정 알림 발송 | System |
 | POST | `/internal/notifications/minutes-review` | 회의록 검토 요청 알림 발송 | System |
@@ -411,6 +690,14 @@ DELETION_SCHEDULED
 | GET | `/admin/dashboard/summary` | 관리자 대시보드 요약 정보 조회 | Admin |
 | GET | `/admin/meeting-rooms/reservations` | 관리자 전체 회의실 예약 현황 조회 | Admin |
 | PATCH | `/admin/meeting-rooms/{roomId}/availability` | 회의실 사용 가능 여부/제한 설정 | Admin |
+| GET | `/admin/meeting-sites` | 사이트 목록 조회 | Admin |
+| POST | `/admin/meeting-sites` | 사이트 등록 | Admin |
+| PATCH | `/admin/meeting-sites/{siteId}` | 사이트 수정 | Admin |
+| DELETE | `/admin/meeting-sites/{siteId}` | 사이트 삭제 | Admin |
+| GET | `/admin/meeting-buildings` | 건물 목록 조회 | Admin |
+| POST | `/admin/meeting-buildings` | 건물 등록 | Admin |
+| PATCH | `/admin/meeting-buildings/{buildingId}` | 건물 수정 | Admin |
+| DELETE | `/admin/meeting-buildings/{buildingId}` | 건물 삭제 | Admin |
 | GET | `/admin/mail-retention-policies` | 메일 보관 기간 정책 조회 | Admin |
 | PATCH | `/admin/mail-retention-policies` | 받은/보낸/휴지통 메일 보관 기간 및 자동 삭제 기준 설정 | Admin |
 | GET | `/admin/audit-logs` | 관리자 작업 로그 조회 | Admin |
@@ -427,6 +714,5 @@ DELETION_SCHEDULED
 - 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 - 프론트엔드는 `meetbowl-ai`, `meetbowl-stt`의 내부 API를 직접 호출하지 않는다.
 - 실시간 자막, 실시간 피드백, 실시간 채팅은 LiveKit DataChannel을 기본으로 한다.
-- 채팅 내역 저장/조회가 필요하면 `meetbowl-be` REST API에서 권한 검사 후 처리한다.
 - 서버 내부 실시간 AI 피드백 흐름은 Redis Stream을 사용한다.
 - 반드시 처리되어야 하는 비동기 작업은 RabbitMQ를 사용한다.

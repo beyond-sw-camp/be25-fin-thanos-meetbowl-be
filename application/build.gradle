@@ -1,0 +1,16 @@
+dependencies {
+    implementation project(':domain')
+    implementation project(':common')
+
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-tx'
+    implementation 'org.springframework.security:spring-security-crypto'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    implementation 'org.apache.poi:poi-ooxml:5.4.1'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
+    testImplementation 'org.assertj:assertj-core'
+}
