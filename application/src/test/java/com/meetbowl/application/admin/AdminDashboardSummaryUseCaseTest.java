@@ -141,9 +141,19 @@ class AdminDashboardSummaryUseCaseTest {
         assertEquals(1, result.recentAuditLogs().size());
         assertEquals(AUDIT_LOG_ID, result.recentAuditLogs().get(0).auditLogId());
         assertEquals(365, result.mailRetentionPolicy().retentionDays());
-        assertEquals(2, result.meetingRoomSummary().todayReservationCount());
+        assertEquals(3, result.meetingRoomSummary().todayReservationCount());
         assertEquals(2, result.meetingRoomSummary().inUseMeetingRoomCount());
         assertEquals(1, result.meetingRoomSummary().availableMeetingRoomCount());
+        assertEquals(
+                1,
+                result.meetingRoomSummary().timeSlotUsage().stream()
+                        .filter(
+                                slot ->
+                                        slot.slotStartAt()
+                                                .equals(Instant.parse("2026-06-12T23:00:00Z")))
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
         assertEquals(
                 1,
                 result.meetingRoomSummary().timeSlotUsage().stream()
