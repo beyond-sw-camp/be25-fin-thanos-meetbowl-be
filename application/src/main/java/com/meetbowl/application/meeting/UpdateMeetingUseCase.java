@@ -121,8 +121,8 @@ public class UpdateMeetingUseCase {
                     new DispatchNotificationCommand(
                             recipientUserId,
                             NotificationType.MEETING_UPDATED.name(),
-                            "회의 일정 변경",
-                            "\"" + meeting.title() + "\" 회의 일정이 변경되었습니다.",
+                            "회의 일정 수정",
+                            "\"" + meeting.title() + "\" 회의 일정이 수정되었습니다.",
                             NotificationResourceType.MEETING.name(),
                             meeting.id()));
         }

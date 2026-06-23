@@ -72,6 +72,7 @@ public class SyncGeneratedMinutesUseCase {
                 new DispatchNotificationCommand(
                         minutes.reviewerUserId(),
                         NotificationType.MINUTES_REVIEW_REQUEST.name(),
+                        // TODO: 여유 시 회의 제목을 넣어 "'주간 회의' 회의록 검토자로 지정되었습니다"로 동적화
                         "회의록 검토 요청",
                         "AI가 작성한 회의록 초안이 준비되었습니다. 검토를 진행해 주세요.",
                         NotificationResourceType.MEETING_MINUTES.name(),
