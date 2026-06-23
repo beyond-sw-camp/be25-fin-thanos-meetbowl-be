@@ -27,6 +27,7 @@ public class EndMeetingUseCase {
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
+    private final MeetingOrganizationResolver meetingOrganizationResolver;
     private final MeetingEndedEventPublisher meetingEndedEventPublisher;
     private final MeetingGuestNameAllocator meetingGuestNameAllocator;
     private final MeetingRealtimeSessionStopper meetingRealtimeSessionStopper;
@@ -34,11 +35,13 @@ public class EndMeetingUseCase {
     public EndMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
+            MeetingOrganizationResolver meetingOrganizationResolver,
             MeetingEndedEventPublisher meetingEndedEventPublisher,
             MeetingGuestNameAllocator meetingGuestNameAllocator,
             MeetingRealtimeSessionStopper meetingRealtimeSessionStopper) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
+        this.meetingOrganizationResolver = meetingOrganizationResolver;
         this.meetingEndedEventPublisher = meetingEndedEventPublisher;
         this.meetingGuestNameAllocator = meetingGuestNameAllocator;
         this.meetingRealtimeSessionStopper = meetingRealtimeSessionStopper;
@@ -81,12 +84,19 @@ public class EndMeetingUseCase {
                         .filter(MeetingAttendee::reviewer)
                         .map(MeetingAttendee::userId)
                         .findFirst()
-                        .orElse(null);
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.MINUTES_REVIEWER_REQUIRED,
+                                                "회의록을 생성하려면 검토자를 지정해야 합니다."));
+        UUID organizationId =
+                meetingOrganizationResolver.resolveByHostUserId(savedMeeting.hostUserId());
 
         boolean meetingEndedEventPublished = false;
         try {
             meetingEndedEventPublisher.publishMeetingEnded(
                     savedMeeting.id(),
+                    organizationId,
                     savedMeeting.hostUserId(),
                     reviewerUserId,
                     savedMeeting.title(),

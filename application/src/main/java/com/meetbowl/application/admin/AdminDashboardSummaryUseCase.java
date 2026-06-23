@@ -3,6 +3,7 @@ package com.meetbowl.application.admin;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -198,9 +199,10 @@ public class AdminDashboardSummaryUseCase {
     }
 
     private Instant todayStart(Instant now) {
-        // 서버 저장/집계 기준이 UTC이므로 대시보드 요약도 UTC 자정 경계를 그대로 사용한다.
-        LocalDate today = now.atZone(ZoneOffset.UTC).toLocalDate();
-        return today.atStartOfDay().toInstant(ZoneOffset.UTC);
+        // 관리자 대시보드는 화면 기준 시각인 KST 자정 경계로 하루를 묶는다.
+        ZoneId kst = ZoneId.of("Asia/Seoul");
+        LocalDate today = now.atZone(kst).toLocalDate();
+        return today.atStartOfDay(kst).toInstant();
     }
 
     private record SiteBuildingKey(

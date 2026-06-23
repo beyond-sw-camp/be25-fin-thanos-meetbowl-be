@@ -12,6 +12,7 @@ public interface MeetingEndedEventPublisher {
 
     void publishMeetingEnded(
             UUID meetingId,
+            UUID organizationId,
             UUID hostUserId,
             UUID reviewerUserId,
             String title,

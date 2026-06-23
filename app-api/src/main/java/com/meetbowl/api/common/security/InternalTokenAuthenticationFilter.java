@@ -28,8 +28,7 @@ public class InternalTokenAuthenticationFilter extends OncePerRequestFilter {
 
     private static final UUID SYSTEM_USER_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
-    private static final List<String> INTERNAL_PATHS =
-            List.of("/api/v1/internal/**", "/api/v1/meetings/*/minutes/share/participants");
+    private static final List<String> INTERNAL_PATHS = List.of("/api/v1/internal/**");
 
     private final byte[] expectedToken;
     private final ApiAuthenticationEntryPoint authenticationEntryPoint;

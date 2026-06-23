@@ -26,8 +26,10 @@ import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
+import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
@@ -54,7 +56,9 @@ class MeetingLifecycleTest {
     @Autowired private CreateMeetingUseCase createMeetingUseCase;
     @Autowired private GetMeetingUseCase getMeetingUseCase;
     @Autowired private UpdateMeetingUseCase updateMeetingUseCase;
+    @Autowired private GetRoomReservationsUseCase getRoomReservationsUseCase;
     @Autowired private CancelMeetingUseCase cancelMeetingUseCase;
+    @Autowired private MeetingRepositoryPort meetingRepositoryPort;
     @Autowired private MeetingRoomRepositoryPort meetingRoomRepositoryPort;
     @Autowired private SpringDataMeetingRepository springDataMeetingRepository;
     @Autowired private SpringDataMeetingRoomRepository springDataMeetingRoomRepository;
@@ -232,6 +236,48 @@ class MeetingLifecycleTest {
         assertThat(updated.title()).isEqualTo("수정된 회의");
         assertThat(updated.scheduledAt()).isEqualTo(newStart);
         assertThat(updated.scheduledEndAt()).isEqualTo(newEnd);
+    }
+
+    @Test
+    void remoteMeetingUpdatedToRoomMeetingIsPersistedAndIncludedInRoomQueries() {
+        UUID host = UUID.randomUUID();
+        UUID roomId = givenRoom();
+        MeetingResult created =
+                createMeetingUseCase.execute(
+                        new CreateMeetingCommand(
+                                "원격 회의", START, END, host, null, null, null, null, null, null));
+
+        MeetingResult updated =
+                updateMeetingUseCase.execute(
+                        new UpdateMeetingCommand(
+                                created.meetingId(),
+                                host,
+                                "회의실로 전환",
+                                START,
+                                END,
+                                roomId,
+                                null,
+                                null,
+                                null));
+
+        assertThat(updated.meetingRoomId()).isEqualTo(roomId);
+        assertThat(meetingRepositoryPort.findById(created.meetingId()))
+                .get()
+                .extracting(meeting -> meeting.meetingRoomId())
+                .isEqualTo(roomId);
+
+        assertThat(
+                        getRoomReservationsUseCase.getReservationBoard(
+                                START.minusSeconds(3600), END.plusSeconds(3600), null, null))
+                .flatExtracting(room -> room.reservations())
+                .extracting(reservation -> reservation.meetingId())
+                .contains(created.meetingId());
+
+        assertThat(
+                        meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
+                                START.minusSeconds(3600), END.plusSeconds(3600)))
+                .extracting(meeting -> meeting.id())
+                .contains(created.meetingId());
     }
 
     @Test

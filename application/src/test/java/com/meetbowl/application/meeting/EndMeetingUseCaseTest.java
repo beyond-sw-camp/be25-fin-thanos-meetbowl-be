@@ -27,6 +27,7 @@ class EndMeetingUseCaseTest {
         UUID meetingId = UUID.randomUUID();
         UUID hostUserId = UUID.randomUUID();
         UUID reviewerUserId = UUID.randomUUID();
+        UUID organizationId = UUID.randomUUID();
         RecordingMeetingEndedEventPublisher eventPublisher =
                 new RecordingMeetingEndedEventPublisher();
         StubMeetingRepository meetingRepository =
@@ -56,6 +57,7 @@ class EndMeetingUseCaseTest {
                                                 AttendeeRole.PARTICIPANT,
                                                 true,
                                                 AttendanceStatus.ACCEPTED))),
+                        hostId -> organizationId,
                         eventPublisher,
                         new MeetingGuestNameAllocator(),
                         new RecordingRealtimeSessionStopper());
@@ -73,6 +75,7 @@ class EndMeetingUseCaseTest {
         assertTrue(result.meetingEndedEventPublished());
         assertEquals("주간 전략 회의", eventPublisher.title);
         assertEquals(reviewerUserId, eventPublisher.reviewerUserId);
+        assertEquals(organizationId, eventPublisher.organizationId);
     }
 
     @Test
@@ -97,6 +100,7 @@ class EndMeetingUseCaseTest {
                                         Instant.parse("2026-06-12T02:00:00Z"),
                                         null)),
                         new StubMeetingAttendeeRepository(List.of()),
+                        hostId -> UUID.randomUUID(),
                         eventPublisher,
                         new MeetingGuestNameAllocator(),
                         new RecordingRealtimeSessionStopper());
@@ -137,8 +141,17 @@ class EndMeetingUseCaseTest {
         EndMeetingUseCase useCase =
                 new EndMeetingUseCase(
                         meetingRepository,
-                        new StubMeetingAttendeeRepository(List.of()),
-                        (meetingId1, hostUserId1, reviewerUserId, title, startedAt, endedAt, correlationId) -> {
+                        new StubMeetingAttendeeRepository(
+                                List.of(
+                                        MeetingAttendee.of(
+                                                UUID.randomUUID(),
+                                                meetingId,
+                                                UUID.randomUUID(),
+                                                AttendeeRole.PARTICIPANT,
+                                                true,
+                                                AttendanceStatus.ACCEPTED))),
+                        hostId -> UUID.randomUUID(),
+                        (meetingId1, organizationId, hostUserId1, reviewerUserId, title, startedAt, endedAt, correlationId) -> {
                             throw new IllegalStateException("rabbitmq unavailable");
                         },
                         new MeetingGuestNameAllocator(),
@@ -242,9 +255,8 @@ class EndMeetingUseCaseTest {
 
         @Override
         public Optional<UUID> findReviewerUserId(UUID meetingId) {
-            return attendees.stream()
-                    .filter(attendee -> attendee.meetingId().equals(meetingId))
-                    .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
+            return findByMeetingId(meetingId).stream()
+                    .filter(MeetingAttendee::reviewer)
                     .map(MeetingAttendee::userId)
                     .findFirst();
         }
@@ -256,12 +268,14 @@ class EndMeetingUseCaseTest {
     private static final class RecordingMeetingEndedEventPublisher
             implements MeetingEndedEventPublisher {
         private boolean called;
+        private UUID organizationId;
         private UUID reviewerUserId;
         private String title;
 
         @Override
         public void publishMeetingEnded(
                 UUID meetingId,
+                UUID organizationId,
                 UUID hostUserId,
                 UUID reviewerUserId,
                 String title,
@@ -269,6 +283,7 @@ class EndMeetingUseCaseTest {
                 Instant endedAt,
                 UUID correlationId) {
             this.called = true;
+            this.organizationId = organizationId;
             this.reviewerUserId = reviewerUserId;
             this.title = title;
         }

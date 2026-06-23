@@ -21,6 +21,8 @@ import com.meetbowl.application.minutes.ApproveMinutesUseCase;
 import com.meetbowl.application.minutes.GetMinutesUseCase;
 import com.meetbowl.application.minutes.ReviseMinutesCommand;
 import com.meetbowl.application.minutes.ReviseMinutesUseCase;
+import com.meetbowl.application.minutes.ShareMinutesCommand;
+import com.meetbowl.application.minutes.ShareMinutesUseCase;
 import com.meetbowl.common.response.ApiResponse;
 
 /** 회의별 회의록 수정과 승인 HTTP 요청을 application UseCase로 전달한다. */
@@ -31,14 +33,17 @@ public class MinutesController extends BaseController {
     private final GetMinutesUseCase getMinutesUseCase;
     private final ReviseMinutesUseCase reviseMinutesUseCase;
     private final ApproveMinutesUseCase approveMinutesUseCase;
+    private final ShareMinutesUseCase shareMinutesUseCase;
 
     public MinutesController(
             GetMinutesUseCase getMinutesUseCase,
             ReviseMinutesUseCase reviseMinutesUseCase,
-            ApproveMinutesUseCase approveMinutesUseCase) {
+            ApproveMinutesUseCase approveMinutesUseCase,
+            ShareMinutesUseCase shareMinutesUseCase) {
         this.getMinutesUseCase = getMinutesUseCase;
         this.reviseMinutesUseCase = reviseMinutesUseCase;
         this.approveMinutesUseCase = approveMinutesUseCase;
+        this.shareMinutesUseCase = shareMinutesUseCase;
     }
 
     @GetMapping
@@ -73,5 +78,23 @@ public class MinutesController extends BaseController {
                         approveMinutesUseCase.execute(
                                 new ApproveMinutesCommand(
                                         meetingId, user.userId(), user.organizationId()))));
+    }
+
+    @PostMapping("/share")
+    public ApiResponse<MinutesResponse> share(
+            @CurrentUser AuthenticatedUser user,
+            @PathVariable UUID meetingId,
+            @Valid @RequestBody ShareMinutesRequest request) {
+        return ok(
+                MinutesResponse.from(
+                        shareMinutesUseCase.execute(
+                                new ShareMinutesCommand(
+                                        meetingId,
+                                        user.userId(),
+                                        user.organizationId(),
+                                        request.recipientUserIds(),
+                                        request.subject(),
+                                        request.body(),
+                                        request.idempotencyKey()))));
     }
 }
