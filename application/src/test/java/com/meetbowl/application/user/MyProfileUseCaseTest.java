@@ -3,7 +3,9 @@ package com.meetbowl.application.user;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,7 @@ class MyProfileUseCaseTest {
     private static final UUID TEAM_ID = UUID.fromString("00000000-0000-0000-0000-000000000005");
     private static final UUID POSITION_ID = UUID.fromString("00000000-0000-0000-0000-000000000006");
     private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
+    private static final Clock FIXED_CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private FakeUserRepository userRepository;
     private FakeUserSearchReindexEventPublisherPort userSearchReindexEventPublisherPort;
@@ -97,7 +100,8 @@ class MyProfileUseCaseTest {
                         departmentRepository,
                         teamRepository,
                         positionRepository,
-                        userSearchReindexRequestDispatcher);
+                        userSearchReindexRequestDispatcher,
+                        FIXED_CLOCK);
     }
 
     @Test
@@ -231,6 +235,8 @@ class MyProfileUseCaseTest {
                 UUID teamId,
                 UUID positionId,
                 UserStatus status,
+                Instant dayStart,
+                Instant nextDayStart,
                 int page,
                 int size) {
             return new Paged<>(List.copyOf(users.values()), users.size());

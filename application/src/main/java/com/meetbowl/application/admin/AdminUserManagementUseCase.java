@@ -1,5 +1,6 @@
 package com.meetbowl.application.admin;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,6 +53,7 @@ public class AdminUserManagementUseCase {
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
     private final ObjectMapper objectMapper;
     private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
+    private final Clock clock;
 
     /**
      * AdminUserManagementUseCase 생성자
@@ -77,7 +79,8 @@ public class AdminUserManagementUseCase {
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TokenStateRepositoryPort tokenStateRepositoryPort,
             ObjectMapper objectMapper,
-            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher,
+            Clock clock) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
@@ -88,6 +91,7 @@ public class AdminUserManagementUseCase {
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
         this.objectMapper = objectMapper;
         this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
+        this.clock = clock;
     }
 
     /**
@@ -110,7 +114,7 @@ public class AdminUserManagementUseCase {
         ensureLoginIdIsUnique(command.loginId());
         ensureEmailIsUnique(command.email(), null);
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         User savedUser =
                 userRepositoryPort.save(
                         User.of(
@@ -271,7 +275,7 @@ public class AdminUserManagementUseCase {
     public UserSummary delete(DeleteCommand command) {
         User current =
                 userRepositoryPort
-                        .findById(command.userId())
+                        .findByIdIncludingDeleted(command.userId())
                         .orElseThrow(
                                 () -> {
                                     saveDeleteFailureAudit(
@@ -280,10 +284,16 @@ public class AdminUserManagementUseCase {
                                 });
         ensureManagedUser(current);
         ensureNotSelfDelete(command, current);
-        ensureUserNotAlreadyInactive(command, current);
+        ensureUserNotAlreadyDeleted(command, current);
 
-        User saved = userRepositoryPort.save(current.changeStatus(UserStatus.INACTIVE));
-        tokenStateRepositoryPort.revokeUserSessions(saved.id(), Instant.now());
+        Instant deletedAt = Instant.now(clock);
+        User saved =
+                userRepositoryPort.save(
+                        current.delete(
+                                deletedAt,
+                                createDeletedLoginId(current.id()),
+                                createDeletedEmail(current.id())));
+        tokenStateRepositoryPort.revokeUserSessions(saved.id(), deletedAt);
 
         UserSummary before = resolveSummary(current);
         UserSummary after = resolveSummary(saved);
@@ -449,8 +459,8 @@ public class AdminUserManagementUseCase {
         }
     }
 
-    private void ensureUserNotAlreadyInactive(DeleteCommand command, User user) {
-        if (user.isInactive()) {
+    private void ensureUserNotAlreadyDeleted(DeleteCommand command, User user) {
+        if (user.isDeleted()) {
             saveDeleteFailureAudit(
                     command, user.id(), snapshot(resolveSummary(user)), "이미 비활성화된 회원입니다.");
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "이미 비활성화된 회원입니다.");
@@ -561,7 +571,7 @@ public class AdminUserManagementUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 user.affiliateId(),
                 resolveAffiliateName(user.affiliateId()),
                 user.departmentId(),
@@ -591,7 +601,7 @@ public class AdminUserManagementUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 user.affiliateId(),
                 lookups.affiliateNames().get(user.affiliateId()),
                 user.departmentId(),
@@ -828,6 +838,14 @@ public class AdminUserManagementUseCase {
     }
 
     /** 회원 생성 명령 */
+    private String createDeletedLoginId(UUID userId) {
+        return "deleted-" + userId.toString().replace("-", "");
+    }
+
+    private String createDeletedEmail(UUID userId) {
+        return "deleted+" + userId + "@deleted.local";
+    }
+
     public record CreateCommand(
             String loginId,
             String name,

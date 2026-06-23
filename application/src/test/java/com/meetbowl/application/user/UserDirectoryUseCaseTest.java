@@ -3,7 +3,9 @@ package com.meetbowl.application.user;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +51,8 @@ class UserDirectoryUseCaseTest {
     private static final UUID TEAM2_ID = UUID.fromString("00000000-0000-0000-0000-000000000023");
     private static final UUID POSITION2_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000024");
-    private static final Instant NOW = Instant.parse("2026-06-12T00:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-06-23T00:00:00Z");
+    private static final Clock FIXED_CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private FakeUserRepository userRepository;
     private UserDirectoryUseCase useCase;
@@ -168,7 +171,8 @@ class UserDirectoryUseCaseTest {
                         affiliateRepository,
                         departmentRepository,
                         teamRepository,
-                        positionRepository);
+                        positionRepository,
+                        FIXED_CLOCK);
     }
 
     @Test
@@ -239,6 +243,65 @@ class UserDirectoryUseCaseTest {
     }
 
     @Test
+    void searchAppliesEffectiveStatusByDateBoundaries() {
+        userRepository.save(
+                createUser(
+                        UUID.fromString("00000000-0000-0000-0000-000000000004"),
+                        "expired",
+                        "Expired User",
+                        "expired@example.com",
+                        UserStatus.ACTIVE,
+                        AFFILIATE_ID,
+                        DEPARTMENT_ID,
+                        TEAM_ID,
+                        POSITION_ID,
+                        Instant.parse("2026-06-19T00:00:00Z"),
+                        Instant.parse("2026-06-21T00:00:00Z")));
+        userRepository.save(
+                createUser(
+                        UUID.fromString("00000000-0000-0000-0000-000000000005"),
+                        "today-active",
+                        "Today Active",
+                        "today@example.com",
+                        UserStatus.ACTIVE,
+                        AFFILIATE_ID,
+                        DEPARTMENT_ID,
+                        TEAM_ID,
+                        POSITION_ID,
+                        Instant.parse("2026-06-19T00:00:00Z"),
+                        Instant.parse("2026-06-23T00:00:00Z")));
+        userRepository.save(
+                createUser(
+                        UUID.fromString("00000000-0000-0000-0000-000000000006"),
+                        "future-user",
+                        "Future User",
+                        "future@example.com",
+                        UserStatus.ACTIVE,
+                        AFFILIATE_ID,
+                        DEPARTMENT_ID,
+                        TEAM_ID,
+                        POSITION_ID,
+                        Instant.parse("2026-06-24T00:00:00Z"),
+                        null));
+
+        UserDirectoryUseCase.PageResult activeResult =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                null, null, null, null, null, "ACTIVE", 1, 20));
+        UserDirectoryUseCase.PageResult inactiveResult =
+                useCase.search(
+                        new UserDirectoryUseCase.SearchCommand(
+                                null, null, null, null, null, "INACTIVE", 1, 20));
+
+        assertEquals(
+                List.of("emailuser", "hong", "today-active"),
+                activeResult.items().stream().map(UserDirectoryUseCase.UserDirectorySummary::loginId).toList());
+        assertEquals(
+                List.of("expired", "future-user", "kim"),
+                inactiveResult.items().stream().map(UserDirectoryUseCase.UserDirectorySummary::loginId).toList());
+    }
+
+    @Test
     void getSummarySuccess() {
         UserDirectoryUseCase.UserDirectorySummary result = useCase.getSummary(USER_ID);
 
@@ -268,6 +331,32 @@ class UserDirectoryUseCaseTest {
             UUID departmentId,
             UUID teamId,
             UUID positionId) {
+        return createUser(
+                id,
+                loginId,
+                name,
+                email,
+                status,
+                affiliateId,
+                departmentId,
+                teamId,
+                positionId,
+                Instant.parse("2026-06-01T00:00:00Z"),
+                Instant.parse("2026-12-31T23:59:59Z"));
+    }
+
+    private User createUser(
+            UUID id,
+            String loginId,
+            String name,
+            String email,
+            UserStatus status,
+            UUID affiliateId,
+            UUID departmentId,
+            UUID teamId,
+            UUID positionId,
+            Instant activeFrom,
+            Instant activeUntil) {
         return User.of(
                 id,
                 loginId,
@@ -281,8 +370,8 @@ class UserDirectoryUseCaseTest {
                 positionId,
                 teamId,
                 false,
-                Instant.parse("2026-06-01T00:00:00Z"),
-                Instant.parse("2026-12-31T23:59:59Z"),
+                activeFrom,
+                activeUntil,
                 NOW,
                 NOW);
     }
@@ -346,6 +435,8 @@ class UserDirectoryUseCaseTest {
                 UUID teamId,
                 UUID positionId,
                 UserStatus status,
+                Instant dayStart,
+                Instant nextDayStart,
                 int page,
                 int size) {
             List<User> filtered =
@@ -364,7 +455,11 @@ class UserDirectoryUseCaseTest {
                                     user ->
                                             positionId == null
                                                     || positionId.equals(user.positionId()))
-                            .filter(user -> status == null || status == user.status())
+                            .filter(
+                                    user ->
+                                            status == null
+                                                    || user.effectiveStatusAt(dayStart).equals(status))
+                            .filter(user -> !user.isDeleted())
                             .sorted(java.util.Comparator.comparing(User::name))
                             .toList();
             return new Paged<>(filtered, filtered.size());

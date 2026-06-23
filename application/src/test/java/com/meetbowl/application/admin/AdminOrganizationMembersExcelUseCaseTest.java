@@ -761,6 +761,8 @@ class AdminOrganizationMembersExcelUseCaseTest {
                 UUID teamId,
                 UUID positionId,
                 UserStatus status,
+                Instant dayStart,
+                Instant nextDayStart,
                 int page,
                 int size) {
             throw new UnsupportedOperationException();

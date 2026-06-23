@@ -463,4 +463,33 @@
   Passed `.\gradlew.bat spotlessApply`
   Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
-  `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+ `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+2026-06-23 Admin user effective status / delete behavior fix
+
+- Purpose: fix QA issues where expired users still appeared active and admin user delete only downgraded status to `INACTIVE` instead of removing the member from admin/user listings.
+- Changed files:
+  `domain/user/User`,
+  `domain/user/UserRepositoryPort`,
+  `infrastructure/persistence/user/UserEntity`,
+  `infrastructure/persistence/user/SpringDataUserRepository`,
+  `infrastructure/persistence/user/JpaUserRepositoryAdapter`,
+  `infrastructure/persistence/user/UserSearchSourceRow`,
+  `infrastructure/search/user/ElasticsearchUserSearchAdapter`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/user/UserDirectoryUseCase`,
+  `application/user/MyProfileUseCase`,
+  related user/admin tests, and this log.
+- Behavior:
+  User status responses now use an effective-status rule instead of returning the raw DB `status` blindly.
+  Effective status is `ACTIVE` only when raw status is `ACTIVE` and the current UTC date is within the inclusive range `activeFrom <= today <= activeUntil`.
+  If raw status is `ACTIVE` but `activeUntil` is before today or `activeFrom` is after today, the exposed status becomes `INACTIVE`.
+  Deleted users are soft-deleted with `deletedAt`; they are excluded from repository lookups, admin list search, user directory search, and summary/detail reads.
+  Admin delete no longer converts a member to raw `INACTIVE`. It writes `deletedAt`, revokes sessions, and tombstones `loginId` / `email` so future unique-value reuse can proceed safely without leaving the deleted account visible.
+  Elasticsearch user-search documents now carry `activeFrom`, `activeUntil`, and `deleted` metadata so search filtering follows the same date and deletion policy as the DB fallback.
+- Notes:
+  Added concise comments around the date-boundary interpretation and soft-delete policy in the persistence/search path where the behavior is easiest to misunderstand during review.
+  Delete response still exposes `INACTIVE` as the final status string because the account is no longer active, but the deleted member is filtered out of every default listing/query path.
+- Verification:
+  Passed `.\gradlew.bat :domain:test --tests "com.meetbowl.domain.user.UserTest"`
+  Passed `.\gradlew.bat :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  `:application:test` and `:infrastructure:test` targeted runs are still blocked by pre-existing unrelated test-compilation failures in modules outside this change set, including `meeting`, `minutes`, `transcript`, and `messaging` tests.
