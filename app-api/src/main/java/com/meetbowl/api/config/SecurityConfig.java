@@ -57,9 +57,7 @@ public class SecurityConfig {
         "/v3/api-docs/**"
     };
 
-    private static final String[] SYSTEM_ENDPOINTS = {
-        "/api/v1/internal/**", "/api/v1/meetings/*/minutes/share/participants"
-    };
+    private static final String[] SYSTEM_ENDPOINTS = {"/api/v1/internal/**"};
 
     private static final String[] ADMIN_ENDPOINTS = {
         "/api/v1/admin/**", "/api/v1/mails/announcements"

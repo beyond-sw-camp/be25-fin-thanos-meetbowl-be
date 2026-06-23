@@ -438,3 +438,11 @@
 - 변경 내용: `MinutesMeetingMetadataAssembler`를 추가해 회의, 참석자, 사용자, 부서 정보를 조립하고 `GET /minutes`, `GET/PATCH/approve /meetings/{meetingId}/minutes` 응답에 `meetingTitle`, `meetingStartedAt`, `meetingEndedAt`, `attendeeCount`, `reviewerName`, `reviewerDepartment`를 추가했다.
 - 동작 변경: 회의록 조회/수정/승인 응답이 모두 같은 화면 메타데이터를 포함한다. JPA 회의 저장소에는 batch 조회 `findByIds` override를 추가했고, domain port에는 테스트 fake 호환용 기본 구현을 두었다.
 - 검증: `:application:test --tests MinutesUseCaseTest --tests MinutesFavoriteUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests MinutesListControllerTest`, `:app-api:compileJava` 통과.
+
+2026-06-23 회의록 승인 자동 공유 및 미참석자 수동 공유 분리
+
+- 작업 목적: 내부메일 공유 의미를 바로잡아, 회의 참여자 전체 발송은 회의록 승인 시 자동 수행하고 사용자가 누르는 내부메일 공유는 회의 미참석자에게 별도로 보내는 기능으로 제한한다.
+- 변경 내용: `ApproveMinutesUseCase`가 승인 후 `document.index.requested` 발행과 함께 참여자 자동 공유 메일을 발송하도록 변경했다. `ShareMinutesUseCase`, `ShareMinutesCommand`, `ShareMinutesRequest`, `POST /meetings/{meetingId}/minutes/share`를 추가해 승인된 회의록의 미참석자 수동 공유를 처리한다. 제거된 별도 참여자 공유 경로는 보안 내부 토큰 대상과 API 문서에서 제외했다.
+- 동작 변경: 승인 성공 후 회의록 상태는 `SHARED`가 되며, 승인자는 메일 도메인의 자기 자신 발송 금지 규칙 때문에 자동 수신자에서 제외된다. 수동 공유는 `APPROVED` 또는 `SHARED` 상태에서만 가능하고, 수신자에 회의 참여자가 포함되면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 제외 범위: 외부 SMTP 발송 어댑터, 메일함 UI 세부 화면, 참석자 자동 공유 실패 재시도 정책은 변경하지 않았다.
+- 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 실행되지 않아 권한 상승으로 재실행했다. 이후 `:application:test --tests MinutesUseCaseTest --tests ShareMinutesUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests SecurityConfigTest`, `:app-api:compileJava` 통과. FE 연동 변경은 `npm run build`, `npm test`, `git diff --check` 통과.

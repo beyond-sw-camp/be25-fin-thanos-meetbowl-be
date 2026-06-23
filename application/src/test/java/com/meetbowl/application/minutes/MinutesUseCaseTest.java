@@ -3,6 +3,7 @@ package com.meetbowl.application.minutes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -20,6 +21,8 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
+import com.meetbowl.application.mail.SendMailCommand;
+import com.meetbowl.application.mail.SendMailUseCase;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -79,6 +82,7 @@ class MinutesUseCaseTest {
                         fixture.eventPublisher,
                         fixture.textExtractor,
                         fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         BusinessException exception =
@@ -104,6 +108,7 @@ class MinutesUseCaseTest {
                         fixture.eventPublisher,
                         fixture.textExtractor,
                         fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         MinutesResult result =
@@ -111,7 +116,7 @@ class MinutesUseCaseTest {
                         new ApproveMinutesCommand(
                                 fixture.meetingId, fixture.reviewerUserId, fixture.organizationId));
 
-        assertEquals("APPROVED", result.status());
+        assertEquals("SHARED", result.status());
         assertEquals(fixture.now, result.approvedAt());
         assertEquals(fixture.reviewerUserId, result.reviewerUserId());
         assertEquals(result.minutesId(), fixture.eventPublisher.publishedEvent.documentId());
@@ -129,6 +134,13 @@ class MinutesUseCaseTest {
                 fixture.eventPublisher.publishedEvent.userIds());
         assertEquals(0, fixture.eventPublisher.publishedEvent.departmentIds().size());
         assertEquals(0, fixture.eventPublisher.publishedEvent.sharedWorkspaceIds().size());
+        var mailCaptor = org.mockito.ArgumentCaptor.forClass(SendMailCommand.class);
+        verify(fixture.sendMailUseCase).execute(mailCaptor.capture());
+        assertEquals(fixture.reviewerUserId, mailCaptor.getValue().senderUserId());
+        assertEquals(List.of(fixture.hostUserId, fixture.participantUserId), mailCaptor.getValue().recipientUserIds());
+        assertEquals("MINUTES_SHARE", mailCaptor.getValue().bodyType());
+        assertEquals("MEETING_MINUTES", mailCaptor.getValue().relatedResourceType());
+        assertEquals(result.minutesId(), mailCaptor.getValue().relatedResourceId());
     }
 
     @Test
@@ -142,6 +154,7 @@ class MinutesUseCaseTest {
                         fixture.eventPublisher,
                         fixture.textExtractor,
                         fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         useCase.execute(
@@ -288,6 +301,7 @@ class MinutesUseCaseTest {
         private final FakeDocumentIndexRequestedEventPort eventPublisher =
                 new FakeDocumentIndexRequestedEventPort();
         private final MinutesMeetingMetadataAssembler metadataAssembler = metadataAssembler();
+        private final SendMailUseCase sendMailUseCase = mock(SendMailUseCase.class);
         private final FakeMeetingAttendeeRepository attendeeRepository =
                 new FakeMeetingAttendeeRepository(
                         new ArrayList<>(List.of(hostUserId, participantUserId, reviewerUserId)));

@@ -37,6 +37,8 @@ import com.meetbowl.application.minutes.GetMinutesUseCase;
 import com.meetbowl.application.minutes.MinutesResult;
 import com.meetbowl.application.minutes.ReviseMinutesCommand;
 import com.meetbowl.application.minutes.ReviseMinutesUseCase;
+import com.meetbowl.application.minutes.ShareMinutesCommand;
+import com.meetbowl.application.minutes.ShareMinutesUseCase;
 
 @WebMvcTest(controllers = MinutesController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -56,6 +58,7 @@ class MinutesControllerTest {
     @MockitoBean private GetMinutesUseCase getMinutesUseCase;
     @MockitoBean private ReviseMinutesUseCase reviseMinutesUseCase;
     @MockitoBean private ApproveMinutesUseCase approveMinutesUseCase;
+    @MockitoBean private ShareMinutesUseCase shareMinutesUseCase;
 
     @Test
     void getMinutes() throws Exception {
@@ -119,7 +122,7 @@ class MinutesControllerTest {
     @Test
     void approveMinutes() throws Exception {
         given(approveMinutesUseCase.execute(any()))
-                .willReturn(result("APPROVED", "Meeting summary", "Meeting content", APPROVED_AT));
+                .willReturn(result("SHARED", "Meeting summary", "Meeting content", APPROVED_AT));
 
         mockMvc.perform(
                         post("/api/v1/meetings/{meetingId}/minutes/approve", MEETING_ID)
@@ -128,7 +131,7 @@ class MinutesControllerTest {
                                         authenticatedUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.status").value("APPROVED"))
+                .andExpect(jsonPath("$.data.status").value("SHARED"))
                 .andExpect(jsonPath("$.data.content").value("Meeting content"))
                 .andExpect(jsonPath("$.data.approvedAt").value("2099-01-01T01:00:00Z"));
 
@@ -138,6 +141,43 @@ class MinutesControllerTest {
         assertEquals(MEETING_ID, commandCaptor.getValue().meetingId());
         assertEquals(USER_ID, commandCaptor.getValue().actorUserId());
         assertEquals(ORGANIZATION_ID, commandCaptor.getValue().actorOrganizationId());
+    }
+
+    @Test
+    void shareMinutes() throws Exception {
+        UUID recipientId = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        UUID idempotencyKey = UUID.fromString("00000000-0000-0000-0000-000000000100");
+        given(shareMinutesUseCase.execute(any()))
+                .willReturn(result("SHARED", "Meeting summary", "Meeting content", APPROVED_AT));
+
+        mockMvc.perform(
+                        post("/api/v1/meetings/{meetingId}/minutes/share", MEETING_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "recipientUserIds": ["%s"],
+                                          "subject": "회의록 공유",
+                                          "body": "본문",
+                                          "idempotencyKey": "%s"
+                                        }
+                                        """
+                                                .formatted(recipientId, idempotencyKey)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("SHARED"));
+
+        ArgumentCaptor<ShareMinutesCommand> commandCaptor =
+                ArgumentCaptor.forClass(ShareMinutesCommand.class);
+        verify(shareMinutesUseCase).execute(commandCaptor.capture());
+        assertEquals(MEETING_ID, commandCaptor.getValue().meetingId());
+        assertEquals(USER_ID, commandCaptor.getValue().actorUserId());
+        assertEquals(ORGANIZATION_ID, commandCaptor.getValue().actorOrganizationId());
+        assertEquals(java.util.List.of(recipientId), commandCaptor.getValue().recipientUserIds());
+        assertEquals(idempotencyKey, commandCaptor.getValue().idempotencyKey());
     }
 
     private AuthenticatedUser authenticatedUser() {

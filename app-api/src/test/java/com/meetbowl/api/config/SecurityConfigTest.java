@@ -52,7 +52,7 @@ class SecurityConfigTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"))
-                .andExpect(jsonPath("$.error.message").value("?몄쬆???꾩슂?⑸땲??"));
+                .andExpect(jsonPath("$.error.message").value("인증이 필요합니다."));
     }
 
     @Test
@@ -139,13 +139,11 @@ class SecurityConfigTest {
     }
 
     @Test
-    void internalTokenCanAccessSystemShareEndpoint() throws Exception {
+    void internalTokenCanAccessInternalEndpoint() throws Exception {
         mockMvc.perform(
-                        post("/api/v1/meetings/"
-                                        + UUID.randomUUID()
-                                        + "/minutes/share/participants")
+                        post("/api/v1/internal/mails/send")
                                 .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
