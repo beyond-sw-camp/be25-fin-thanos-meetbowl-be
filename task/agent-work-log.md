@@ -219,6 +219,27 @@
 
 2026-06-18 User partial search API improvement
 
+2026-06-23 Actions test failure triage and test expectation fix
+
+- 작업 목적: actions 파이프라인에서 보고된 `UserDirectoryUseCaseTest > searchByOrganizationFiltersSuccess()` 실패 원인을 확인하고, 현재 구현과 어긋난 테스트 기대값을 정리한다.
+- 변경 파일: `application/src/test/java/com/meetbowl/application/user/UserDirectoryUseCaseTest.java`, `task/agent-work-log.md`
+- 원인 분석:
+  `UserDirectoryUseCase.search()`는 `status`가 없으면 `ACTIVE`를 기본값으로 사용하고, `status`가 전달되면 해당 상태로 정확히 필터링한다.
+  문제 테스트는 `affiliate/department/team/position + status="ACTIVE"` 조건으로 검색하면서도 같은 조직의 `INACTIVE` 사용자까지 포함된 `2건`을 기대하고 있었다.
+  fixture 상 같은 조직 사용자는 `ACTIVE 1명`, `INACTIVE 1명`이므로 실제 결과는 `1건`이 맞다.
+- 동작 변경:
+  프로덕션 코드는 변경하지 않았다.
+  테스트 기대값을 `2 -> 1`로 수정하고, 왜 비활성 사용자가 제외되는지 한글 주석을 추가했다.
+- 제외 범위:
+  `AdminDashboardSummaryUseCaseTest`의 CI 이력상 Mockito `PotentialStubbingProblem`은 현재 워킹트리에서는 재현되지 않아 코드 수정 대상에서 제외했다.
+- 검증 방법과 결과:
+  실행: `./gradlew :application:test --tests 'com.meetbowl.application.user.UserDirectoryUseCaseTest'`
+  결과: 통과
+  추가 확인: `./gradlew :application:test --tests 'com.meetbowl.application.admin.AdminDashboardSummaryUseCaseTest'`
+  결과: 통과
+- 남은 작업:
+  CI가 실제로 어떤 SHA를 실행했는지 필요하면 workflow run의 checkout commit과 로컬 HEAD를 대조해 admin 테스트의 과거 실패 원인을 추가 확인해야 한다.
+
 - Purpose: expand backend user search so admin/user directory APIs support trimmed, case-insensitive partial matches across user identity fields and organization names, while keeping existing API paths and DTOs unchanged.
 - Changed files:
   `application/admin/AdminUserManagementUseCase`, `infrastructure/persistence/user/SpringDataUserRepository`, `app-api/admin/AdminUserControllerTest`, `app-api/user/UserDirectoryControllerTest`, `application/admin/AdminUserManagementUseCaseTest`, `application/user/UserDirectoryUseCaseTest`, new `infrastructure/persistence/user/JpaUserRepositoryAdapterTest`, and this log.
@@ -565,3 +586,23 @@
   - 동작 변화: 배포 가능 여부를 runner 로컬 파일 존재 여부로 판단하지 않고, 운영 서버에 checkout 되어 있는 infra 레포 루트를 기준으로 배포를 수행한다.
   - 검증: 워크플로 YAML diff를 확인했고, infra 쪽 실제 배포 스크립트 경로 규약과 맞춰 검토했다.
   - 남은 작업: GitHub Secrets의 `MEETBOWL_DEPLOY_PATH`를 infra 레포 루트로 맞추고, EC2에 `meetbowl-infra`가 배포 경로에 clone 되어 있어야 한다.
+
+2026-06-23 PR Actions checkout SHA 명시화
+
+- 작업 목적: PR GitHub Actions가 merge commit을 테스트하면서 로컬 HEAD와 다른 코드 기준으로 실패하는 혼선을 줄이기 위해, 테스트 job의 checkout 대상을 PR head SHA로 고정한다.
+- 변경 파일: `.github/workflows/backend-deploy.yml`, `task/agent-work-log.md`
+- 변경 내용:
+  `test` job의 checkout step을 PR과 비PR 이벤트로 분리했다.
+  PR 이벤트에서는 `actions/checkout@v4`에 `ref: ${{ github.event.pull_request.head.sha }}`를 명시해 PR 브랜치 head commit을 직접 checkout하도록 바꿨다.
+  push/workflow_dispatch는 기존처럼 이벤트 기본 ref를 checkout하도록 유지했다.
+  추가로 `Show checked out revision` step을 넣어 `event_name`, `github.sha`, `pr_head_sha`, 실제 `git rev-parse HEAD`를 로그에 남기게 했다.
+- 동작 변경:
+  앞으로 PR test job은 GitHub가 만든 synthetic merge commit 대신 실제 PR head commit을 기준으로 `./gradlew test --no-daemon`를 실행한다.
+  실패 로그만 봐도 workflow가 어떤 SHA를 테스트했는지 바로 확인할 수 있다.
+- 제외 범위:
+  `build-and-push`와 `deploy` job의 checkout 동작은 그대로 유지했다. 이 job들은 PR에서는 실행되지 않는다.
+- 검증:
+  workflow YAML diff를 로컬에서 확인했다.
+  실제 실행 검증은 다음 PR run 또는 `workflow_dispatch` 로그에서 `Show checked out revision` step 출력으로 확인해야 한다.
+- 남은 작업:
+  필요하면 `build-and-push` job에도 동일한 SHA 출력 step을 추가해 이미지 빌드 기준 커밋 추적성을 맞출 수 있다.
