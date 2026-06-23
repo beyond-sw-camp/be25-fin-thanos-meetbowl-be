@@ -10,8 +10,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
+@ActiveProfiles("test")
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = {
+            "spring.flyway.enabled=false",
+            "spring.rabbitmq.listener.simple.auto-startup=false",
+            "spring.rabbitmq.listener.direct.auto-startup=false",
+            "spring.rabbitmq.dynamic=false"
+        })
 class AuthTokenStatePrecisionTest {
 
     @Autowired private ApplicationContext applicationContext;

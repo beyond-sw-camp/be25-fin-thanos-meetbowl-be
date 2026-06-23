@@ -31,6 +31,7 @@ import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.application.mail.BackupMailsUseCase;
 import com.meetbowl.application.mail.ChangeMailReadStatusUseCase;
+import com.meetbowl.application.mail.DownloadMailAttachmentUseCase;
 import com.meetbowl.application.mail.GetMailDetailUseCase;
 import com.meetbowl.application.mail.ListMailUseCase;
 import com.meetbowl.application.mail.MoveMailToTrashUseCase;
@@ -59,6 +60,7 @@ class MailControllerTest {
     @MockitoBean private BackupMailsUseCase backupMailsUseCase;
     @MockitoBean private SearchMailUseCase searchMailUseCase;
     @MockitoBean private SendAnnouncementUseCase sendAnnouncementUseCase;
+    @MockitoBean private DownloadMailAttachmentUseCase downloadMailAttachmentUseCase;
 
     @Test
     void sendMail() throws Exception {
