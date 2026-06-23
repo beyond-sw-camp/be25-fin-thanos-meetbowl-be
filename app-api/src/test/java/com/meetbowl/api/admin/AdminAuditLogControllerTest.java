@@ -82,10 +82,18 @@ class AdminAuditLogControllerTest {
                 .andExpect(jsonPath("$.data.items[0].actorUserId").value(ADMIN_ID.toString()))
                 .andExpect(jsonPath("$.data.items[0].actorName").value("admin01"))
                 .andExpect(jsonPath("$.data.items[0].actionType").value("USER_UPDATE"))
+                .andExpect(jsonPath("$.data.items[0].actionLabel").value("회원 수정"))
                 .andExpect(jsonPath("$.data.items[0].targetType").value("USER"))
+                .andExpect(jsonPath("$.data.items[0].targetTypeLabel").value("회원"))
+                .andExpect(jsonPath("$.data.items[0].displayTitle").value("회원 수정"))
+                .andExpect(
+                        jsonPath("$.data.items[0].displayChangeItems[0].label").value("상태"))
+                .andExpect(
+                        jsonPath("$.data.items[0].displayChangeItems[0].value")
+                                .value("활성 -> 비활성"))
                 .andExpect(jsonPath("$.data.items[0].result").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.items[0].beforeSnapshot.name").value("old"))
-                .andExpect(jsonPath("$.data.items[0].afterSnapshot.name").value("new"))
+                .andExpect(jsonPath("$.data.items[0].beforeSnapshot.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.items[0].afterSnapshot.status").value("INACTIVE"))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
                 .andExpect(jsonPath("$.data.totalPages").value(1));
 
@@ -110,6 +118,7 @@ class AdminAuditLogControllerTest {
                                         authenticatedUser(AuthenticatedUserRole.ADMIN)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.auditLogId").value(AUDIT_LOG_ID.toString()))
+                .andExpect(jsonPath("$.data.actionLabel").value("회원 수정"))
                 .andExpect(jsonPath("$.data.createdAt").value("2026-06-12T00:00:00Z"));
     }
 
@@ -140,8 +149,8 @@ class AdminAuditLogControllerTest {
                 TARGET_ID,
                 "SUCCESS",
                 null,
-                "{\"name\":\"old\"}",
-                "{\"name\":\"new\"}",
+                "{\"status\":\"ACTIVE\",\"activeFrom\":1781798400,\"activeUntil\":1781971200}",
+                "{\"status\":\"INACTIVE\",\"activeFrom\":1781798400,\"activeUntil\":1781971200}",
                 CREATED_AT);
     }
 }

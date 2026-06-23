@@ -520,3 +520,24 @@
   Passed `.\gradlew.bat :application:compileJava :app-api:compileJava :infrastructure:compileJava`
   Attempted `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest"` but it is blocked by pre-existing unrelated `application:compileTestJava` failures in `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
   Attempted `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationControllerTest"` but it is blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `MeetingControllerTest`.
+2026-06-23 Admin audit log display labels and summaries
+
+- Purpose: fix QA issue where the admin audit log list/detail exposed raw enum names and inconsistent JSON instead of user-friendly Korean labels and readable work summaries.
+- Changed files:
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  `app-api/admin/dto/AdminAuditLogDisplayFormatter`,
+  `app-api/admin/AdminAuditLogControllerTest`,
+  `app-api/admin/dto/AdminAuditLogResponseTest`,
+  and this log.
+- Behavior:
+  Audit log responses now keep raw `actionType`, `targetType`, `beforeSnapshot`, and `afterSnapshot` while adding display-only fields `actionLabel`, `targetTypeLabel`, `displayTitle`, and `displayChangeItems`.
+  Known admin action types and target types now resolve to Korean labels, while unmapped values safely fall back to the original raw code.
+  User update logs now summarize status and active-period changes with readable Korean labels and formatted dates instead of exposing epoch timestamps directly.
+  Organization/member Excel logs now expose compact summary items such as file name, success/failure result, failure reason, processed count, and error count rather than raw JSON in the primary display area.
+  When a snapshot cannot be mapped cleanly, the formatter falls back to compact key/value items or the message `작업 상세 정보를 확인할 수 없습니다.` instead of surfacing raw JSON as the main summary.
+- Notes:
+  Added concise Korean comments around the display-field normalization path and the mixed epoch-second/epoch-millisecond timestamp handling because those are the parts most likely to confuse reviewers later.
+  Existing raw audit fields remain in the response for backward compatibility and audit traceability; the new fields are additive only.
+- Verification:
+  Passed `.\gradlew.bat :app-api:compileJava`
+  Attempted `.\gradlew.bat :app-api:compileJava :app-api:compileTestJava` and `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminAuditLogControllerTest" --tests "com.meetbowl.api.admin.dto.AdminAuditLogResponseTest"` but both are blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java` because its `MeetingController` constructor call is missing the `TransferMeetingHostUseCase` argument.
