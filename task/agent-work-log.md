@@ -541,3 +541,35 @@
 - Verification:
   Passed `.\gradlew.bat :app-api:compileJava`
   Attempted `.\gradlew.bat :app-api:compileJava :app-api:compileTestJava` and `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminAuditLogControllerTest" --tests "com.meetbowl.api.admin.dto.AdminAuditLogResponseTest"` but both are blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java` because its `MeetingController` constructor call is missing the `TransferMeetingHostUseCase` argument.
+
+2026-06-23 Admin audit log target info and display formatter hardening
+
+- Purpose: fix QA issues where member-targeted admin audit logs missed target login/name and detail views still surfaced raw/internal fields instead of operator-friendly Korean summaries.
+- Changed files:
+  `domain/admin/AdminAuditLog`,
+  `infrastructure/persistence/admin/AdminAuditLogEntity`,
+  `application/admin/AdminAuditLogResult`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/admin/ResetUserPasswordUseCase`,
+  `application/auth/PasswordResetRequestUseCase`,
+  `application/mail/MailRetentionPolicyUseCase`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `application/admin/AdminOrganizationMembersExcelAuditService`,
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  `app-api/admin/dto/AdminAuditLogDisplayFormatter`,
+  related admin/auth/domain/JPA tests,
+  and this log.
+- Behavior:
+  Admin audit log storage now keeps optional `targetLoginId` and `targetName` alongside the existing raw target metadata.
+  Member create/update/delete/status-change/password-reset audit writes now always persist target member ID, login ID, and display name; delete captures the original login/name before tombstone replacement.
+  Audit log API responses now return `targetLoginId` and `targetName` with `-` fallback for old rows that never stored them.
+  Display labels now map known action/target codes to Korean, including member status change/password reset, organization-member Excel upload/download, organization master data, meeting room, retention policy, and mail policy actions. Unmapped values still fall back to raw codes.
+  Display summaries now exclude internal fields such as `id`, `createdAt`, `updatedAt`, `deletedAt`, `modifiedAt`, `lastModifiedAt`, `version`, `createdBy`, and `updatedBy`.
+  Policy change summaries now render operator-friendly diffs like `365일 -> 372일` and `아니오 -> 예`, while Excel import logs render compact summary items instead of raw JSON.
+  Password-related audit payloads still avoid temporary passwords, password hashes, tokens, JWTs, refresh tokens, and similar sensitive values.
+- Verification:
+  Passed `.\gradlew.bat :domain:test --tests "com.meetbowl.domain.admin.AdminAuditLogTest"`
+  Passed `.\gradlew.bat :app-api:compileJava :application:compileJava :infrastructure:compileJava :domain:compileJava`
+  Attempted targeted `:app-api:test` runs for audit-log controller/response tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted `:application:test` runs for admin/auth audit-log tests, but `application:compileTestJava` is blocked by pre-existing unrelated `meeting`, `minutes`, and `transcript` test compile failures on the current branch.

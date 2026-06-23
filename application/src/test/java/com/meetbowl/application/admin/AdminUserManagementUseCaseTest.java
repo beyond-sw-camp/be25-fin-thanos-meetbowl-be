@@ -105,6 +105,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals(UserRole.ADMIN.name(), result.user().role());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("admin01", logCaptor.getValue().targetLoginId());
+        assertEquals("Admin One", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_CREATED", result.userId());
     }
 
@@ -396,6 +400,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals("updated@example.com", savedUser.getValue().email());
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals("ADMIN", result.role());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("current", logCaptor.getValue().targetLoginId());
+        assertEquals("Updated User", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_UPDATED", current.id());
     }
 
@@ -483,6 +491,8 @@ class AdminUserManagementUseCaseTest {
         verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
         assertEquals("DELETE", logCaptor.getValue().actionName());
         assertEquals(current.id(), logCaptor.getValue().targetId());
+        assertEquals("delete-user", logCaptor.getValue().targetLoginId());
+        assertEquals("User Name", logCaptor.getValue().targetName());
     }
 
     @Test
@@ -702,6 +712,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals(expectedStatus, savedUser.getValue().status());
         assertEquals(expectedStatus.name(), result.status());
         verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("status", logCaptor.getValue().targetLoginId());
+        assertEquals("User Name", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_STATUS_UPDATED", current.id());
     }
 

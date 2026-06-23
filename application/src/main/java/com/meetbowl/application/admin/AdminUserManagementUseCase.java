@@ -144,7 +144,8 @@ public class AdminUserManagementUseCase {
                 "CREATE",
                 null,
                 snapshot(summary),
-                savedUser.id());
+                savedUser.id(),
+                new AuditTarget(savedUser.loginId(), savedUser.name()));
         // 회원 저장 이후 바로 색인을 갱신해 관리자/사용자 검색 결과가 지연되지 않게 맞춘다.
         publishUserReindex(savedUser.id(), command.adminId(), "USER_CREATED");
         return new CreateResult(savedUser.id(), PasswordPolicy.INITIAL_PASSWORD, summary);
@@ -234,7 +235,8 @@ public class AdminUserManagementUseCase {
                 "UPDATE",
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
-                saved.id());
+                saved.id(),
+                new AuditTarget(saved.loginId(), saved.name()));
         // 관리자 수정은 이름, 이메일, 권한, 조직 표시값을 바꿀 수 있어 검색 문서도 즉시 맞춘다.
         publishUserReindex(saved.id(), command.adminId(), "USER_UPDATED");
         return summary;
@@ -264,7 +266,8 @@ public class AdminUserManagementUseCase {
                 "STATUS_CHANGE",
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
-                saved.id());
+                saved.id(),
+                new AuditTarget(saved.loginId(), saved.name()));
         // 상태값은 관리자/일반 사용자 검색 필터에 바로 쓰이므로 저장 직후 재색인한다.
         publishUserReindex(saved.id(), command.adminId(), "USER_STATUS_UPDATED");
         return summary;
@@ -286,6 +289,8 @@ public class AdminUserManagementUseCase {
         ensureNotSelfDelete(command, current);
         ensureUserNotAlreadyDeleted(command, current);
 
+        // tombstone 치환 전에 원본 로그인 ID/이름을 고정해 삭제 감사 로그에 남긴다.
+        AuditTarget auditTarget = new AuditTarget(current.loginId(), current.name());
         Instant deletedAt = Instant.now(clock);
         User saved =
                 userRepositoryPort.save(
@@ -305,7 +310,8 @@ public class AdminUserManagementUseCase {
                 "DELETE",
                 snapshot(before),
                 snapshot(after),
-                saved.id());
+                saved.id(),
+                auditTarget);
         // 삭제 API도 검색 문서에는 상태 변경으로 반영해야 목록/검색 결과가 비활성화 상태와 일치한다.
         publishUserReindex(saved.id(), command.adminId(), "USER_DELETED");
         return after;
@@ -793,7 +799,8 @@ public class AdminUserManagementUseCase {
             String actionName,
             String beforeValue,
             String afterValue,
-            UUID targetId) {
+            UUID targetId,
+            AuditTarget auditTarget) {
         adminAuditLogRepositoryPort.save(
                 new AdminAuditLog(
                         UUID.randomUUID(),
@@ -801,6 +808,8 @@ public class AdminUserManagementUseCase {
                         adminName,
                         "USER",
                         targetId,
+                        auditTarget == null ? null : auditTarget.loginId(),
+                        auditTarget == null ? null : auditTarget.name(),
                         "USER_MANAGEMENT",
                         actionName,
                         AuditResult.SUCCESS,
@@ -808,7 +817,7 @@ public class AdminUserManagementUseCase {
                         afterValue,
                         ipAddress,
                         userAgent,
-                        Instant.now()));
+                        Instant.now(clock)));
     }
 
     private void saveDeleteFailureAudit(
@@ -820,6 +829,8 @@ public class AdminUserManagementUseCase {
                         command.adminName(),
                         "USER",
                         targetId,
+                        null,
+                        null,
                         "USER_MANAGEMENT",
                         "DELETE",
                         AuditResult.FAILURE,
@@ -827,7 +838,7 @@ public class AdminUserManagementUseCase {
                         failureSnapshot(message),
                         command.ipAddress(),
                         command.userAgent(),
-                        Instant.now()));
+                        Instant.now(clock)));
     }
 
     private void publishUserReindex(UUID userId, UUID requestedByUserId, String reason) {
@@ -946,6 +957,8 @@ public class AdminUserManagementUseCase {
             UUID positionId,
             Instant activeFrom,
             Instant activeUntil) {}
+
+    private record AuditTarget(String loginId, String name) {}
 
     private record FailureSnapshot(String message) {}
 }

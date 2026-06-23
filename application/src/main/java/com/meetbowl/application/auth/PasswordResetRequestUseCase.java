@@ -67,6 +67,8 @@ public class PasswordResetRequestUseCase {
                         user.name(),
                         "USER",
                         user.id(),
+                        user.loginId(),
+                        user.name(),
                         "AUTH",
                         "PASSWORD_RESET_REQUEST",
                         AuditResult.SUCCESS,

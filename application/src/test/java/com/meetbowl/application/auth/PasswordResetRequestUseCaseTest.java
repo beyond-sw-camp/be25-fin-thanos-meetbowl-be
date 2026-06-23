@@ -49,6 +49,8 @@ class PasswordResetRequestUseCaseTest {
         ArgumentCaptor<AdminAuditLog> captor = ArgumentCaptor.forClass(AdminAuditLog.class);
         verify(adminAuditLogRepositoryPort).save(captor.capture());
         assertEquals("PASSWORD_RESET_REQUEST", captor.getValue().actionName());
+        assertEquals("user1", captor.getValue().targetLoginId());
+        assertEquals("name", captor.getValue().targetName());
         JsonNode snapshot = objectMapper.readTree(captor.getValue().afterValue());
         assertEquals("PUBLIC_API", snapshot.get("requestSource").asText());
     }

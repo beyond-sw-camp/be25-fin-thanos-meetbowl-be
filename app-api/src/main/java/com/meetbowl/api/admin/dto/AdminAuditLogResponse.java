@@ -16,6 +16,8 @@ public record AdminAuditLogResponse(
         String targetType,
         String targetTypeLabel,
         UUID targetId,
+        String targetLoginId,
+        String targetName,
         String result,
         String reason,
         String displayTitle,
@@ -37,6 +39,8 @@ public record AdminAuditLogResponse(
                 result.targetType(),
                 displayInfo.targetTypeLabel(),
                 result.targetId(),
+                fallbackTargetValue(result.targetLoginId()),
+                fallbackTargetValue(result.targetName()),
                 result.result(),
                 result.reason(),
                 displayInfo.displayTitle(),
@@ -56,6 +60,10 @@ public record AdminAuditLogResponse(
             // 과거 로그가 JSON이 아닌 문자열로 저장돼 있어도 조회 API 자체는 계속 응답해야 한다.
             return snapshot;
         }
+    }
+
+    private static String fallbackTargetValue(String value) {
+        return value == null || value.isBlank() ? "-" : value;
     }
 
     public record DisplayChangeItemResponse(

@@ -71,6 +71,8 @@ class AdminDashboardSummaryUseCaseTest {
                                                 "USER_UPDATE",
                                                 "USER",
                                                 TARGET_ID,
+                                                "user01",
+                                                "User One",
                                                 "SUCCESS",
                                                 null,
                                                 null,
