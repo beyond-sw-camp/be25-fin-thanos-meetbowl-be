@@ -464,3 +464,56 @@
   Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
   `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+2026-06-22 회의 종료 시 STT 세션 강제 정리 연동
+
+- 작업 목적: 호스트가 회의를 종료하면 서버 기준으로 STT 세션도 함께 종료되어 다른 참석자 화면까지 일관되게 닫히도록 내부 연동 경로를 추가한다.
+- 변경 파일: `application/meeting/EndMeetingUseCase.java`, 새 `application/meeting/MeetingRealtimeSessionStopper.java`, `application` 회의 종료 테스트 `EndMeetingUseCaseTest.java`, 새 `infrastructure/stt/HttpMeetingRealtimeSessionStopper.java`, `app-api/config/SecurityConfigTest.java`, 이 작업 기록 파일.
+- 동작 변경:
+  `EndMeetingUseCase`는 회의 DB 상태와 `meeting.ended` RabbitMQ 이벤트를 확정한 뒤 STT 내부 API로 회의 기준 세션 종료를 best-effort 호출한다.
+  STT 종료 호출이 실패해도 회의 종료 authoritative state와 후속 이벤트 발행은 되돌리지 않고 경고 로그만 남긴다.
+  보안 컨텍스트 테스트는 새 stopper port를 MockitoBean으로 대체해 기존 테스트 부트스트랩을 유지한다.
+- 제외 범위:
+  STT 서버 내부의 DataChannel 브로드캐스트와 자막 세그먼트 조정 자체는 이 레포에서 구현하지 않았다.
+- 검증 방법:
+  통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"` 실행 중 `:app-api:compileJava`, `:infrastructure:compileJava`, `:application:compileJava`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.EndMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest` 등) 때문에 막혔다.
+  실패(기존 테스트 기대값): `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"`는 `protectedEndpointWithoutTokenReturnsCommonUnauthorizedResponse` 1건이 기존 기대 문자열 문제로 실패했지만, 새 stopper 추가로 인한 컴파일/빈 주입 문제는 재현되지 않았다.
+
+2026-06-22 STT 장애 시 회의 입장 fallback 허용
+
+- 작업 목적: STT 내부 API가 일시적으로 실패할 때 `/meetings/{meetingId}/join`까지 503으로 막혀 메인 회의 화면에 아예 들어가지 못하는 문제를 줄인다.
+- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
+- 동작 변경:
+  회의 입장 직전 STT 세션 자동 시작은 그대로 시도하되, `STT_PROVIDER_UNAVAILABLE`가 발생하면 경고 로그만 남기고 LiveKit join token 발급은 계속 진행한다.
+  따라서 STT가 잠시 불안정한 상태에서도 영상/음성 회의 입장 자체는 가능하고, 자막만 지연되거나 비어 있을 수 있다.
+  로컬 프로필 기본값은 `server.address=0.0.0.0`, `meetbowl.livekit.server-url=127.0.0.1`, `meetbowl.stt.base-url=127.0.0.1`로 맞춰 `localhost`의 IPv4/IPv6 해석 차이 때문에 join/STT 내부 호출이 흔들리는 상황을 줄였다.
+- 제외 범위:
+  STT 서버 내부 연결 실패 원인 자체를 이 레포에서 제거하지는 않았다.
+- 검증 방법:
+  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 이번 변경 파일이 아니라 기존 `GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`의 `:application:compileTestJava` 오류 때문에 중단됐다.
+
+2026-06-22 회의 입장 상태 차단 보강
+
+- 작업 목적: 예약 시작 15분 전보다 이른 회의와 취소된 회의가 입장 가능한 상태로 남아 있던 문제를 막는다.
+- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
+- 동작 변경:
+  회의 입장 API는 `ENDED`뿐 아니라 `CANCELLED` 상태도 차단한다.
+  따라서 취소된 회의는 `/meetings/{meetingId}/join` 단계에서 다시 한 번 막힌다.
+- 검증 방법:
+  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패 때문에 실행되지 않았다.
+
+2026-06-23 회의 예약 참석자/조회 정합성 및 관리자 대시보드 집계 보정
+
+- 작업 목적: 회의 예약 수정 흐름에서 주최자/검토자 역할 정합성을 맞추고, 초대 회의 목록/회의실 예약 조회에서 본인 주최 회의가 중복 노출되는 문제와 관리자 시간대별 회의실 사용 집계 왜곡을 함께 보정한다.
+- 변경 파일: `application/admin/AdminDashboardSummaryUseCase.java`, `application/admin/AdminDashboardSummaryUseCaseTest.java`, `application/meeting/GetMeetingUseCase.java`, `application/meeting/MeetingAttendeeWriter.java`, `application/meetingroom/GetRoomReservationsUseCase.java`, 이 작업 기록 파일.
+- 동작 변경:
+  회의 참석자 저장은 주최자를 한 번만 저장하고, 주최자 본인을 회의록 검토자로 지정한 경우 HOST 참석자 행에 `reviewer=true` 플래그를 함께 저장한다.
+  따라서 회의 생성/수정 시 host와 reviewer가 동일한 경우에도 `(meeting_id, user_id)` 중복 삽입으로 500 오류가 나지 않는다.
+  초대 회의 목록과 회의실 예약 현황 조회는 참석자 역할만 보지 않고 `meeting.isHostedBy(userId)` 기준으로 본인 주최 회의를 제외해 자기 회의가 초대 목록처럼 다시 섞여 보이지 않는다.
+  관리자 대시보드 시간대별 회의실 사용 집계는 화면에서 사용하는 영업 시간대 기준에 맞게 시간 버킷 계산을 보정해 왜곡된 막대값이 나오지 않도록 정리했다.
+- 검증 방법:
+  통과: `bash ./gradlew :application:compileJava`
+  통과: `bash ./gradlew bootJar`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test`는 현재 브랜치 전반의 `GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest` 등 기존 `:application:compileTestJava` 오류 때문에 이번 변경과 무관하게 중단됐다.
