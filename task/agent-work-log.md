@@ -558,3 +558,10 @@
 - 동작 변경: 컨테이너 빌드 시 Gradle wrapper로 `app-api` bootJar를 생성하고, 런타임 이미지는 `/app/app.jar`만 가진 `prod` 기본 프로필 컨테이너로 실행된다. `JAVA_OPTS`를 환경변수로 주입할 수 있고 기본 timezone은 UTC다.
 - 제외 범위: healthcheck, Actuator endpoint, 운영 compose, deploy script 연결은 아직 하지 않았다.
 - 검증: 권한 상승으로 `./gradlew :app-api:bootJar -x test`를 실행해 `app-api/build/libs/app-api-0.0.1-SNAPSHOT.jar` 생성과 Dockerfile의 jar copy 경로가 맞는 것을 확인했다. 실제 `docker build` 실행 검증은 아직 하지 않았다.
+- 2026-06-23: backend GitHub Actions 배포 워크플로를 운영 저장소 구조에 맞게 다시 단순화했다.
+  - 요청 목적: `meetbowl-infra`에 배포 스크립트를 두는 구조로 결정된 뒤, `meetbowl-be` 워크플로가 GitHub runner에서 다른 레포 파일을 찾으려는 잘못된 가정을 제거해야 했다.
+  - 변경 파일: `.github/workflows/backend-deploy.yml`
+  - 변경 내용: `detect-build-assets`와 배포 스킵 분기 로직을 제거하고, `main` push 시 테스트 후 이미지 빌드/푸시, 이후 EC2의 `DEPLOY_PATH/scripts/deploy-be.sh`를 직접 실행하도록 고정했다.
+  - 동작 변화: 배포 가능 여부를 runner 로컬 파일 존재 여부로 판단하지 않고, 운영 서버에 checkout 되어 있는 infra 레포 루트를 기준으로 배포를 수행한다.
+  - 검증: 워크플로 YAML diff를 확인했고, infra 쪽 실제 배포 스크립트 경로 규약과 맞춰 검토했다.
+  - 남은 작업: GitHub Secrets의 `MEETBOWL_DEPLOY_PATH`를 infra 레포 루트로 맞추고, EC2에 `meetbowl-infra`가 배포 경로에 clone 되어 있어야 한다.
