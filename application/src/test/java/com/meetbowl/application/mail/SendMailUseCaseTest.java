@@ -30,6 +30,8 @@ class SendMailUseCaseTest {
         MailRepositoryPort mailRepository = mock(MailRepositoryPort.class);
         MailboxEntryRepositoryPort mailboxRepository = mock(MailboxEntryRepositoryPort.class);
         UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
+        com.meetbowl.domain.storage.ObjectStoragePort objectStorage =
+                mock(com.meetbowl.domain.storage.ObjectStoragePort.class);
         Instant now = Instant.parse("2099-01-01T00:00:00Z");
         UUID organizationId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
@@ -79,6 +81,7 @@ class SendMailUseCaseTest {
                         mailRepository,
                         mailboxRepository,
                         userRepository,
+                        objectStorage,
                         Clock.fixed(now, ZoneOffset.UTC));
 
         SendMailResult result =

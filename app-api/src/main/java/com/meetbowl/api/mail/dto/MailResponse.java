@@ -62,7 +62,8 @@ public final class MailResponse {
             boolean read,
             Instant readAt,
             boolean trashed,
-            Instant trashedAt) {
+            Instant trashedAt,
+            List<Attachment> attachments) {
 
         public static Detail from(MailDetailResult result) {
             return new Detail(
@@ -83,7 +84,21 @@ public final class MailResponse {
                     result.read(),
                     result.readAt(),
                     result.trashed(),
-                    result.trashedAt());
+                    result.trashedAt(),
+                    result.attachments().stream().map(Attachment::from).toList());
+        }
+
+        /** 상세 응답의 첨부 메타데이터(다운로드는 별도 API). */
+        public record Attachment(
+                UUID attachmentId, String originalFileName, String mimeType, long sizeBytes) {
+
+            public static Attachment from(com.meetbowl.application.mail.MailAttachmentInfo info) {
+                return new Attachment(
+                        info.attachmentId(),
+                        info.originalFileName(),
+                        info.mimeType(),
+                        info.sizeBytes());
+            }
         }
     }
 }

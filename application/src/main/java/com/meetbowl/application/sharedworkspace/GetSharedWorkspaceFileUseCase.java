@@ -9,39 +9,28 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
-import com.meetbowl.domain.storage.ObjectStoragePort;
 
 /**
- * 공유 자료 다운로드에 필요한 권한을 검증하고 원본 파일을 내려받는다.
+ * 공유 자료 단건 메타데이터를 조회한다.
  *
- * <p>워크스페이스 멤버 여부와 파일 소속 워크스페이스를 먼저 확인한다. 그 이후에만 storageKey로 Object Storage를 조회해, 권한 없는 사용자가 파일 저장
- * 경로를 통해 우회 다운로드하지 못하게 한다.
+ * <p>원본 파일 다운로드와 달리 JSON 메타데이터만 반환하지만, 같은 권한 경계를 적용해 워크스페이스 멤버만 파일 정보를 볼 수 있게 한다.
  */
 @Service
-public class DownloadSharedWorkspaceFileUseCase {
+public class GetSharedWorkspaceFileUseCase {
 
     private final SharedWorkspaceFileRepositoryPort fileRepositoryPort;
     private final SharedWorkspaceAccessGuard accessGuard;
-    private final ObjectStoragePort objectStoragePort;
 
-    public DownloadSharedWorkspaceFileUseCase(
+    public GetSharedWorkspaceFileUseCase(
             SharedWorkspaceFileRepositoryPort fileRepositoryPort,
-            SharedWorkspaceAccessGuard accessGuard,
-            ObjectStoragePort objectStoragePort) {
+            SharedWorkspaceAccessGuard accessGuard) {
         this.fileRepositoryPort = fileRepositoryPort;
         this.accessGuard = accessGuard;
-        this.objectStoragePort = objectStoragePort;
     }
 
     @Transactional(readOnly = true)
-    public SharedWorkspaceFileDownloadResult execute(UUID workspaceId, UUID fileId, UUID userId) {
+    public SharedWorkspaceFileResult execute(UUID workspaceId, UUID fileId, UUID userId) {
         accessGuard.requireActiveMember(workspaceId, userId);
-        SharedWorkspaceFile file = loadActiveFileInWorkspace(workspaceId, fileId);
-        return SharedWorkspaceFileDownloadResult.from(
-                file, objectStoragePort.download(file.storageKey()));
-    }
-
-    private SharedWorkspaceFile loadActiveFileInWorkspace(UUID workspaceId, UUID fileId) {
         SharedWorkspaceFile file =
                 fileRepositoryPort
                         .findById(fileId)
@@ -51,6 +40,6 @@ public class DownloadSharedWorkspaceFileUseCase {
                                 () ->
                                         new BusinessException(
                                                 ErrorCode.SHARED_WORKSPACE_FILE_NOT_FOUND));
-        return file;
+        return SharedWorkspaceFileResult.from(file);
     }
 }
