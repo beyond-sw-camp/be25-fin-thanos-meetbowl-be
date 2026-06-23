@@ -15,7 +15,7 @@ concurrency:
 
 env:
   JAVA_VERSION: "25"
-  AWS_REGION: ap-northeast-2
+  AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: meetbowl-be
   IMAGE_TAG: ${{ github.sha }}
 
