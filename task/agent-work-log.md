@@ -659,3 +659,19 @@
   실제 실행 검증은 다음 PR run 또는 `workflow_dispatch` 로그에서 `Show checked out revision` step 출력으로 확인해야 한다.
 - 남은 작업:
   필요하면 `build-and-push` job에도 동일한 SHA 출력 step을 추가해 이미지 빌드 기준 커밋 추적성을 맞출 수 있다.
+
+2026-06-23 Admin dashboard summary test stubbing 안정화
+
+- 작업 목적: `AdminDashboardSummaryUseCaseTest > getBuildsDashboardSummaryFromExistingQueries()`에서 간헐적으로 보고된 Mockito `PotentialStubbingProblem` 가능성을 줄이고, 날짜 경계 검증은 유지한다.
+- 변경 파일: `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`, `task/agent-work-log.md`
+- 변경 내용:
+  `meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(...)` stub을 exact argument 매칭에서 `any(), any()` 기반 반환값 제공으로 완화했다.
+  대신 테스트 마지막에 `verify(meetingRepositoryPort).findNonCancelledRoomMeetingsOverlapping(eq(todayStart), eq(tomorrowStart))`를 추가해 실제 호출 인자는 그대로 검증하게 바꿨다.
+  관련 의도를 설명하는 한글 주석도 함께 추가했다.
+- 동작 변경:
+  프로덕션 코드는 변경하지 않았다.
+  테스트는 repository stub argument mismatch에 덜 취약해졌고, 날짜 경계 계산 검증 책임은 verify로 더 명확해졌다.
+- 검증:
+  실행 예정: `./gradlew :application:test --tests 'com.meetbowl.application.admin.AdminDashboardSummaryUseCaseTest' --tests 'com.meetbowl.application.user.UserDirectoryUseCaseTest'`
+- 남은 작업:
+  다음 CI run에서 동일한 admin 테스트 failure가 사라졌는지 확인해야 한다.
