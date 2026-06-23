@@ -192,10 +192,11 @@ class AdminDashboardSummaryUseCaseTest {
                 ArgumentCaptor.forClass(RoomStatusQuery.class);
         verify(getMeetingRoomStatusUseCase).execute(roomStatusCaptor.capture());
         assertEquals(Instant.parse("2026-06-13T10:15:30Z"), roomStatusCaptor.getValue().from());
+        // 관리자 대시보드는 KST 자정 경계로 하루를 집계하므로 repository 조회 구간도 그 기준을 따라야 한다.
         verify(meetingRepositoryPort)
                 .findNonCancelledRoomMeetingsOverlapping(
-                        eq(Instant.parse("2026-06-13T00:00:00Z")),
-                        eq(Instant.parse("2026-06-14T00:00:00Z")));
+                        eq(Instant.parse("2026-06-12T15:00:00Z")),
+                        eq(Instant.parse("2026-06-13T15:00:00Z")));
     }
 
     private RoomStatusResult roomStatus(

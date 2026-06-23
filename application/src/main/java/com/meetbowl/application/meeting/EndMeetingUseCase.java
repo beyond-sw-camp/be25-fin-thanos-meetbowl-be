@@ -12,6 +12,8 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingOrganizationResolver;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 
 /**

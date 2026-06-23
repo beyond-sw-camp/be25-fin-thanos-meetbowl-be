@@ -12,19 +12,28 @@ import org.junit.jupiter.api.Test;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.minutes.MinutesGenerationContext;
 
 class GetMinutesGenerationContextUseCaseTest {
 
     @Test
     void returnsFinalTranscriptContext() {
         UUID meetingId = UUID.randomUUID();
-        MinutesGenerationContextResult expected = context(meetingId, "첫 문장\n둘째 문장");
+        MinutesGenerationContext expected = context(meetingId, "첫 문장\n둘째 문장");
         GetMinutesGenerationContextUseCase useCase =
                 new GetMinutesGenerationContextUseCase(id -> Optional.of(expected));
 
         MinutesGenerationContextResult result = useCase.execute(meetingId);
 
-        assertEquals(expected, result);
+        assertEquals(expected.meetingId(), result.meetingId());
+        assertEquals(expected.organizationId(), result.organizationId());
+        assertEquals(expected.hostUserId(), result.hostUserId());
+        assertEquals(expected.reviewerUserId(), result.reviewerUserId());
+        assertEquals(expected.title(), result.title());
+        assertEquals(expected.startedAt(), result.startedAt());
+        assertEquals(expected.endedAt(), result.endedAt());
+        assertEquals(expected.rawTranscript(), result.rawTranscript());
+        assertEquals(expected.participants().size(), result.participants().size());
     }
 
     @Test
@@ -40,9 +49,9 @@ class GetMinutesGenerationContextUseCaseTest {
         assertEquals(ErrorCode.MINUTES_TRANSCRIPT_REQUIRED, exception.errorCode());
     }
 
-    private MinutesGenerationContextResult context(UUID meetingId, String transcript) {
+    private MinutesGenerationContext context(UUID meetingId, String transcript) {
         UUID hostId = UUID.randomUUID();
-        return new MinutesGenerationContextResult(
+        return new MinutesGenerationContext(
                 meetingId,
                 UUID.randomUUID(),
                 hostId,
@@ -50,7 +59,7 @@ class GetMinutesGenerationContextUseCaseTest {
                 "주간 회의",
                 Instant.parse("2026-06-23T01:00:00Z"),
                 Instant.parse("2026-06-23T02:00:00Z"),
-                List.of(new MinutesGenerationContextResult.Participant(hostId, "홍길동", null)),
+                List.of(new MinutesGenerationContext.Participant(hostId, "홍길동", null)),
                 transcript);
     }
 }

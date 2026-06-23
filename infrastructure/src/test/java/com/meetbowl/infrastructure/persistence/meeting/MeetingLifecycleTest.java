@@ -2,6 +2,7 @@ package com.meetbowl.infrastructure.persistence.meeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
@@ -27,6 +29,7 @@ import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
@@ -35,6 +38,8 @@ import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaMeetingRoomRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.MeetingRoomJpaConfig;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaBuildingRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaSiteRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.SpringDataMeetingRoomRepository;
 
 /** 회의 조회/수정/취소 UseCase의 동작과 권한·겹침 규칙을 실제 DB(H2)로 검증한다. */
@@ -529,12 +534,21 @@ class MeetingLifecycleTest {
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaBuildingRepositoryAdapter.class,
+        JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingUseCase.class,
+        GetRoomReservationsUseCase.class,
         UpdateMeetingUseCase.class,
         CancelMeetingUseCase.class
     })
-    static class TestApplication {}
+    static class TestApplication {
+
+        @Bean
+        DispatchNotificationUseCase dispatchNotificationUseCase() {
+            return mock(DispatchNotificationUseCase.class);
+        }
+    }
 }

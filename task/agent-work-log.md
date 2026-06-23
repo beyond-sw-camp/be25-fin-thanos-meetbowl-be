@@ -660,6 +660,33 @@
 - 남은 작업:
   필요하면 `build-and-push` job에도 동일한 SHA 출력 step을 추가해 이미지 빌드 기준 커밋 추적성을 맞출 수 있다.
 
+2026-06-24 테스트 기준선 안정화 1차 정리
+
+- 작업 목적: 새 브랜치에서 `./gradlew test` 기준선을 다시 세우고, flaky/fixture/test-wiring 성격의 실패를 먼저 제거해 실제 구조 문제만 남도록 정리한다.
+- 변경 파일:
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/messaging/RabbitEventPublisherTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/messaging/document/RabbitDocumentIndexRequestedEventPublisherTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/user/JpaUserRepositoryAdapterTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meeting/MeetingLifecycleTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomReservationsTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomStatusTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/minutes/JpaMinutesFavoriteRepositoryAdapterTest.java`
+  `task/agent-work-log.md`
+- 변경 내용:
+  Admin dashboard summary 테스트는 구현이 KST 자정 경계로 바뀐 상태에 맞춰 repository verify 기대값을 UTC 자정 기준에서 KST 기준 Instant로 수정했다.
+  RabbitEventPublisherTest는 잘못된 `tools.jackson.*` import를 실제 `com.fasterxml.jackson.*`로 교체하고, 테스트용 ObjectMapper에도 `WRITE_DATES_AS_TIMESTAMPS=false`를 적용해 런타임과 같은 ISO-8601 직렬화 규칙을 맞췄다.
+  RabbitDocumentIndexRequestedEventPublisherTest는 `DocumentIndexRequestedEvent.Metadata` / `DocumentIndexRequestedMessage.metadata` 구조 변경에 맞춰 테스트 payload 생성을 최신 계약으로 보정했다.
+  JpaUserRepositoryAdapterTest는 Elasticsearch adapter가 필요한 `ObjectMapper` bean을 테스트 컨텍스트에 추가하고, 영문 fixture에 맞지 않던 한글 검색 기대값을 `service` / `assistant` 기준으로 수정했다.
+  MeetingLifecycle/MeetingRoomReservations/MeetingRoomStatus 테스트는 실제 UseCase constructor 요구사항에 맞춰 `MeetingAttendeeWriter`, `GetRoomReservationsUseCase`, building/site adapter, no-op `DispatchNotificationUseCase` bean을 TestApplication에 추가해 컨텍스트가 정상 기동되도록 보정했다.
+  JpaMinutesFavoriteRepositoryAdapterTest는 delete 쿼리 실행에 필요한 트랜잭션 경계를 테스트 메서드에 명시했다.
+- 기준선 결과:
+  `./gradlew :application:test` 통과
+  `./gradlew :infrastructure:test` 재검증 결과, 컨텍스트/트랜잭션/fixture 성격의 실패는 정리되었고 `InfrastructureArchitectureTest` 1건만 남았다.
+  남은 실패는 테스트 취약성이나 wiring 누락이 아니라 실제 `infrastructure -> application` 의존 위반을 잡는 ArchUnit rule이다.
+- 남은 작업:
+  `DefaultMeetingOrganizationResolver`, `HttpMeetingRealtimeSessionStarter/Stopper`, `JpaMinutesGenerationContextQueryAdapter`의 `application` 타입 의존을 제거하도록 포트/DTO/assembler 위치를 재설계해야 한다.
+
 2026-06-23 Admin dashboard summary test stubbing 안정화
 
 - 작업 목적: `AdminDashboardSummaryUseCaseTest > getBuildsDashboardSummaryFromExistingQueries()`에서 간헐적으로 보고된 Mockito `PotentialStubbingProblem` 가능성을 줄이고, 날짜 경계 검증은 유지한다.
@@ -675,3 +702,46 @@
   실행 예정: `./gradlew :application:test --tests 'com.meetbowl.application.admin.AdminDashboardSummaryUseCaseTest' --tests 'com.meetbowl.application.user.UserDirectoryUseCaseTest'`
 - 남은 작업:
   다음 CI run에서 동일한 admin 테스트 failure가 사라졌는지 확인해야 한다.
+
+2026-06-24 infrastructure 계층 위반 정리
+
+- 작업 목적: 새 브랜치 기준 `./gradlew test`에서 마지막까지 남아 있던 `InfrastructureArchitectureTest` 실패를 실제 계층 구조 기준에 맞게 정리한다.
+- 변경 파일:
+  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingOrganizationResolver.java`
+  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingRealtimeSessionStarter.java`
+  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingRealtimeSessionStopper.java`
+  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesGenerationContext.java`
+  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesGenerationContextQueryPort.java`
+  `domain/src/main/java/com/meetbowl/domain/transcript/FinalTranscriptTextAssembler.java`
+  `domain/src/test/java/com/meetbowl/domain/transcript/FinalTranscriptTextAssemblerTest.java`
+  `application/src/main/java/com/meetbowl/application/meeting/JoinMeetingUseCase.java`
+  `application/src/main/java/com/meetbowl/application/meeting/EndMeetingUseCase.java`
+  `application/src/main/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCase.java`
+  `application/src/main/java/com/meetbowl/application/transcript/GetMeetingTranscriptUseCase.java`
+  `application/src/test/java/com/meetbowl/application/meeting/JoinMeetingUseCaseTest.java`
+  `application/src/test/java/com/meetbowl/application/meeting/EndMeetingUseCaseTest.java`
+  `application/src/test/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCaseTest.java`
+  `application/src/test/java/com/meetbowl/application/transcript/GetMeetingTranscriptUseCaseTest.java`
+  `app-api/src/test/java/com/meetbowl/api/config/SecurityConfigTest.java`
+  `app-api/build.gradle`
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/meeting/DefaultMeetingOrganizationResolver.java`
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/minutes/JpaMinutesGenerationContextQueryAdapter.java`
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/stt/HttpMeetingRealtimeSessionStarter.java`
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/stt/HttpMeetingRealtimeSessionStopper.java`
+  `application/src/main/java/com/meetbowl/application/minutes/MinutesGenerationContextResult.java`
+  `task/agent-work-log.md`
+- 변경 내용:
+  `infrastructure`가 구현하던 회의 조직 조회/STT 세션 시작·종료 계약을 `application`에서 `domain.meeting`으로 이동했다. 이 계약들은 UseCase가 호출하고 infrastructure adapter가 구현하는 포트이므로 application에 두면 계층 방향이 뒤집힌다.
+  AI 회의록 생성용 조회 계약도 `domain.minutes`로 분리하고, `GetMinutesGenerationContextUseCase`는 domain context를 받아 application 응답 모델(`MinutesGenerationContextResult`)로 매핑만 수행하도록 조정했다. 이렇게 해서 API 계층은 여전히 application 결과 타입만 보게 유지했다.
+  Final transcript 조립기는 Spring bean이 아니라 순수 조립 규칙이므로 `domain.transcript.FinalTranscriptTextAssembler`의 static 유틸로 옮겼다. `GetMeetingTranscriptUseCase`와 `JpaMinutesGenerationContextQueryAdapter`는 이 공용 조립 규칙을 직접 호출하도록 바꿨다.
+  관련 테스트는 새 포트/조립기 위치에 맞춰 import와 fixture를 정리했고, app-api 테스트에서 domain 포트를 mock으로 주입할 수 있도록 `app-api/build.gradle`에 `testImplementation project(':domain')`를 추가했다.
+- 동작 변경:
+  프로덕션 기능 동작은 유지된다.
+  다만 계약 배치가 `Controller -> UseCase -> Domain Port -> Infrastructure Adapter` 흐름에 맞게 바로잡혀, `infrastructure`가 더 이상 `application` 구현 세부 타입을 참조하지 않는다.
+- 제외 범위:
+  API 스펙, 엔드포인트, 메시지 계약, 비즈니스 규칙은 변경하지 않았다.
+- 검증:
+  `./gradlew :domain:test :application:test :app-api:test :infrastructure:test --no-daemon` 통과
+  `./gradlew test --no-daemon` 통과
+- 남은 작업:
+  현재 로컬 기준 남은 테스트 실패는 없다. 이후 PR Actions에서도 동일한 checkout SHA 기준으로 재확인하면 된다.

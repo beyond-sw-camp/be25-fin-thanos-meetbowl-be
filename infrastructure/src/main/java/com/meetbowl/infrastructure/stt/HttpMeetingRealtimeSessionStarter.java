@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meetbowl.application.meeting.MeetingRealtimeSessionStarter;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStarter;
 
 /**
  * 회의 입장 시 STT 세션을 내부 API로 보장하는 adapter다.
