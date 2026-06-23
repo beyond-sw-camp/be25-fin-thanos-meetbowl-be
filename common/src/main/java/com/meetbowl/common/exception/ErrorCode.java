@@ -17,6 +17,10 @@ public enum ErrorCode {
     AUTH_REFRESH_TOKEN_INVALID("AUTH_REFRESH_TOKEN_INVALID", "Refresh Token이 유효하지 않습니다.", 401),
     AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED(
             "AUTH_INITIAL_PASSWORD_CHANGE_REQUIRED", "초기 비밀번호 변경이 필요합니다.", 403),
+    PASSWORD_RESET_REQUEST_NOT_FOUND(
+            "PASSWORD_RESET_REQUEST_NOT_FOUND", "비밀번호 초기화 요청을 찾을 수 없습니다.", 404),
+    PASSWORD_RESET_REQUEST_ALREADY_PROCESSED(
+            "PASSWORD_RESET_REQUEST_ALREADY_PROCESSED", "이미 처리된 비밀번호 초기화 요청입니다.", 409),
 
     // User
     USER_NOT_FOUND("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.", 404),

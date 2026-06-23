@@ -690,3 +690,17 @@ DELETION_SCHEDULED
 - 실시간 자막, 실시간 피드백, 실시간 채팅은 LiveKit DataChannel을 기본으로 한다.
 - 서버 내부 실시간 AI 피드백 흐름은 Redis Stream을 사용한다.
 - 반드시 처리되어야 하는 비동기 작업은 RabbitMQ를 사용한다.
+### Password Reset Request APIs
+
+| Method | Endpoint | Description | Role |
+|---|---|---|---|
+| POST | `/password-reset-requests` | Create a password reset request and persist it with `PENDING` status when the login ID and email match an existing `USER` account. | Public |
+| GET | `/admin/password-reset-requests?status=PENDING` | List password reset requests for the admin notification/management screen. | Admin |
+| GET | `/admin/notifications/count` | Return the count of unprocessed password reset requests (`PENDING`). | Admin |
+| POST | `/admin/password-reset-requests/{requestId}/approve` | Approve the request, reset the target user's password to `1234`, revoke active sessions, and change status to `APPROVED`. | Admin |
+| POST | `/admin/password-reset-requests/{requestId}/reject` | Reject the request and change status to `REJECTED`. | Admin |
+
+- Request list items include requester name, login ID, email, requested time, and status.
+- Approved or rejected requests cannot be processed again.
+- Approval/rejection actions are recorded in admin audit logs.
+- Responses and logs must not expose password hashes, plain passwords, JWTs, refresh tokens, or similar sensitive values.

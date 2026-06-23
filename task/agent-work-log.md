@@ -573,3 +573,32 @@
   Passed `.\gradlew.bat :app-api:compileJava :application:compileJava :infrastructure:compileJava :domain:compileJava`
   Attempted targeted `:app-api:test` runs for audit-log controller/response tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
   Attempted targeted `:application:test` runs for admin/auth audit-log tests, but `application:compileTestJava` is blocked by pre-existing unrelated `meeting`, `minutes`, and `transcript` test compile failures on the current branch.
+
+2026-06-23 Password reset request approval workflow
+
+- Purpose: implement the QA-requested admin approval flow for user password reset requests, including pending request storage, admin list/count APIs, approval/rejection processing, and audit logging.
+- Changed files:
+  `domain/auth/PasswordResetRequest`,
+  `domain/auth/PasswordResetRequestStatus`,
+  `domain/auth/PasswordResetRequestRepositoryPort`,
+  `application/auth/PasswordResetRequestUseCase`,
+  `application/admin/AdminPasswordResetRequestUseCase`,
+  `application/admin/PasswordResetRequestResult`,
+  `app-api/auth/PasswordResetRequestController`,
+  `app-api/admin/PasswordResetRequestAdminController`,
+  related admin/auth DTOs and tests,
+  `infrastructure/persistence/auth/*`,
+  `common/exception/ErrorCode`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Public password reset requests now create a persisted `PENDING` request row only when login ID and email match an existing `USER` account, while still returning the same generic accepted message.
+  Admin APIs can list requests by optional status, fetch the pending-count badge value, approve a request to reset the target password hash to the initial password `1234`, or reject a request.
+  Approved/rejected requests cannot be processed again; repeated approval/rejection attempts now fail with a conflict error.
+  Approval revokes the target user's active sessions after the password reset and marks the request `APPROVED`; rejection marks the request `REJECTED`.
+  Admin audit logs now capture request approval/rejection actions without storing plain passwords, hashes, JWTs, or refresh tokens.
+- Verification:
+  Passed `.\gradlew.bat :domain:compileJava :application:compileJava :app-api:compileJava :infrastructure:compileJava`
+  Attempted targeted `:application:test` runs for the new auth/admin use cases, but `application:compileTestJava` is blocked by pre-existing unrelated failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.
+  Attempted `:app-api:compileTestJava`, but it is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted `:infrastructure:test` for the new password-reset-request adapter test, but `infrastructure:compileTestJava` is blocked by pre-existing unrelated messaging test failures in `RabbitEventPublisherTest` and `RabbitDocumentIndexRequestedEventPublisherTest`.
