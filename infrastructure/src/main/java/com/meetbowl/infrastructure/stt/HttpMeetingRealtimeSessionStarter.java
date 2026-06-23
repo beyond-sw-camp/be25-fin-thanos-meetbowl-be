@@ -36,12 +36,16 @@ public class HttpMeetingRealtimeSessionStarter implements MeetingRealtimeSession
     }
 
     @Override
-    public void ensureStarted(UUID meetingId, String roomName) {
+    public void ensureStarted(UUID meetingId, UUID organizationId, String roomName) {
         HttpURLConnection connection = null;
         try {
             byte[] requestBody =
                     objectMapper.writeValueAsBytes(
-                            new EnsureStartedRequest(meetingId.toString(), roomName, false));
+                            new EnsureStartedRequest(
+                                    meetingId.toString(),
+                                    organizationId.toString(),
+                                    roomName,
+                                    false));
             connection =
                     (HttpURLConnection)
                             URI.create(
@@ -69,8 +73,7 @@ public class HttpMeetingRealtimeSessionStarter implements MeetingRealtimeSession
             String responseBody = readResponseBody(connection, statusCode);
             String message = extractMessage(responseBody);
             throw new BusinessException(
-                    ErrorCode.STT_PROVIDER_UNAVAILABLE,
-                    "STT 세션 자동 시작에 실패했습니다. " + message);
+                    ErrorCode.STT_PROVIDER_UNAVAILABLE, "STT 세션 자동 시작에 실패했습니다. " + message);
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -87,9 +90,7 @@ public class HttpMeetingRealtimeSessionStarter implements MeetingRealtimeSession
     private String readResponseBody(HttpURLConnection connection, int statusCode) {
         try {
             InputStream stream =
-                    statusCode >= 400
-                            ? connection.getErrorStream()
-                            : connection.getInputStream();
+                    statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
             if (stream == null) {
                 return "";
             }
@@ -101,9 +102,7 @@ public class HttpMeetingRealtimeSessionStarter implements MeetingRealtimeSession
         }
     }
 
-    /**
-     * 내부 API 실패 응답이 공통 envelope를 따를 수 있으므로, 가능한 경우 서버 메시지를 그대로 사용자 오류에 반영한다.
-     */
+    /** 내부 API 실패 응답이 공통 envelope를 따를 수 있으므로, 가능한 경우 서버 메시지를 그대로 사용자 오류에 반영한다. */
     private String extractMessage(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
@@ -122,5 +121,5 @@ public class HttpMeetingRealtimeSessionStarter implements MeetingRealtimeSession
     }
 
     private record EnsureStartedRequest(
-            String meetingId, String roomName, boolean recordingEnabled) {}
+            String meetingId, String organizationId, String roomName, boolean recordingEnabled) {}
 }

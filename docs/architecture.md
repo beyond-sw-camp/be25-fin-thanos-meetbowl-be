@@ -314,6 +314,7 @@ meetbowl-be
 RabbitMQ
   ↓
 meetbowl-ai
+  ↓ 내부 Context API로 Final Transcript 및 회의 메타데이터 조회
   ↓ AI 회의록 초안 생성
   ↓ minutes.generated 이벤트 발행
 RabbitMQ

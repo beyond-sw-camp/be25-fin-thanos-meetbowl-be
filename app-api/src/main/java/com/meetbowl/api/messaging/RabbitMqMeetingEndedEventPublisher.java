@@ -30,6 +30,7 @@ public class RabbitMqMeetingEndedEventPublisher implements MeetingEndedEventPubl
     @Override
     public void publishMeetingEnded(
             UUID meetingId,
+            UUID organizationId,
             UUID hostUserId,
             UUID reviewerUserId,
             String title,
@@ -43,7 +44,7 @@ public class RabbitMqMeetingEndedEventPublisher implements MeetingEndedEventPubl
          */
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("meetingId", meetingId);
-        payload.put("organizationId", null);
+        payload.put("organizationId", organizationId);
         payload.put("hostUserId", hostUserId);
         payload.put("reviewerUserId", reviewerUserId);
         payload.put("title", title);

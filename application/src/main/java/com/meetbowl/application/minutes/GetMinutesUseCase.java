@@ -15,9 +15,13 @@ import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 public class GetMinutesUseCase {
 
     private final MinutesRepositoryPort minutesRepositoryPort;
+    private final MinutesMeetingMetadataAssembler metadataAssembler;
 
-    public GetMinutesUseCase(MinutesRepositoryPort minutesRepositoryPort) {
+    public GetMinutesUseCase(
+            MinutesRepositoryPort minutesRepositoryPort,
+            MinutesMeetingMetadataAssembler metadataAssembler) {
         this.minutesRepositoryPort = minutesRepositoryPort;
+        this.metadataAssembler = metadataAssembler;
     }
 
     @Transactional(readOnly = true)
@@ -30,6 +34,9 @@ public class GetMinutesUseCase {
                                         new BusinessException(
                                                 ErrorCode.MINUTES_NOT_FOUND, "회의록을 찾을 수 없습니다."));
         MinutesAccessValidator.ensureSameOrganization(minutes, actorOrganizationId);
-        return MinutesResult.from(minutes);
+        return MinutesResult.from(
+                minutes,
+                metadataAssembler.assemble(
+                        minutes.meetingId(), minutes.organizationId(), minutes.reviewerUserId()));
     }
 }

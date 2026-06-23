@@ -2,6 +2,9 @@ package com.meetbowl.application.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -18,6 +21,8 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
+import com.meetbowl.application.mail.SendMailCommand;
+import com.meetbowl.application.mail.SendMailUseCase;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -28,7 +33,8 @@ class MinutesUseCaseTest {
     @Test
     void reviewerCanReviseMinutes() {
         Fixture fixture = new Fixture();
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         MinutesResult result =
                 useCase.execute(
@@ -48,7 +54,8 @@ class MinutesUseCaseTest {
     @Test
     void nonReviewerCannotReviseMinutes() {
         Fixture fixture = new Fixture();
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         BusinessException exception =
                 assertThrows(
@@ -74,6 +81,8 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         BusinessException exception =
@@ -98,6 +107,8 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         MinutesResult result =
@@ -105,7 +116,7 @@ class MinutesUseCaseTest {
                         new ApproveMinutesCommand(
                                 fixture.meetingId, fixture.reviewerUserId, fixture.organizationId));
 
-        assertEquals("APPROVED", result.status());
+        assertEquals("SHARED", result.status());
         assertEquals(fixture.now, result.approvedAt());
         assertEquals(fixture.reviewerUserId, result.reviewerUserId());
         assertEquals(result.minutesId(), fixture.eventPublisher.publishedEvent.documentId());
@@ -123,6 +134,13 @@ class MinutesUseCaseTest {
                 fixture.eventPublisher.publishedEvent.userIds());
         assertEquals(0, fixture.eventPublisher.publishedEvent.departmentIds().size());
         assertEquals(0, fixture.eventPublisher.publishedEvent.sharedWorkspaceIds().size());
+        var mailCaptor = org.mockito.ArgumentCaptor.forClass(SendMailCommand.class);
+        verify(fixture.sendMailUseCase).execute(mailCaptor.capture());
+        assertEquals(fixture.reviewerUserId, mailCaptor.getValue().senderUserId());
+        assertEquals(List.of(fixture.hostUserId, fixture.participantUserId), mailCaptor.getValue().recipientUserIds());
+        assertEquals("MINUTES_SHARE", mailCaptor.getValue().bodyType());
+        assertEquals("MEETING_MINUTES", mailCaptor.getValue().relatedResourceType());
+        assertEquals(result.minutesId(), mailCaptor.getValue().relatedResourceId());
     }
 
     @Test
@@ -135,6 +153,8 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
+                        fixture.sendMailUseCase,
                         fixture.clock);
 
         useCase.execute(
@@ -150,7 +170,8 @@ class MinutesUseCaseTest {
     void missingMinutesReturnsDomainError() {
         Fixture fixture = new Fixture();
         fixture.repository.minutes = null;
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         BusinessException exception =
                 assertThrows(
@@ -170,24 +191,40 @@ class MinutesUseCaseTest {
     @Test
     void getMinutesReturnsStoredDraft() {
         Fixture fixture = new Fixture();
-        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository);
+        MinutesMeetingMetadataAssembler metadataAssembler = mock(MinutesMeetingMetadataAssembler.class);
+        when(metadataAssembler.assemble(
+                        fixture.meetingId, fixture.organizationId, fixture.reviewerUserId))
+                .thenReturn(
+                        new MinutesMeetingMetadata(
+                                "주간 회의",
+                                fixture.now.minusSeconds(3600),
+                                fixture.now,
+                                3,
+                                fixture.reviewerUserId,
+                                "검토자",
+                                "프로덕트팀"));
+        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository, metadataAssembler);
 
         MinutesResult result = useCase.get(fixture.meetingId, fixture.organizationId);
 
         assertEquals("DRAFT", result.status());
         assertEquals("회의 요약", result.summary());
         assertEquals("회의록 본문", result.content());
+        assertEquals("주간 회의", result.meetingTitle());
+        assertEquals("검토자", result.reviewerName());
     }
 
     @Test
     void syncGeneratedMinutesCreatesDraftWhenMissing() {
         Fixture fixture = new Fixture();
         fixture.repository.minutes = null;
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
                         new SyncGeneratedMinutesCommand(
+                                UUID.randomUUID(),
                                 fixture.meetingId,
                                 fixture.organizationId,
                                 fixture.reviewerUserId,
@@ -204,11 +241,13 @@ class MinutesUseCaseTest {
     @Test
     void syncGeneratedMinutesReplacesUnapprovedDraft() {
         Fixture fixture = new Fixture();
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
                         new SyncGeneratedMinutesCommand(
+                                UUID.randomUUID(),
                                 fixture.meetingId,
                                 fixture.organizationId,
                                 fixture.reviewerUserId,
@@ -227,7 +266,8 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         fixture.repository.minutes =
                 fixture.repository.minutes.approve(fixture.reviewerUserId, fixture.now);
-        SyncGeneratedMinutesUseCase useCase = new SyncGeneratedMinutesUseCase(fixture.repository);
+        SyncGeneratedMinutesUseCase useCase =
+                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
 
         BusinessException exception =
                 assertThrows(
@@ -235,6 +275,7 @@ class MinutesUseCaseTest {
                         () ->
                                 useCase.execute(
                                         new SyncGeneratedMinutesCommand(
+                                                UUID.randomUUID(),
                                                 fixture.meetingId,
                                                 fixture.organizationId,
                                                 fixture.reviewerUserId,
@@ -259,6 +300,8 @@ class MinutesUseCaseTest {
                 new MinutesContentTextExtractor(new com.fasterxml.jackson.databind.ObjectMapper());
         private final FakeDocumentIndexRequestedEventPort eventPublisher =
                 new FakeDocumentIndexRequestedEventPort();
+        private final MinutesMeetingMetadataAssembler metadataAssembler = metadataAssembler();
+        private final SendMailUseCase sendMailUseCase = mock(SendMailUseCase.class);
         private final FakeMeetingAttendeeRepository attendeeRepository =
                 new FakeMeetingAttendeeRepository(
                         new ArrayList<>(List.of(hostUserId, participantUserId, reviewerUserId)));
@@ -277,6 +320,38 @@ class MinutesUseCaseTest {
                                 null,
                                 null,
                                 null));
+        private final FakeMinutesGeneratedEventRepository eventRepository =
+                new FakeMinutesGeneratedEventRepository();
+
+        private MinutesMeetingMetadataAssembler metadataAssembler() {
+            MinutesMeetingMetadataAssembler assembler = mock(MinutesMeetingMetadataAssembler.class);
+            when(assembler.assemble(meetingId, organizationId, reviewerUserId))
+                    .thenReturn(
+                            new MinutesMeetingMetadata(
+                                    "주간 회의",
+                                    now.minusSeconds(3600),
+                                    now,
+                                    3,
+                                    reviewerUserId,
+                                    "검토자",
+                                    "프로덕트팀"));
+            return assembler;
+        }
+    }
+
+    private static class FakeMinutesGeneratedEventRepository
+            implements com.meetbowl.domain.minutes.MinutesGeneratedEventRepositoryPort {
+        private final java.util.Set<UUID> eventIds = new java.util.HashSet<>();
+
+        @Override
+        public boolean existsByEventId(UUID eventId) {
+            return eventIds.contains(eventId);
+        }
+
+        @Override
+        public void save(UUID eventId, UUID meetingId) {
+            eventIds.add(eventId);
+        }
     }
 
     private static class FakeMeetingAttendeeRepository implements MeetingMinutesAccessScopePort {
@@ -332,6 +407,24 @@ class MinutesUseCaseTest {
         @Override
         public boolean existsByMeetingId(UUID meetingId) {
             return findByMeetingId(meetingId).isPresent();
+        }
+
+        @Override
+        public List<Minutes> findByOrganizationId(UUID organizationId) {
+            return Optional.ofNullable(minutes)
+                    .filter(value -> value.organizationId().equals(organizationId))
+                    .stream()
+                    .toList();
+        }
+
+        @Override
+        public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
+            return findByOrganizationId(organizationId).stream()
+                    .filter(
+                            value ->
+                                    value.summary().contains(keyword)
+                                            || value.content().contains(keyword))
+                    .toList();
         }
     }
 }

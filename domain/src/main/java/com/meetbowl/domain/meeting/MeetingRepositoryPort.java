@@ -1,6 +1,7 @@
 package com.meetbowl.domain.meeting;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,11 @@ public interface MeetingRepositoryPort {
     Meeting save(Meeting meeting);
 
     Optional<Meeting> findById(UUID id);
+
+    /** 회의록 목록처럼 여러 회의의 메타데이터를 조립할 때 N+1 조회를 피하기 위한 배치 조회다. */
+    default List<Meeting> findByIds(Collection<UUID> ids) {
+        return ids.stream().map(this::findById).flatMap(Optional::stream).toList();
+    }
 
     /** 내가 주최한 회의 조회용. */
     List<Meeting> findByHostUserId(UUID hostUserId);

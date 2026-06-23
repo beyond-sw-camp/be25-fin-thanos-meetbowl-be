@@ -15,9 +15,13 @@ import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 public class ReviseMinutesUseCase {
 
     private final MinutesRepositoryPort minutesRepositoryPort;
+    private final MinutesMeetingMetadataAssembler metadataAssembler;
 
-    public ReviseMinutesUseCase(MinutesRepositoryPort minutesRepositoryPort) {
+    public ReviseMinutesUseCase(
+            MinutesRepositoryPort minutesRepositoryPort,
+            MinutesMeetingMetadataAssembler metadataAssembler) {
         this.minutesRepositoryPort = minutesRepositoryPort;
+        this.metadataAssembler = metadataAssembler;
     }
 
     @Transactional
@@ -31,7 +35,11 @@ public class ReviseMinutesUseCase {
         // 수정과 IN_REVIEW 상태 전이를 한 트랜잭션에서 저장해 수정 내용만 반영되는 상태를 방지한다.
         Minutes revised =
                 minutes.revise(command.summary(), command.content(), command.actorUserId());
-        return MinutesResult.from(minutesRepositoryPort.save(revised));
+        Minutes saved = minutesRepositoryPort.save(revised);
+        return MinutesResult.from(
+                saved,
+                metadataAssembler.assemble(
+                        saved.meetingId(), saved.organizationId(), saved.reviewerUserId()));
     }
 
     /** 회의 테이블이 없는 현재 단계에서는 회의록의 meetingId unique 관계를 조회 기준으로 사용한다. */
