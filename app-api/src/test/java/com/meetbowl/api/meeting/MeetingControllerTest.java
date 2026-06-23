@@ -39,7 +39,8 @@ class MeetingControllerTest {
                                 Instant.parse("2026-06-12T02:00:00Z")));
 
         MeetingController controller =
-                new MeetingController(null, null, null, null, null, null, joinMeetingUseCase);
+                new MeetingController(
+                        null, null, null, null, null, null, null, joinMeetingUseCase);
 
         ApiResponse<JoinMeetingResponse> response =
                 controller.joinMeeting(

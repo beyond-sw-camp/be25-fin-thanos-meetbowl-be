@@ -343,6 +343,11 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID departmentId) {
+            departments.remove(departmentId);
+        }
+
+        @Override
         public Optional<Department> findById(UUID departmentId) {
             return Optional.ofNullable(departments.get(departmentId));
         }
@@ -393,6 +398,11 @@ class MyProfileUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID teamId) {
+            teams.remove(teamId);
+        }
+
+        @Override
         public Optional<Team> findById(UUID teamId) {
             return Optional.ofNullable(teams.get(teamId));
         }
@@ -400,6 +410,13 @@ class MyProfileUseCaseTest {
         @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(teams::get).toList();
+        }
+
+        @Override
+        public List<Team> findAllByDepartmentId(UUID departmentId) {
+            return teams.values().stream()
+                    .filter(team -> team.departmentId().equals(departmentId))
+                    .toList();
         }
 
         @Override
@@ -440,6 +457,11 @@ class MyProfileUseCaseTest {
         public Position save(Position position) {
             positions.put(position.id(), position);
             return position;
+        }
+
+        @Override
+        public void deleteById(UUID positionId) {
+            positions.remove(positionId);
         }
 
         @Override

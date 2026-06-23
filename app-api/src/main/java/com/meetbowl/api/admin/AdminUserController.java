@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -220,6 +221,23 @@ public class AdminUserController extends BaseController {
      * @param httpServletRequest HTTP 요청 정보 (IP, User-Agent 추출용)
      * @return 새로 발급된 임시 비밀번호
      */
+    @DeleteMapping(USER_ID_PATH)
+    public ApiResponse<AdminUserResponse> delete(
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID userId,
+            HttpServletRequest httpServletRequest) {
+        requireAdmin(admin);
+        return ok(
+                AdminUserResponse.from(
+                        adminUserManagementUseCase.delete(
+                                new AdminUserManagementUseCase.DeleteCommand(
+                                        userId,
+                                        admin.userId(),
+                                        admin.displayName(),
+                                        httpServletRequest.getRemoteAddr(),
+                                        httpServletRequest.getHeader("User-Agent")))));
+    }
+
     @PostMapping(USER_ID_PATH + "/password/reset")
     public ApiResponse<AdminResetPasswordResponse> resetPassword(
             @CurrentUser AuthenticatedUser admin,

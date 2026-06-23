@@ -65,6 +65,15 @@ final class MailUseCaseSupport {
                 entry.isRead(),
                 entry.readAt(),
                 entry.isTrashed(),
-                entry.trashedAt());
+                entry.trashedAt(),
+                mail.attachments().stream()
+                        .map(
+                                attachment ->
+                                        new MailAttachmentInfo(
+                                                attachment.id(),
+                                                attachment.originalFileName(),
+                                                attachment.mimeType(),
+                                                attachment.sizeBytes()))
+                        .toList());
     }
 }

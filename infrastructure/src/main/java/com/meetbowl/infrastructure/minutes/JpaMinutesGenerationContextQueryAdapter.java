@@ -11,8 +11,8 @@ import org.springframework.stereotype.Repository;
 import com.meetbowl.application.minutes.MinutesGenerationContextQueryPort;
 import com.meetbowl.application.minutes.MinutesGenerationContextResult;
 import com.meetbowl.application.transcript.FinalTranscriptTextAssembler;
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
+import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.transcript.MeetingTranscriptSegmentRepositoryPort;
@@ -59,8 +59,8 @@ public class JpaMinutesGenerationContextQueryAdapter
         UUID organizationId = host == null ? null : host.affiliateId();
         UUID reviewerUserId =
                 attendees.stream()
-                        .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
-                        .map(attendee -> attendee.userId())
+                        .filter(MeetingAttendee::reviewer)
+                        .map(MeetingAttendee::userId)
                         .findFirst()
                         .orElse(null);
         var participants =

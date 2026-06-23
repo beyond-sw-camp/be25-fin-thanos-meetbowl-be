@@ -222,6 +222,9 @@ public class AdminOrganizationMembersExcelApplyService {
                                 Map::putAll);
         Map<String, Department> byHierarchy =
                 new LinkedHashMap<>(context.resolvedDepartmentsByHierarchy());
+        OrganizationCodeGenerator departmentCodeGenerator =
+                OrganizationCodeGenerator.forDepartmentCodes(
+                        existingDepartments.stream().map(Department::code).toList());
 
         for (DepartmentRow row : rows) {
             String affiliateName =
@@ -229,15 +232,11 @@ public class AdminOrganizationMembersExcelApplyService {
             String departmentName =
                     required(
                             row.departmentName(), "부서", row.rowNumber(), "departmentName", context);
-            String departmentCode =
-                    required(
-                            row.departmentCode(), "부서", row.rowNumber(), "departmentCode", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "부서", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "부서", row.rowNumber(), context);
             if (affiliateName == null
                     || departmentName == null
-                    || departmentCode == null
                     || sortNumber == null
                     || status == null) {
                 continue;
@@ -275,6 +274,9 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenDepartmentKeys(),
                     context);
 
+            // 엑셀 신규 행은 code가 비어 있어도 허용하고, 입력값이 있어도 서버 채번 정책을 우선한다.
+            String departmentCode =
+                    target == null ? departmentCodeGenerator.nextCode() : target.code();
             Department candidate =
                     new Department(
                             target == null ? UUID.randomUUID() : target.id(),
@@ -308,6 +310,9 @@ public class AdminOrganizationMembersExcelApplyService {
                                 (map, item) -> map.put(item.id(), item),
                                 Map::putAll);
         Map<String, Team> byHierarchy = new LinkedHashMap<>(context.resolvedTeamsByHierarchy());
+        OrganizationCodeGenerator teamCodeGenerator =
+                OrganizationCodeGenerator.forTeamCodes(
+                        existingTeams.stream().map(Team::code).toList());
 
         for (TeamRow row : rows) {
             String affiliateName =
@@ -315,14 +320,12 @@ public class AdminOrganizationMembersExcelApplyService {
             String departmentName =
                     required(row.departmentName(), "팀", row.rowNumber(), "departmentName", context);
             String teamName = required(row.teamName(), "팀", row.rowNumber(), "teamName", context);
-            String teamCode = required(row.teamCode(), "팀", row.rowNumber(), "teamCode", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "팀", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "팀", row.rowNumber(), context);
             if (affiliateName == null
                     || departmentName == null
                     || teamName == null
-                    || teamCode == null
                     || sortNumber == null
                     || status == null) {
                 continue;
@@ -366,6 +369,8 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenTeamKeys(),
                     context);
 
+            // 팀도 수동 코드 변경을 받지 않고, 신규 행만 T-prefix로 자동 채번한다.
+            String teamCode = target == null ? teamCodeGenerator.nextCode() : target.code();
             Team candidate =
                     new Team(
                             target == null ? UUID.randomUUID() : target.id(),
@@ -405,16 +410,17 @@ public class AdminOrganizationMembersExcelApplyService {
                                 Map::putAll);
         Map<String, Position> byName = new LinkedHashMap<>();
         existingPositions.forEach(position -> byName.put(normalizeKey(position.name()), position));
+        OrganizationCodeGenerator positionCodeGenerator =
+                OrganizationCodeGenerator.forPositionCodes(
+                        existingPositions.stream().map(Position::code).toList());
 
         for (PositionRow row : rows) {
             String name =
                     required(row.positionName(), "직급", row.rowNumber(), "positionName", context);
-            String code =
-                    required(row.positionCode(), "직급", row.rowNumber(), "positionCode", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "직급", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "직급", row.rowNumber(), context);
-            if (name == null || code == null || sortNumber == null || status == null) {
+            if (name == null || sortNumber == null || status == null) {
                 continue;
             }
 
@@ -441,6 +447,8 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenPositionKeys(),
                     context);
 
+            // 직급 import도 code 입력 유무와 무관하게 기존 코드를 유지하거나 P-prefix 새 코드를 생성한다.
+            String code = target == null ? positionCodeGenerator.nextCode() : target.code();
             Position candidate =
                     new Position(
                             target == null ? UUID.randomUUID() : target.id(),

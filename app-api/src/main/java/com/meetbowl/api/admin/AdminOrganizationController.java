@@ -2,9 +2,11 @@ package com.meetbowl.api.admin;
 
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -126,7 +128,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
                                         request.affiliateId(),
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -144,7 +145,6 @@ public class AdminOrganizationController extends BaseController {
                                         departmentId,
                                         request.affiliateId(),
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
@@ -163,6 +163,22 @@ public class AdminOrganizationController extends BaseController {
                                         departmentId, request.status().name()))));
     }
 
+    @DeleteMapping(DEPARTMENT_ID_PATH)
+    public ApiResponse<Void> deleteDepartment(
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID departmentId,
+            HttpServletRequest httpServletRequest) {
+        requireAdmin(admin);
+        useCase.deleteDepartment(
+                new AdminOrganizationMasterDataUseCase.DeleteDepartmentCommand(
+                        departmentId,
+                        admin.userId(),
+                        admin.displayName(),
+                        httpServletRequest.getRemoteAddr(),
+                        httpServletRequest.getHeader("User-Agent")));
+        return ok();
+    }
+
     @GetMapping("/teams")
     public ApiResponse<AdminTeamListResponse> getTeams(@CurrentUser AuthenticatedUser admin) {
         requireAdmin(admin);
@@ -179,7 +195,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
                                         request.departmentId(),
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -197,7 +212,6 @@ public class AdminOrganizationController extends BaseController {
                                         teamId,
                                         request.departmentId(),
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
@@ -213,6 +227,22 @@ public class AdminOrganizationController extends BaseController {
                         useCase.updateTeamStatus(
                                 new AdminOrganizationMasterDataUseCase.UpdateTeamStatusCommand(
                                         teamId, request.status().name()))));
+    }
+
+    @DeleteMapping(TEAM_ID_PATH)
+    public ApiResponse<Void> deleteTeam(
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID teamId,
+            HttpServletRequest httpServletRequest) {
+        requireAdmin(admin);
+        useCase.deleteTeam(
+                new AdminOrganizationMasterDataUseCase.DeleteTeamCommand(
+                        teamId,
+                        admin.userId(),
+                        admin.displayName(),
+                        httpServletRequest.getRemoteAddr(),
+                        httpServletRequest.getHeader("User-Agent")));
+        return ok();
     }
 
     @GetMapping("/positions")
@@ -232,7 +262,6 @@ public class AdminOrganizationController extends BaseController {
                         useCase.createPosition(
                                 new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
                                         request.name(),
-                                        request.code(),
                                         request.status().name(),
                                         request.sortOrder()))));
     }
@@ -249,7 +278,6 @@ public class AdminOrganizationController extends BaseController {
                                 new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
                                         positionId,
                                         request.name(),
-                                        request.code(),
                                         request.sortOrder(),
                                         admin.userId()))));
     }
@@ -265,6 +293,22 @@ public class AdminOrganizationController extends BaseController {
                         useCase.updatePositionStatus(
                                 new AdminOrganizationMasterDataUseCase.UpdatePositionStatusCommand(
                                         positionId, request.status().name()))));
+    }
+
+    @DeleteMapping(POSITION_ID_PATH)
+    public ApiResponse<Void> deletePosition(
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID positionId,
+            HttpServletRequest httpServletRequest) {
+        requireAdmin(admin);
+        useCase.deletePosition(
+                new AdminOrganizationMasterDataUseCase.DeletePositionCommand(
+                        positionId,
+                        admin.userId(),
+                        admin.displayName(),
+                        httpServletRequest.getRemoteAddr(),
+                        httpServletRequest.getHeader("User-Agent")));
+        return ok();
     }
 
     private void requireAdmin(AuthenticatedUser admin) {

@@ -1,6 +1,7 @@
 package com.meetbowl.application.community;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -90,6 +91,8 @@ class GetPostDetailUseCaseTest {
         assertEquals(3L, result.commentCount());
         assertEquals("익명4", result.authorAlias());
         assertTrue(result.liked());
+        // 작성자(author)와 조회자(viewer)가 다르므로 mine은 false다.
+        assertFalse(result.mine());
     }
 
     @Test

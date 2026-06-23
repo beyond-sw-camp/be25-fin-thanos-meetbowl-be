@@ -3,6 +3,7 @@ package com.meetbowl.api.admin;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -175,6 +176,29 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void createDepartmentSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createDepartment(any())).willReturn(departmentResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/departments")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "affiliateId": "%s",
+                                          "name": "Engineering",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """
+                                                .formatted(AFFILIATE_ID)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void updateDepartmentSuccess() throws Exception {
         given(useCase.updateDepartment(any())).willReturn(departmentResult("ACTIVE"));
 
@@ -219,6 +243,20 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void deleteDepartmentSuccess() throws Exception {
+        mockMvc.perform(
+                        delete(
+                                        "/api/v1/admin/organizations/departments/{departmentId}",
+                                        DEPARTMENT_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void getTeamsSuccess() throws Exception {
         given(useCase.getTeams()).willReturn(List.of(teamResult("ACTIVE")));
 
@@ -254,6 +292,29 @@ class AdminOrganizationControllerTest {
                                                 .formatted(DEPARTMENT_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.departmentId").value(DEPARTMENT_ID.toString()));
+    }
+
+    @Test
+    void createTeamSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createTeam(any())).willReturn(teamResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/teams")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "departmentId": "%s",
+                                          "name": "Backend",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """
+                                                .formatted(DEPARTMENT_ID)))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -297,6 +358,18 @@ class AdminOrganizationControllerTest {
     }
 
     @Test
+    void deleteTeamSuccess() throws Exception {
+        mockMvc.perform(
+                        delete("/api/v1/admin/organizations/teams/{teamId}", TEAM_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void getPositionsSuccess() throws Exception {
         given(useCase.getPositions()).willReturn(List.of(positionResult("ACTIVE")));
 
@@ -330,6 +403,27 @@ class AdminOrganizationControllerTest {
                                         """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.positionId").value(POSITION_ID.toString()));
+    }
+
+    @Test
+    void createPositionSucceedsWithoutCodeField() throws Exception {
+        given(useCase.createPosition(any())).willReturn(positionResult("ACTIVE"));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/positions")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "name": "Manager",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -370,6 +464,18 @@ class AdminOrganizationControllerTest {
                                 .content("{\"status\":\"INACTIVE\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("INACTIVE"));
+    }
+
+    @Test
+    void deletePositionSuccess() throws Exception {
+        mockMvc.perform(
+                        delete("/api/v1/admin/organizations/positions/{positionId}", POSITION_ID)
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .header("User-Agent", "AdminOrganizationControllerTest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test

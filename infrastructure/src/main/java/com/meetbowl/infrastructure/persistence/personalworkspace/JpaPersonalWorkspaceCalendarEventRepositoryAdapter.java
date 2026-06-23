@@ -66,4 +66,18 @@ public class JpaPersonalWorkspaceCalendarEventRepositoryAdapter
                         eventId, ownerUserId, CalendarEventSource.PERSONAL)
                 > 0;
     }
+
+    @Override
+    public Optional<PersonalWorkspaceCalendarEvent> findByOwnerUserIdAndSourceAndSourceId(
+            UUID ownerUserId, CalendarEventSource source, UUID sourceId) {
+        return repository
+                .findByOwnerUserIdAndSourceAndSourceId(ownerUserId, source, sourceId)
+                .map(PersonalWorkspaceCalendarEventEntity::toDomain);
+    }
+
+    @Override
+    public int deleteBySourceIdAndSource(UUID sourceId, CalendarEventSource source) {
+        // Spring Data 삭제 카운트는 long이지만 포트 계약은 int라 좁혀서 반환한다.
+        return (int) repository.deleteBySourceIdAndSource(sourceId, source);
+    }
 }

@@ -368,6 +368,47 @@ class AdminOrganizationMembersExcelUseCaseTest {
         assertTrue(userRepository.findAll().isEmpty());
     }
 
+    @Test
+    void importGeneratesDepartmentTeamAndPositionCodesWhenNewRowsLeaveCodeBlank() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "한화시스템", "HSC", 1));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "기존부서", "D001", 1));
+        teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "기존팀", "T001", 1));
+        positionRepository.save(position(POSITION_ID, "기존직급", "P001", 1));
+
+        WorkbookRows rows =
+                new WorkbookRows(
+                        List.of(),
+                        List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "", "2", "ACTIVE")),
+                        List.of(new TeamRow(0, "", "한화시스템", "서비스개발부", "플랫폼개발팀", "", "3", "ACTIVE")),
+                        List.of(new PositionRow(0, "", "대리", "", "4", "ACTIVE")),
+                        List.of());
+
+        AdminOrganizationMembersExcelUseCase.ImportResult result =
+                useCase.importExcel(commandWithBytes(workbookBytes(rows)));
+
+        assertEquals(1, result.createdDepartments());
+        assertEquals(1, result.createdTeams());
+        assertEquals(1, result.createdPositions());
+        assertTrue(
+                departmentRepository.findAll().stream()
+                        .anyMatch(
+                                department ->
+                                        department.name().equals("서비스개발부")
+                                                && department.code().equals("D002")));
+        assertTrue(
+                teamRepository.findAll().stream()
+                        .anyMatch(
+                                team ->
+                                        team.name().equals("플랫폼개발팀")
+                                                && team.code().equals("T002")));
+        assertTrue(
+                positionRepository.findAll().stream()
+                        .anyMatch(
+                                position ->
+                                        position.name().equals("대리")
+                                                && position.code().equals("P002")));
+    }
+
     private WorkbookRows validWorkbook() {
         return new WorkbookRows(
                 List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
@@ -511,6 +552,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID departmentId) {
+            values.remove(departmentId);
+        }
+
+        @Override
         public Optional<Department> findById(UUID departmentId) {
             return Optional.ofNullable(values.get(departmentId));
         }
@@ -555,6 +601,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
+        public void deleteById(UUID teamId) {
+            values.remove(teamId);
+        }
+
+        @Override
         public Optional<Team> findById(UUID teamId) {
             return Optional.ofNullable(values.get(teamId));
         }
@@ -572,6 +623,13 @@ class AdminOrganizationMembersExcelUseCaseTest {
         @Override
         public List<Team> findAllByIds(Collection<UUID> teamIds) {
             return teamIds.stream().map(values::get).filter(java.util.Objects::nonNull).toList();
+        }
+
+        @Override
+        public List<Team> findAllByDepartmentId(UUID departmentId) {
+            return values.values().stream()
+                    .filter(item -> item.departmentId().equals(departmentId))
+                    .toList();
         }
 
         @Override
@@ -593,6 +651,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
         public Position save(Position position) {
             values.put(position.id(), position);
             return position;
+        }
+
+        @Override
+        public void deleteById(UUID positionId) {
+            values.remove(positionId);
         }
 
         @Override

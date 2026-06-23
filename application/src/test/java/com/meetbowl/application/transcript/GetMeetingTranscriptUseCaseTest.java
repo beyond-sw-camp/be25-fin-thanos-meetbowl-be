@@ -184,7 +184,7 @@ class GetMeetingTranscriptUseCaseTest {
         @Override
         public Optional<UUID> findReviewerUserId(UUID meetingId) {
             return findByMeetingId(meetingId).stream()
-                    .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
+                    .filter(MeetingAttendee::reviewer)
                     .map(MeetingAttendee::userId)
                     .findFirst();
         }

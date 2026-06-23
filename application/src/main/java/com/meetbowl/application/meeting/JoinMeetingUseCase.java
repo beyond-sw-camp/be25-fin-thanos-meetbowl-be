@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import com.meetbowl.domain.meeting.MeetingStatus;
 @Transactional(readOnly = true)
 public class JoinMeetingUseCase {
 
+    private static final Logger log = Logger.getLogger(JoinMeetingUseCase.class.getName());
     private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "게스트";
     private static final String DEFAULT_GUEST_DISPLAY_NAME = "게스트";
     private static final Duration JOIN_AVAILABLE_BEFORE = Duration.ofMinutes(15);
@@ -57,10 +60,7 @@ public class JoinMeetingUseCase {
         }
 
         Meeting meeting = meetingRepositoryPort.findById(command.meetingId()).orElse(null);
-        if (meeting != null && meeting.status() == MeetingStatus.ENDED) {
-            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
-        }
-        validateJoinWindow(meeting);
+        validateJoinAvailability(meeting);
         String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
@@ -68,8 +68,7 @@ public class JoinMeetingUseCase {
         // STT가 최종 자막/피드백 이벤트에 조직 ID를 넣어야 하므로 인증 컨텍스트의 조직이 있을 때만 세션을 생성한다.
         // 조직이 없는 로컬 fallback/비로그인 입장은 LiveKit 자체를 막지 않고, 인증 사용자의 입장 시 세션을 보장한다.
         if (command.organizationId() != null) {
-            meetingRealtimeSessionStarter.ensureStarted(
-                    command.meetingId(), command.organizationId(), roomName);
+            ensureRealtimeSessionStarted(command.meetingId(), command.organizationId(), roomName);
         }
 
         LiveKitTokenIssueResult issuedToken =
@@ -140,6 +139,26 @@ public class JoinMeetingUseCase {
                 + meetingGuestNameAllocator.nextGuestSequence(command.meetingId());
     }
 
+    /**
+     * 회의 입장 자체는 LiveKit 접속 토큰 발급이 본질이다.
+     *
+     * <p>STT 세션 준비가 실패하더라도 회의실 입장까지 막아버리면 사용자는 영상/음성 회의 자체를 시작할 수 없게 된다. 따라서 STT는 best-effort로
+     * 준비하고, 실패하면 로그만 남긴 뒤 회의 입장은 계속 진행한다.
+     */
+    private void ensureRealtimeSessionStarted(UUID meetingId, UUID organizationId, String roomName) {
+        try {
+            meetingRealtimeSessionStarter.ensureStarted(meetingId, organizationId, roomName);
+        } catch (BusinessException exception) {
+            if (exception.errorCode() != ErrorCode.STT_PROVIDER_UNAVAILABLE) {
+                throw exception;
+            }
+            log.log(
+                    Level.WARNING,
+                    "회의 입장 전 STT 세션 자동 시작에 실패했지만 회의 입장은 계속 진행합니다. meetingId={0}, roomName={1}, code={2}",
+                    new Object[] {meetingId, roomName, exception.errorCode().code()});
+        }
+    }
+
     private String normalizeDisplayName(String displayName) {
         return displayName == null ? "" : displayName.trim();
     }
@@ -156,14 +175,22 @@ public class JoinMeetingUseCase {
      *
      * <p>회의가 DB에 없으면 로컬 개발용 fallback room 경로로 간주해 기존처럼 즉시 입장을 허용한다.
      */
-    private void validateJoinWindow(Meeting meeting) {
+    private void validateJoinAvailability(Meeting meeting) {
         if (meeting == null) {
             return;
+        }
+
+        if (meeting.status() == MeetingStatus.ENDED) {
+            throw new BusinessException(ErrorCode.MEETING_ALREADY_ENDED);
+        }
+        if (meeting.status() == MeetingStatus.CANCELLED) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "취소된 회의는 입장할 수 없습니다.");
         }
 
         Instant joinAvailableAt = meeting.scheduledAt().minus(JOIN_AVAILABLE_BEFORE);
         if (Instant.now(clock).isBefore(joinAvailableAt)) {
             throw new BusinessException(ErrorCode.MEETING_JOIN_TOO_EARLY);
         }
+
     }
 }

@@ -24,6 +24,11 @@ public class JpaDepartmentRepositoryAdapter implements DepartmentRepositoryPort 
     }
 
     @Override
+    public void deleteById(UUID departmentId) {
+        repository.deleteById(departmentId);
+    }
+
+    @Override
     public Optional<Department> findById(UUID departmentId) {
         return repository.findById(departmentId).map(DepartmentEntity::toDomain);
     }

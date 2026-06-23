@@ -5,6 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record AdminPositionRequest(
         @NotBlank String name,
-        @NotBlank String code,
+        String code,
         @NotNull AdminOrganizationReferenceStatus status,
         Integer sortOrder) {}

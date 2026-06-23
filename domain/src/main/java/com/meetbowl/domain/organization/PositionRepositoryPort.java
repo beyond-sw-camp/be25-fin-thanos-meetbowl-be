@@ -9,6 +9,8 @@ public interface PositionRepositoryPort {
 
     Position save(Position position);
 
+    void deleteById(UUID positionId);
+
     Optional<Position> findById(UUID positionId);
 
     // 관리자 기준정보 화면 목록 조회용 전체 데이터 조회

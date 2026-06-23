@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
@@ -92,7 +91,7 @@ public class MinutesMeetingMetadataAssembler {
             Map<UUID, String> departmentNamesById) {
         UUID reviewerUserId =
                 attendees.stream()
-                        .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
+                        .filter(MeetingAttendee::reviewer)
                         .map(MeetingAttendee::userId)
                         .findFirst()
                         .orElse(null);

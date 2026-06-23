@@ -8,6 +8,6 @@ import jakarta.validation.constraints.NotNull;
 public record AdminDepartmentRequest(
         @NotNull UUID affiliateId,
         @NotBlank String name,
-        @NotBlank String code,
+        String code,
         @NotNull AdminOrganizationReferenceStatus status,
         Integer sortOrder) {}

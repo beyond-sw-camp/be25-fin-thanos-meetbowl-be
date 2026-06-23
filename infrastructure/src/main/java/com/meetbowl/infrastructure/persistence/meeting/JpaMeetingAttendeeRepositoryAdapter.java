@@ -7,7 +7,6 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 
@@ -65,7 +64,7 @@ public class JpaMeetingAttendeeRepositoryAdapter implements MeetingAttendeeRepos
     @Override
     public Optional<UUID> findReviewerUserId(UUID meetingId) {
         return springDataMeetingAttendeeRepository
-                .findByMeetingIdAndRole(meetingId, AttendeeRole.REVIEWER)
+                .findByMeetingIdAndReviewerTrue(meetingId)
                 .map(MeetingAttendeeEntity::toDomain)
                 .map(MeetingAttendee::userId);
     }
