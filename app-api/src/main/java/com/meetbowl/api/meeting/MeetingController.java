@@ -38,6 +38,7 @@ import com.meetbowl.application.meeting.JoinMeetingResult;
 import com.meetbowl.application.meeting.JoinMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
+import com.meetbowl.application.meeting.StartMeetingUseCase;
 import com.meetbowl.application.meeting.TransferMeetingHostCommand;
 import com.meetbowl.application.meeting.TransferMeetingHostUseCase;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
@@ -56,6 +57,7 @@ public class MeetingController extends BaseController {
     private final UpdateMeetingUseCase updateMeetingUseCase;
     private final CancelMeetingUseCase cancelMeetingUseCase;
     private final EndMeetingUseCase endMeetingUseCase;
+    private final StartMeetingUseCase startMeetingUseCase;
     private final TransferMeetingHostUseCase transferMeetingHostUseCase;
     private final JoinMeetingUseCase joinMeetingUseCase;
 
@@ -65,6 +67,7 @@ public class MeetingController extends BaseController {
             UpdateMeetingUseCase updateMeetingUseCase,
             CancelMeetingUseCase cancelMeetingUseCase,
             EndMeetingUseCase endMeetingUseCase,
+            StartMeetingUseCase startMeetingUseCase,
             TransferMeetingHostUseCase transferMeetingHostUseCase,
             JoinMeetingUseCase joinMeetingUseCase) {
         this.createMeetingUseCase = createMeetingUseCase;
@@ -72,6 +75,7 @@ public class MeetingController extends BaseController {
         this.updateMeetingUseCase = updateMeetingUseCase;
         this.cancelMeetingUseCase = cancelMeetingUseCase;
         this.endMeetingUseCase = endMeetingUseCase;
+        this.startMeetingUseCase = startMeetingUseCase;
         this.transferMeetingHostUseCase = transferMeetingHostUseCase;
         this.joinMeetingUseCase = joinMeetingUseCase;
     }
@@ -207,6 +211,18 @@ public class MeetingController extends BaseController {
                                 "meeting-ended",
                                 currentUser != null ? currentUser.displayName() : "meeting-client"));
         return ok(EndMeetingResponse.from(result));
+    }
+
+    /**
+     * LiveKit 채널이 열려 실제 회의가 시작됐음을 기록한다.
+     *
+     * <p>프론트엔드는 room.connect() 성공 직후 이 API를 best-effort로 호출한다. 이미 진행 중이면 멱등적으로 무시하고, 종료/취소된 회의만
+     * 예외로 막는다.
+     */
+    @PostMapping("/{meetingId}/start")
+    public ApiResponse<Void> startMeeting(@PathVariable UUID meetingId) {
+        startMeetingUseCase.execute(meetingId);
+        return ok();
     }
 
     /**

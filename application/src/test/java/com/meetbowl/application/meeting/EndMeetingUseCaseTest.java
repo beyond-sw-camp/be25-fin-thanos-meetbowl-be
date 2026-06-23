@@ -35,11 +35,13 @@ class EndMeetingUseCaseTest {
                                 meetingId,
                                 "주간 전략 회의",
                                 Instant.parse("2026-06-12T01:00:00Z"),
+                                Instant.parse("2026-06-12T02:00:00Z"),
                                 hostUserId,
                                 null,
                                 "LIVEKIT",
                                 "provider-room-1",
                                 MeetingStatus.SCHEDULED,
+                                null,
                                 null,
                                 null));
         EndMeetingUseCase useCase =
@@ -55,7 +57,8 @@ class EndMeetingUseCaseTest {
                                                 true,
                                                 AttendanceStatus.ACCEPTED))),
                         eventPublisher,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        new RecordingRealtimeSessionStopper());
 
         EndMeetingResult result =
                 useCase.execute(
@@ -84,16 +87,19 @@ class EndMeetingUseCaseTest {
                                         meetingId,
                                         "이미 종료된 회의",
                                         Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
                                         UUID.randomUUID(),
                                         null,
                                         "LIVEKIT",
                                         "provider-room-1",
                                         MeetingStatus.ENDED,
                                         Instant.parse("2026-06-12T01:00:00Z"),
-                                        Instant.parse("2026-06-12T02:00:00Z"))),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        null)),
                         new StubMeetingAttendeeRepository(List.of()),
                         eventPublisher,
-                        new MeetingGuestNameAllocator());
+                        new MeetingGuestNameAllocator(),
+                        new RecordingRealtimeSessionStopper());
 
         EndMeetingResult result =
                 useCase.execute(
@@ -106,6 +112,49 @@ class EndMeetingUseCaseTest {
 
         assertFalse(result.meetingEndedEventPublished());
         assertFalse(eventPublisher.called);
+    }
+
+    @Test
+    void 이벤트발행에실패해도회의상태는종료로저장된다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        StubMeetingRepository meetingRepository =
+                new StubMeetingRepository(
+                        Meeting.of(
+                                meetingId,
+                                "장애 회의",
+                                Instant.parse("2026-06-12T01:00:00Z"),
+                                Instant.parse("2026-06-12T02:00:00Z"),
+                                hostUserId,
+                                null,
+                                "LIVEKIT",
+                                "provider-room-1",
+                                MeetingStatus.IN_PROGRESS,
+                                Instant.parse("2026-06-12T01:05:00Z"),
+                                null,
+                                null));
+
+        EndMeetingUseCase useCase =
+                new EndMeetingUseCase(
+                        meetingRepository,
+                        new StubMeetingAttendeeRepository(List.of()),
+                        (meetingId1, hostUserId1, reviewerUserId, title, startedAt, endedAt, correlationId) -> {
+                            throw new IllegalStateException("rabbitmq unavailable");
+                        },
+                        new MeetingGuestNameAllocator(),
+                        new RecordingRealtimeSessionStopper());
+
+        EndMeetingResult result =
+                useCase.execute(
+                        new EndMeetingCommand(
+                                meetingId,
+                                Instant.parse("2026-06-12T02:00:00Z"),
+                                UUID.randomUUID(),
+                                "meeting_ended",
+                                "stt-server"));
+
+        assertEquals(MeetingStatus.ENDED.name(), result.status());
+        assertFalse(result.meetingEndedEventPublished());
     }
 
     private static final class StubMeetingRepository implements MeetingRepositoryPort {
@@ -128,6 +177,23 @@ class EndMeetingUseCaseTest {
 
         @Override
         public List<Meeting> findByHostUserId(UUID hostUserId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findActiveRoomOverlaps(
+                UUID meetingRoomId, Instant scheduledStartAt, Instant scheduledEndAt) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findActiveOverlapsInRooms(
+                List<UUID> meetingRoomIds, Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
             return List.of();
         }
 
@@ -168,6 +234,22 @@ class EndMeetingUseCaseTest {
         }
 
         @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return attendees.stream()
+                    .filter(attendee -> meetingIds.contains(attendee.meetingId()))
+                    .toList();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return attendees.stream()
+                    .filter(attendee -> attendee.meetingId().equals(meetingId))
+                    .filter(attendee -> attendee.role() == AttendeeRole.REVIEWER)
+                    .map(MeetingAttendee::userId)
+                    .findFirst();
+        }
+
+        @Override
         public void deleteByMeetingId(UUID meetingId) {}
     }
 
@@ -190,5 +272,12 @@ class EndMeetingUseCaseTest {
             this.reviewerUserId = reviewerUserId;
             this.title = title;
         }
+    }
+
+    private static final class RecordingRealtimeSessionStopper
+            implements MeetingRealtimeSessionStopper {
+
+        @Override
+        public void stop(UUID meetingId) {}
     }
 }
