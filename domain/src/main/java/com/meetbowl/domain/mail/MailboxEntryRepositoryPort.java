@@ -1,5 +1,6 @@
 package com.meetbowl.domain.mail;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,4 +31,19 @@ public interface MailboxEntryRepositoryPort {
             UUID ownerUserId, String keyword, int offset, int limit);
 
     long countSearchByOwnerUserId(UUID ownerUserId, String keyword);
+
+    /**
+     * 보관 기간이 지난 받은/보낸 메일함 항목을 자동 휴지통 이동 대상으로 조회한다.
+     *
+     * <p>휴지통 또는 영구 삭제 상태는 제외한다. 자동 삭제 배치는 수동 삭제와 같은 도메인 상태 전이를 사용해야 하므로, 벌크 update 대신 도메인 객체 목록을
+     * 반환한다.
+     */
+    List<MailboxEntry> findActiveEntriesCreatedBefore(MailboxType mailboxType, Instant cutoff);
+
+    /**
+     * 휴지통 보관 기간이 지난 항목을 영구 삭제 대상으로 조회한다.
+     *
+     * <p>이미 영구 삭제된 항목은 제외한다. 영구 삭제는 다른 사용자의 메일 본문을 지우지 않고 현재 소유자의 메일함 항목에만 삭제 시각을 남긴다.
+     */
+    List<MailboxEntry> findTrashEntriesTrashedBefore(Instant cutoff);
 }

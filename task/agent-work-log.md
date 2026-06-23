@@ -489,3 +489,25 @@
 - Verification:
   Passed `./gradlew :app-api:compileJava :application:compileJava :infrastructure:compileJava`
   `./gradlew spotlessApply :application:test --tests '*DriveUseCaseTest' :infrastructure:test --tests '*S3ObjectStorageAdapterTest'` was blocked before executing the target tests because existing unrelated test sources in `meeting`, `minutes`, `transcript`, and messaging packages do not compile against the current domain/port contracts.
+
+2026-06-23 Mail retention auto deletion scheduler
+
+- Purpose: 메일 보관 정책의 `autoDeleteEnabled` 설정이 실제 메일함 상태에 반영되도록 서버 주기 작업을 추가한다.
+- Changed files:
+  `domain/mail/MailboxEntryRepositoryPort`,
+  `application/mail/ApplyMailRetentionPolicyUseCase`,
+  `application/mail/MailRetentionApplyResult`,
+  `infrastructure/persistence/mail/JpaMailboxEntryRepositoryAdapter`,
+  `infrastructure/persistence/mail/SpringDataMailboxEntryRepository`,
+  `app-api/mail/MailRetentionScheduler`,
+  `application` mail retention tests, `docs/api-spec.md`, and this log.
+- Behavior:
+  정책 row가 없거나 `autoDeleteEnabled=false`이면 자동 삭제 배치는 메일함 항목을 변경하지 않는다.
+  `autoDeleteEnabled=true`이면 받은/보낸 메일함 항목 중 보관 기간을 지난 항목을 휴지통으로 이동한다.
+  휴지통 항목은 휴지통 보관 기간을 지난 경우 영구 삭제 시각을 기록한다.
+  자동 정리는 공용 메일 본문을 삭제하지 않고 사용자별 `MailboxEntry` 상태만 변경해 다른 수신자에게 영향을 주지 않는다.
+  `MailRetentionScheduler`는 기본 cron `0 0 3 * * *`를 KST(`Asia/Seoul`) 기준으로 실행하며 `meetbowl.mail.retention.cron` 프로퍼티로 조정할 수 있다.
+- Verification:
+  Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `./gradlew spotlessApply`
+  `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'` was blocked before executing the target test because existing unrelated test sources in `meeting`, `minutes`, and `transcript` packages do not compile against the current domain/port contracts.

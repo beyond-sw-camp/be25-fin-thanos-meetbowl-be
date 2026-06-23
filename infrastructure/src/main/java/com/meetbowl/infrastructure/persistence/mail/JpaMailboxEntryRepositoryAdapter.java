@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.mail;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -97,6 +98,27 @@ public class JpaMailboxEntryRepositoryAdapter implements MailboxEntryRepositoryP
     @Override
     public long countSearchByOwnerUserId(UUID ownerUserId, String keyword) {
         return repository.countSearchByOwnerUserId(ownerUserId, keyword);
+    }
+
+    @Override
+    public List<MailboxEntry> findActiveEntriesCreatedBefore(
+            MailboxType mailboxType, Instant cutoff) {
+        return repository
+                .findByMailboxTypeAndTrashedAtIsNullAndPermanentlyDeletedAtIsNullAndCreatedAtBeforeOrderByCreatedAtAsc(
+                        mailboxType, cutoff)
+                .stream()
+                .map(MailboxEntryEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<MailboxEntry> findTrashEntriesTrashedBefore(Instant cutoff) {
+        return repository
+                .findByTrashedAtIsNotNullAndTrashedAtBeforeAndPermanentlyDeletedAtIsNullOrderByTrashedAtAsc(
+                        cutoff)
+                .stream()
+                .map(MailboxEntryEntity::toDomain)
+                .toList();
     }
 
     private PageRequest page(int offset, int limit) {

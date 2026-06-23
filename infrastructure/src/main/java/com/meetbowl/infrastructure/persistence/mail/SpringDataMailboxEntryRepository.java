@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.mail;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,4 +53,12 @@ interface SpringDataMailboxEntryRepository extends JpaRepository<MailboxEntryEnt
                     + "or lower(m.body) like lower(concat('%', :keyword, '%')))")
     long countSearchByOwnerUserId(
             @Param("ownerUserId") UUID ownerUserId, @Param("keyword") String keyword);
+
+    List<MailboxEntryEntity>
+            findByMailboxTypeAndTrashedAtIsNullAndPermanentlyDeletedAtIsNullAndCreatedAtBeforeOrderByCreatedAtAsc(
+                    MailboxType mailboxType, Instant cutoff);
+
+    List<MailboxEntryEntity>
+            findByTrashedAtIsNotNullAndTrashedAtBeforeAndPermanentlyDeletedAtIsNullOrderByTrashedAtAsc(
+                    Instant cutoff);
 }

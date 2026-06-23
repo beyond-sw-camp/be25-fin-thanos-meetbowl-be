@@ -1,5 +1,7 @@
 package com.meetbowl.infrastructure.client;
 
+import java.time.Duration;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,11 +23,15 @@ public class AiServerClientConfig {
     RestClient aiServerRestClient(
             @Value("${meetbowl.ai.base-url:http://localhost:8000}") String baseUrl,
             @Value("${meetbowl.security.internal-token}") String internalToken) {
+        // AI 응답이 멈춰도 무한 대기하지 않도록 연결 3초, 응답 20초 상한을 둔다(초과 시 에러로 떨어짐).
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(3));
+        requestFactory.setReadTimeout(Duration.ofSeconds(20));
         return RestClient.builder()
                 .baseUrl(baseUrl)
                 // Uvicorn 내부 API와 통신할 때 JDK HttpClient의 h2c upgrade/chunked 조합을 피하고
                 // 예측 가능한 HTTP/1.1 요청 본문을 전송한다.
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(requestFactory)
                 .defaultHeader(INTERNAL_TOKEN_HEADER, internalToken)
                 .build();
     }
