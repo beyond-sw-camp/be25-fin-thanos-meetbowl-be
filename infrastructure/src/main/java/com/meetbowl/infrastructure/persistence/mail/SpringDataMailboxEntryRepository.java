@@ -55,10 +55,10 @@ interface SpringDataMailboxEntryRepository extends JpaRepository<MailboxEntryEnt
             @Param("ownerUserId") UUID ownerUserId, @Param("keyword") String keyword);
 
     List<MailboxEntryEntity>
-            findByMailboxTypeAndTrashedAtIsNullAndPermanentlyDeletedAtIsNullAndCreatedAtBeforeOrderByCreatedAtAsc(
-                    MailboxType mailboxType, Instant cutoff);
+            findByMailboxTypeAndTrashedAtIsNullAndPermanentlyDeletedAtIsNullAndCreatedAtBefore(
+                    MailboxType mailboxType, Instant cutoff, Pageable pageable);
 
     List<MailboxEntryEntity>
-            findByTrashedAtIsNotNullAndTrashedAtBeforeAndPermanentlyDeletedAtIsNullOrderByTrashedAtAsc(
-                    Instant cutoff);
+            findByTrashedAtIsNotNullAndTrashedAtBeforeAndPermanentlyDeletedAtIsNull(
+                    Instant cutoff, Pageable pageable);
 }

@@ -3,9 +3,11 @@ package com.meetbowl.application.mail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -74,16 +76,20 @@ class ApplyMailRetentionPolicyUseCaseTest {
         given(policyRepositoryPort.findById(POLICY_ID)).willReturn(Optional.of(policy(true)));
         given(
                         mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(
-                                eq(MailboxType.INBOX), eq(Instant.parse("2026-06-16T03:00:00Z"))))
-                .willReturn(List.of(inboxEntry));
+                                eq(MailboxType.INBOX),
+                                eq(Instant.parse("2026-06-16T03:00:00Z")),
+                                eq(500)))
+                .willReturn(List.of(inboxEntry), List.of());
         given(
                         mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(
-                                eq(MailboxType.SENT), eq(Instant.parse("2026-06-16T03:00:00Z"))))
-                .willReturn(List.of(sentEntry));
+                                eq(MailboxType.SENT),
+                                eq(Instant.parse("2026-06-16T03:00:00Z")),
+                                eq(500)))
+                .willReturn(List.of(sentEntry), List.of());
         given(
                         mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(
-                                Instant.parse("2026-06-16T03:00:00Z")))
-                .willReturn(List.of(trashEntry));
+                                eq(Instant.parse("2026-06-16T03:00:00Z")), eq(500)))
+                .willReturn(List.of(trashEntry), List.of());
 
         MailRetentionApplyResult result = useCase.execute();
 
@@ -96,18 +102,57 @@ class ApplyMailRetentionPolicyUseCaseTest {
         assertEquals(NOW, trashEntry.permanentlyDeletedAt());
 
         ArgumentCaptor<List<MailboxEntry>> saveCaptor = ArgumentCaptor.forClass(List.class);
-        verify(mailboxEntryRepositoryPort, org.mockito.Mockito.times(3))
-                .saveAll(saveCaptor.capture());
+        verify(mailboxEntryRepositoryPort, times(3)).saveAll(saveCaptor.capture());
         assertEquals(3, saveCaptor.getAllValues().size());
+    }
+
+    @Test
+    void executeProcessesExpiredEntriesByBatchSizeWithoutOffsetSkipping() {
+        ApplyMailRetentionPolicyUseCase useCase = useCase(2);
+        MailboxEntry first = MailboxEntry.inbox(UUID.randomUUID(), UUID.randomUUID());
+        MailboxEntry second = MailboxEntry.inbox(UUID.randomUUID(), UUID.randomUUID());
+        MailboxEntry third = MailboxEntry.inbox(UUID.randomUUID(), UUID.randomUUID());
+
+        given(policyRepositoryPort.findById(POLICY_ID)).willReturn(Optional.of(policy(true)));
+        given(
+                        mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(
+                                eq(MailboxType.INBOX),
+                                eq(Instant.parse("2026-06-16T03:00:00Z")),
+                                eq(2)))
+                .willReturn(List.of(first, second), List.of(third), List.of());
+        given(
+                        mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(
+                                eq(MailboxType.SENT),
+                                eq(Instant.parse("2026-06-16T03:00:00Z")),
+                                eq(2)))
+                .willReturn(List.of());
+        given(
+                        mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(
+                                eq(Instant.parse("2026-06-16T03:00:00Z")), eq(2)))
+                .willReturn(List.of());
+
+        MailRetentionApplyResult result = useCase.execute();
+
+        assertEquals(true, result.enabled());
+        assertEquals(3, result.inboxMovedToTrashCount());
+        assertEquals(0, result.sentMovedToTrashCount());
+        assertEquals(0, result.trashPermanentlyDeletedCount());
+        assertEquals(NOW, first.trashedAt());
+        assertEquals(NOW, second.trashedAt());
+        assertEquals(NOW, third.trashedAt());
+        verify(mailboxEntryRepositoryPort, times(3))
+                .findActiveEntriesCreatedBefore(
+                        eq(MailboxType.INBOX), eq(Instant.parse("2026-06-16T03:00:00Z")), eq(2));
+        verify(mailboxEntryRepositoryPort, times(2)).saveAll(any());
     }
 
     @Test
     void executeDoesNotSaveWhenNoExpiredEntriesExist() {
         ApplyMailRetentionPolicyUseCase useCase = useCase();
         given(policyRepositoryPort.findById(POLICY_ID)).willReturn(Optional.of(policy(true)));
-        given(mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(any(), any()))
+        given(mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(any(), any(), anyInt()))
                 .willReturn(List.of());
-        given(mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(any()))
+        given(mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(any(), anyInt()))
                 .willReturn(List.of());
 
         MailRetentionApplyResult result = useCase.execute();
@@ -118,8 +163,15 @@ class ApplyMailRetentionPolicyUseCaseTest {
     }
 
     private ApplyMailRetentionPolicyUseCase useCase() {
+        return useCase(500);
+    }
+
+    private ApplyMailRetentionPolicyUseCase useCase(int batchSize) {
         return new ApplyMailRetentionPolicyUseCase(
-                policyRepositoryPort, mailboxEntryRepositoryPort, Clock.fixed(NOW, ZoneOffset.UTC));
+                policyRepositoryPort,
+                mailboxEntryRepositoryPort,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                batchSize);
     }
 
     private MailRetentionPolicy policy(boolean autoDeleteEnabled) {

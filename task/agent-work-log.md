@@ -633,3 +633,22 @@
 - 변경 내용: `MinutesMeetingMetadataAssembler`에서 검토자의 `departmentId`가 null이면 부서명 조회를 건너뛰도록 null 경계를 추가했다. `MinutesMeetingMetadataAssemblerTest`를 추가해 부서 미배정 검토자도 조회 메타데이터를 정상 조립하는지 검증했다.
 - 동작 변경: 검토자가 부서에 배정되지 않은 경우에도 회의록 목록/상세/수정/승인 응답은 성공하며 `reviewerDepartment`만 null로 내려간다.
 - 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 권한 상승 후 `:application:test --tests com.meetbowl.application.minutes.MinutesMeetingMetadataAssemblerTest` 통과. 로컬 BE를 18080 포트로 재기동해 user2 주최, user1 검토자 회의를 생성하고 RabbitMQ `minutes.generated`를 발행했다. user1 초안 조회(DRAFT), user1 수정(IN_REVIEW), user1 승인(SHARED), user2 자동 메일 수신(`MINUTES_SHARE`, `MEETING_MINUTES`, 수정 본문 포함)을 실제 API로 확인했다. 회의 참여자인 user2 대상 수동 공유는 `COMMON_INVALID_REQUEST`로 거절되는 것도 확인했다.
+
+2026-06-23 Mail retention batch size hardening
+
+- Purpose: 메일 보관 정책 스케줄러가 대규모 메일함을 한 번에 모두 조회/저장하지 않도록 처리 묶음 크기를 제한한다.
+- Changed files:
+  `domain/mail/MailboxEntryRepositoryPort`,
+  `application/mail/ApplyMailRetentionPolicyUseCase`,
+  `infrastructure/persistence/mail/JpaMailboxEntryRepositoryAdapter`,
+  `infrastructure/persistence/mail/SpringDataMailboxEntryRepository`,
+  `application` mail retention tests, `.env.example`, `docs/api-spec.md`, and this log.
+- Behavior:
+  `meetbowl.mail.retention.batch-size` 설정을 추가하고 기본값은 500으로 둔다.
+  받은/보낸/휴지통 만료 항목은 offset pagination을 쓰지 않고, 오래된 항목부터 첫 묶음만 반복 조회해 처리한다.
+  각 묶음 저장 후 같은 조건에서 다시 첫 묶음을 조회하므로 상태 변경으로 인한 offset skip을 만들지 않는다.
+  RabbitMQ AI 문서 색인 큐 옵션은 기존 큐 선언 충돌 위험을 피하기 위해 변경하지 않았다.
+- Verification:
+  Passed `./gradlew spotlessApply`
+  Passed `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'`
+  Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava`

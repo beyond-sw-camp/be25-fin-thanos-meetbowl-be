@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,27 +21,39 @@ import com.meetbowl.domain.mail.MailboxType;
 @Service
 public class ApplyMailRetentionPolicyUseCase {
 
+    private static final int DEFAULT_BATCH_SIZE = 500;
     private static final UUID SYSTEM_POLICY_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
 
     private final MailRetentionPolicyRepositoryPort policyRepositoryPort;
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final Clock clock;
+    private final int batchSize;
 
     @Autowired
     public ApplyMailRetentionPolicyUseCase(
             MailRetentionPolicyRepositoryPort policyRepositoryPort,
-            MailboxEntryRepositoryPort mailboxEntryRepositoryPort) {
-        this(policyRepositoryPort, mailboxEntryRepositoryPort, Clock.systemUTC());
+            MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
+            @Value("${meetbowl.mail.retention.batch-size:500}") int batchSize) {
+        this(policyRepositoryPort, mailboxEntryRepositoryPort, Clock.systemUTC(), batchSize);
     }
 
     ApplyMailRetentionPolicyUseCase(
             MailRetentionPolicyRepositoryPort policyRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             Clock clock) {
+        this(policyRepositoryPort, mailboxEntryRepositoryPort, clock, DEFAULT_BATCH_SIZE);
+    }
+
+    ApplyMailRetentionPolicyUseCase(
+            MailRetentionPolicyRepositoryPort policyRepositoryPort,
+            MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
+            Clock clock,
+            int batchSize) {
         this.policyRepositoryPort = policyRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.clock = clock;
+        this.batchSize = Math.max(1, batchSize);
     }
 
     /**
@@ -79,24 +92,31 @@ public class ApplyMailRetentionPolicyUseCase {
     }
 
     private int moveActiveEntriesToTrash(MailboxType mailboxType, Instant cutoff, Instant now) {
-        List<MailboxEntry> expiredEntries =
-                mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(mailboxType, cutoff);
-        if (expiredEntries.isEmpty()) {
-            return 0;
+        int movedCount = 0;
+        while (true) {
+            List<MailboxEntry> expiredEntries =
+                    mailboxEntryRepositoryPort.findActiveEntriesCreatedBefore(
+                            mailboxType, cutoff, batchSize);
+            if (expiredEntries.isEmpty()) {
+                return movedCount;
+            }
+            expiredEntries.forEach(entry -> entry.moveToTrash(now));
+            mailboxEntryRepositoryPort.saveAll(expiredEntries);
+            movedCount += expiredEntries.size();
         }
-        expiredEntries.forEach(entry -> entry.moveToTrash(now));
-        mailboxEntryRepositoryPort.saveAll(expiredEntries);
-        return expiredEntries.size();
     }
 
     private int permanentlyDeleteTrashEntries(Instant cutoff, Instant now) {
-        List<MailboxEntry> expiredTrashEntries =
-                mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(cutoff);
-        if (expiredTrashEntries.isEmpty()) {
-            return 0;
+        int deletedCount = 0;
+        while (true) {
+            List<MailboxEntry> expiredTrashEntries =
+                    mailboxEntryRepositoryPort.findTrashEntriesTrashedBefore(cutoff, batchSize);
+            if (expiredTrashEntries.isEmpty()) {
+                return deletedCount;
+            }
+            expiredTrashEntries.forEach(entry -> entry.permanentlyDelete(now));
+            mailboxEntryRepositoryPort.saveAll(expiredTrashEntries);
+            deletedCount += expiredTrashEntries.size();
         }
-        expiredTrashEntries.forEach(entry -> entry.permanentlyDelete(now));
-        mailboxEntryRepositoryPort.saveAll(expiredTrashEntries);
-        return expiredTrashEntries.size();
     }
 }
