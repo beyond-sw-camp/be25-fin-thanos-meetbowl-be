@@ -30,6 +30,7 @@ import com.meetbowl.api.common.auth.CurrentUserArgumentResolver;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.application.personalworkspace.drive.DeleteDriveFileUseCase;
+import com.meetbowl.application.personalworkspace.drive.DownloadDriveFileUseCase;
 import com.meetbowl.application.personalworkspace.drive.DriveFileResult;
 import com.meetbowl.application.personalworkspace.drive.GetDriveFileUseCase;
 import com.meetbowl.application.personalworkspace.drive.GetDriveFilesUseCase;
@@ -46,6 +47,7 @@ class WorkspaceDriveControllerTest {
     @MockitoBean private GetDriveFilesUseCase getDriveFilesUseCase;
     @MockitoBean private RegisterDriveFileUseCase registerDriveFileUseCase;
     @MockitoBean private GetDriveFileUseCase getDriveFileUseCase;
+    @MockitoBean private DownloadDriveFileUseCase downloadDriveFileUseCase;
     @MockitoBean private DeleteDriveFileUseCase deleteDriveFileUseCase;
 
     @Test

@@ -534,3 +534,19 @@
 - 변경 내용: `MinutesMeetingMetadataAssembler`에서 검토자의 `departmentId`가 null이면 부서명 조회를 건너뛰도록 null 경계를 추가했다. `MinutesMeetingMetadataAssemblerTest`를 추가해 부서 미배정 검토자도 조회 메타데이터를 정상 조립하는지 검증했다.
 - 동작 변경: 검토자가 부서에 배정되지 않은 경우에도 회의록 목록/상세/수정/승인 응답은 성공하며 `reviewerDepartment`만 null로 내려간다.
 - 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 권한 상승 후 `:application:test --tests com.meetbowl.application.minutes.MinutesMeetingMetadataAssemblerTest` 통과. 로컬 BE를 18080 포트로 재기동해 user2 주최, user1 검토자 회의를 생성하고 RabbitMQ `minutes.generated`를 발행했다. user1 초안 조회(DRAFT), user1 수정(IN_REVIEW), user1 승인(SHARED), user2 자동 메일 수신(`MINUTES_SHARE`, `MEETING_MINUTES`, 수정 본문 포함)을 실제 API로 확인했다. 회의 참여자인 user2 대상 수동 공유는 `COMMON_INVALID_REQUEST`로 거절되는 것도 확인했다.
+
+2026-06-23 Flyway 도입 및 baseline migration 준비
+
+- 작업 목적: AWS RDS 운영 배포 전에 `meetbowl-be` 스키마를 JPA `ddl-auto` 의존에서 Flyway migration 기준으로 전환하고, 현재 엔티티 기준 baseline SQL을 고정할 준비를 마친다.
+- 변경 내용: `infrastructure/build.gradle`에 Flyway 의존성을 추가했다. `application-local.properties`, `application-prod.properties`를 Flyway + `ddl-auto=validate` 기준으로 바꾸고 migration 위치를 고정했다. `application-schema-export.properties`를 추가해 H2 메모리 DB와 MariaDB dialect 조합으로 현재 JPA 매핑 SQL을 `build/generated-schema/meetbowl-baseline.sql`로 추출할 수 있게 했다. 추출 결과를 `app-api/src/main/resources/db/migration/V1__baseline.sql`에 baseline migration으로 반영했다. `README.md`에는 schema export 실행 경로와 migration 운영 방식을 정리했다.
+- 동작 변경: 로컬/운영 프로필은 Flyway migration을 먼저 적용한 뒤 JPA validate만 수행하는 구조가 됐다. 운영 baseline은 리포지토리의 `V1__baseline.sql`이 기준이 되며, 이후 스키마 변경은 새 migration 파일로만 누적해야 한다.
+- 제외 범위: 운영 마스터 데이터 seed, 최초 관리자 bootstrap, MariaDB Testcontainers 전환, 운영 compose와 CI/CD 반영은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootRun --args='--spring.profiles.active=schema-export'`를 실행해 baseline SQL 추출 파일 생성을 확인했다. 이어 테스트 프로필에 `spring.flyway.enabled=false`를 명시하고, 다운로드 UseCase mock 누락이 있던 `MailControllerTest`, `WorkspaceDriveControllerTest`, 컨텍스트 격리가 필요했던 `AuthTokenStatePrecisionTest`를 보정했다. 이후 `./gradlew :app-api:test --tests com.meetbowl.api.auth.AuthTokenStatePrecisionTest`는 통과했고, 전체 `./gradlew test`는 `app-api:test`가 통과한 뒤 `application:test`의 기존 `UserDirectoryUseCaseTest#searchByOrganizationFiltersSuccess` 단일 assertion 실패 1건만 남았다.
+
+2026-06-23 GitHub Actions 워크플로 재작성
+
+- 작업 목적: 기존 다른 프로젝트용 GHCR 배포 워크플로를 Meetbowl BE 기준 AWS/ECR 방향으로 교체하고, 아직 없는 Dockerfile/배포 스크립트 때문에 main 파이프라인이 즉시 깨지지 않게 안전장치를 둔다.
+- 변경 내용: `.github/workflows/backend-deploy.yml`을 전면 교체했다. PR/main push/workflow_dispatch 트리거, Java 25, MariaDB/Redis/RabbitMQ service 기반 테스트 job, AWS OIDC + ECR push job, EC2 SSH deploy job 구조로 재작성했다. 아직 `Dockerfile` 또는 `deploy-be.sh`가 없는 상태를 감지해 build/deploy를 skip하는 `detect-build-assets`와 `deploy-skip-notice` job도 추가했다.
+- 동작 변경: PR에서는 테스트만 수행한다. main push에서는 테스트 후 Dockerfile/배포 스크립트 유무를 확인하고, 둘 다 준비됐을 때만 ECR push와 EC2 배포를 진행한다. 준비 전에는 skip notice만 남기고 실패시키지 않는다.
+- 제외 범위: 실제 `Dockerfile`, `deploy-be.sh`, 운영 compose, smoke test 스크립트, GitHub secrets 등록, AWS IAM role 생성은 아직 하지 않았다.
+- 검증: 워크플로 YAML을 로컬 diff로 검토했다. 실제 GitHub Actions 실행 검증은 아직 하지 않았다.

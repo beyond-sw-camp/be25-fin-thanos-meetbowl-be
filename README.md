@@ -23,12 +23,13 @@ common          공통 응답, 예외, Event Envelope, 시간/ID 유틸
 
 ## Profiles
 
-기본 profile은 `local`이다. 배포 전까지 데이터베이스 스키마는 JPA `ddl-auto`를 profile별로 분리해 관리한다.
+기본 profile은 `local`이다. 운영/로컬 스키마는 Flyway migration으로 관리하고, 테스트만 H2
+`create-drop`을 유지한다.
 
 ```text
-local: ddl-auto=update
+local: flyway migrate + ddl-auto=validate
 test: ddl-auto=create-drop
-prod: ddl-auto=validate
+prod: flyway migrate + ddl-auto=validate
 ```
 
 로컬 MariaDB 접속 정보는 환경 변수로 덮어쓸 수 있다.
@@ -38,6 +39,24 @@ MEETBOWL_DB_URL=jdbc:mariadb://localhost:3306/meetbowl
 MEETBOWL_DB_USERNAME=meetbowl
 MEETBOWL_DB_PASSWORD=meetbowl
 ```
+
+## Flyway
+
+운영 기준 baseline migration은 `app-api/src/main/resources/db/migration`에서 관리한다.
+
+현재 JPA 매핑 기준 SQL을 baseline으로 추출해야 할 때는 schema export profile을 사용한다.
+
+```bash
+./gradlew :app-api:bootRun --args='--spring.profiles.active=schema-export'
+```
+
+생성 위치:
+
+```text
+app-api/build/generated-schema/meetbowl-baseline.sql
+```
+
+추출한 SQL은 검토 후 `V1__baseline.sql`로 고정한다.
 
 ## Samples
 
