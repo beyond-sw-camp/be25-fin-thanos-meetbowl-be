@@ -15,11 +15,11 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.meetbowl.common.event.EventTypes;
-
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /** 공통 RabbitEventPublisher가 모든 도메인 이벤트에 동일한 Envelope와 발행 설정을 적용하는지 검증한다. */
 class RabbitEventPublisherTest {
@@ -27,7 +27,12 @@ class RabbitEventPublisherTest {
     @Test
     void publishCommonEnvelope() throws Exception {
         RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
-        ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
+        // 운영에서는 Spring Boot 전역 Jackson 설정으로 Instant가 ISO-8601 문자열로 직렬화되므로 테스트도 같은 규칙을 맞춘다.
+        ObjectMapper objectMapper =
+                JsonMapper.builder()
+                        .findAndAddModules()
+                        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                        .build();
         Instant occurredAt = Instant.parse("2099-01-01T02:00:00Z");
         RabbitEventPublisher publisher =
                 new RabbitEventPublisher(

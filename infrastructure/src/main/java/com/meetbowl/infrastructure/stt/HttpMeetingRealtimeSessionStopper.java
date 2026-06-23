@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.meetbowl.application.meeting.MeetingRealtimeSessionStopper;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 
 /**
  * 회의 종료 시 STT 세션도 함께 멈추도록 내부 API를 호출하는 adapter다.

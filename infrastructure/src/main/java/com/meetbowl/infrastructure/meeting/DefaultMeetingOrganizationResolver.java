@@ -4,9 +4,9 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
-import com.meetbowl.application.meeting.MeetingOrganizationResolver;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.MeetingOrganizationResolver;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 
