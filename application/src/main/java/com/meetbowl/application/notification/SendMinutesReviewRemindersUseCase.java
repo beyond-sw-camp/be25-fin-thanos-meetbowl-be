@@ -113,6 +113,7 @@ public class SendMinutesReviewRemindersUseCase {
                 new DispatchNotificationCommand(
                         candidate.recipientUserId(),
                         NotificationType.MINUTES_REVIEW_REMINDER.name(),
+                        // TODO: 여유 시 회의 제목을 넣어 동적화(현재 회의록 id만).
                         "회의록 검토 미완료 알림",
                         "검토가 완료되지 않은 회의록이 있습니다. 검토를 진행해 주세요.",
                         NotificationResourceType.MEETING_MINUTES.name(),

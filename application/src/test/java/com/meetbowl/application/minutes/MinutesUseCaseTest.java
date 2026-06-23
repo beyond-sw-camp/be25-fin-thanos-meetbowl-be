@@ -23,6 +23,7 @@ import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
 import com.meetbowl.application.mail.SendMailCommand;
 import com.meetbowl.application.mail.SendMailUseCase;
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -219,7 +220,8 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         fixture.repository.minutes = null;
         SyncGeneratedMinutesUseCase useCase =
-                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
+                new SyncGeneratedMinutesUseCase(
+                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
@@ -233,7 +235,7 @@ class MinutesUseCaseTest {
                                 "model",
                                 "minutes-v1"));
 
-        assertEquals("DRAFT", result.status());
+        assertEquals("IN_REVIEW", result.status());
         assertEquals("AI 요약", fixture.repository.minutes.summary());
         assertEquals("{\"type\":\"doc\"}", fixture.repository.minutes.content());
     }
@@ -242,7 +244,8 @@ class MinutesUseCaseTest {
     void syncGeneratedMinutesReplacesUnapprovedDraft() {
         Fixture fixture = new Fixture();
         SyncGeneratedMinutesUseCase useCase =
-                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
+                new SyncGeneratedMinutesUseCase(
+                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
@@ -256,9 +259,9 @@ class MinutesUseCaseTest {
                                 "model-v2",
                                 "minutes-v2"));
 
-        assertEquals("DRAFT", result.status());
+        assertEquals("IN_REVIEW", result.status());
         assertEquals("재생성 요약", fixture.repository.minutes.summary());
-        assertEquals(MinutesStatus.DRAFT, fixture.repository.minutes.status());
+        assertEquals(MinutesStatus.IN_REVIEW, fixture.repository.minutes.status());
     }
 
     @Test
@@ -267,7 +270,8 @@ class MinutesUseCaseTest {
         fixture.repository.minutes =
                 fixture.repository.minutes.approve(fixture.reviewerUserId, fixture.now);
         SyncGeneratedMinutesUseCase useCase =
-                new SyncGeneratedMinutesUseCase(fixture.repository, fixture.eventRepository);
+                new SyncGeneratedMinutesUseCase(
+                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
 
         BusinessException exception =
                 assertThrows(
@@ -322,6 +326,8 @@ class MinutesUseCaseTest {
                                 null));
         private final FakeMinutesGeneratedEventRepository eventRepository =
                 new FakeMinutesGeneratedEventRepository();
+        private final DispatchNotificationUseCase dispatchNotificationUseCase =
+                mock(DispatchNotificationUseCase.class);
 
         private MinutesMeetingMetadataAssembler metadataAssembler() {
             MinutesMeetingMetadataAssembler assembler = mock(MinutesMeetingMetadataAssembler.class);
