@@ -23,4 +23,5 @@ public record MailDetailResult(
         boolean read,
         Instant readAt,
         boolean trashed,
-        Instant trashedAt) {}
+        Instant trashedAt,
+        List<MailAttachmentInfo> attachments) {}
