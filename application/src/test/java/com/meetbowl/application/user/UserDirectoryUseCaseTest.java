@@ -631,6 +631,17 @@ class UserDirectoryUseCaseTest {
                 UUID affiliateId, String name, UUID departmentId) {
             return false;
         }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID departmentId) {
+            return false;
+        }
     }
 
     private static final class FakeTeamRepository implements TeamRepositoryPort {
@@ -682,6 +693,17 @@ class UserDirectoryUseCaseTest {
         @Override
         public boolean existsByDepartmentIdAndNameAndIdNot(
                 UUID departmentId, String name, UUID teamId) {
+            return false;
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID teamId) {
             return false;
         }
     }
@@ -740,6 +762,16 @@ class UserDirectoryUseCaseTest {
 
         @Override
         public boolean existsByCodeAndIdNot(String code, UUID positionId) {
+            return false;
+        }
+
+        @Override
+        public boolean existsBySortOrder(Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
             return false;
         }
     }

@@ -21,6 +21,12 @@ public enum ErrorCode {
     // User
     USER_NOT_FOUND("USER_NOT_FOUND", "사용자를 찾을 수 없습니다.", 404),
 
+    // Organization
+    ORGANIZATION_SORT_ORDER_DUPLICATED(
+            "ORGANIZATION_SORT_ORDER_DUPLICATED",
+            "이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.",
+            409),
+
     // Meeting
     MEETING_NOT_FOUND("MEETING_NOT_FOUND", "회의를 찾을 수 없습니다.", 404),
     MEETING_ALREADY_ENDED("MEETING_ALREADY_ENDED", "해당 회의는 종료되었습니다.", 409),

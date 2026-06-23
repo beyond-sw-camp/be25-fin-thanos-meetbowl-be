@@ -67,4 +67,14 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     public boolean existsByCodeAndIdNot(String code, UUID positionId) {
         return repository.existsByCodeIgnoreCaseAndIdNot(code, positionId);
     }
+
+    @Override
+    public boolean existsBySortOrder(Integer sortOrder) {
+        return repository.existsBySortOrder(sortOrder);
+    }
+
+    @Override
+    public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        return repository.existsBySortOrderAndIdNot(sortOrder, positionId);
+    }
 }

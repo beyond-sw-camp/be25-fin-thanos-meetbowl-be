@@ -492,4 +492,31 @@
 - Verification:
   Passed `.\gradlew.bat :domain:test --tests "com.meetbowl.domain.user.UserTest"`
   Passed `.\gradlew.bat :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
-  `:application:test` and `:infrastructure:test` targeted runs are still blocked by pre-existing unrelated test-compilation failures in modules outside this change set, including `meeting`, `minutes`, `transcript`, and `messaging` tests.
+`:application:test` and `:infrastructure:test` targeted runs are still blocked by pre-existing unrelated test-compilation failures in modules outside this change set, including `meeting`, `minutes`, `transcript`, and `messaging` tests.
+2026-06-23 Admin organization/position sort order duplication fix
+
+- Purpose: fix QA issue where department, team, and position master data could save duplicated sort values and therefore rendered repeated order numbers in the admin organization/position management tabs.
+- Changed files:
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `domain/organization/{DepartmentRepositoryPort,TeamRepositoryPort,PositionRepositoryPort}`,
+  `infrastructure/persistence/organization/{SpringDataDepartmentRepository,SpringDataTeamRepository,SpringDataPositionRepository,JpaDepartmentRepositoryAdapter,JpaTeamRepositoryAdapter,JpaPositionRepositoryAdapter}`,
+  `common/exception/ErrorCode`,
+  `application/admin/AdminOrganizationMasterDataUseCaseTest`,
+  `app-api/admin/AdminOrganizationControllerTest`,
+  repository fake implementations in related application tests,
+  and this log.
+- Behavior:
+  Department create/update now reject duplicated `sortOrder` within the same affiliate.
+  Team create/update now reject duplicated `sortOrder` within the same affiliate even when the parent department differs.
+  Position create/update now reject duplicated `sortOrder` across the current global position master scope.
+  Duplicate checks include inactive entries because they remain visible in the admin list.
+  Self-update keeps working because duplicate queries exclude the current entity ID on update.
+  Deleted entries are excluded from duplicate checks under the current hard-delete policy because the row is physically removed.
+  Duplicate sort saves return `ORGANIZATION_SORT_ORDER_DUPLICATED` with HTTP 409 and the message `이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.`
+- Notes:
+  Added concise Korean comments only where the validation scope is easy to misread, especially the rule that team order uniqueness is affiliate-wide rather than department-local.
+  No DB migration was added in this change set. Repository/Application-level validation is implemented, and the current repo does not expose a Flyway/Liquibase migration path for these tables here.
+- Verification:
+  Passed `.\gradlew.bat :application:compileJava :app-api:compileJava :infrastructure:compileJava`
+  Attempted `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest"` but it is blocked by pre-existing unrelated `application:compileTestJava` failures in `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+  Attempted `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationControllerTest"` but it is blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `MeetingControllerTest`.

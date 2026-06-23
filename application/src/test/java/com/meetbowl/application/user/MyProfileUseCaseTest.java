@@ -392,6 +392,17 @@ class MyProfileUseCaseTest {
                                             && department.affiliateId().equals(affiliateId)
                                             && department.name().equalsIgnoreCase(name));
         }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID departmentId) {
+            return false;
+        }
     }
 
     private static final class FakeTeamRepository implements TeamRepositoryPort {
@@ -453,6 +464,17 @@ class MyProfileUseCaseTest {
                                     !team.id().equals(teamId)
                                             && team.departmentId().equals(departmentId)
                                             && team.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID teamId) {
+            return false;
         }
     }
 
@@ -518,6 +540,16 @@ class MyProfileUseCaseTest {
                             position ->
                                     !position.id().equals(positionId)
                                             && position.code().equalsIgnoreCase(code));
+        }
+
+        @Override
+        public boolean existsBySortOrder(Integer sortOrder) {
+            return false;
+        }
+
+        @Override
+        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+            return false;
         }
     }
 }
