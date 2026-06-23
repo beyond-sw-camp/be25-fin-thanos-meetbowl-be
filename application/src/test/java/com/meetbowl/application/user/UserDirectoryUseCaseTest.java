@@ -207,7 +207,8 @@ class UserDirectoryUseCaseTest {
                                 1,
                                 20));
 
-        assertEquals(2, result.items().size());
+        // status=ACTIVE 필터를 함께 주면 같은 조직의 비활성 사용자(USER2_ID)는 결과에서 제외되어야 한다.
+        assertEquals(1, result.items().size());
         assertEquals("Affiliate", result.items().get(0).affiliate());
     }
 
