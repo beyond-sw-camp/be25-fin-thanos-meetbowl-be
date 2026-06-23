@@ -1,6 +1,7 @@
 package com.meetbowl.infrastructure.persistence.meeting;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,16 @@ public class JpaMeetingRepositoryAdapter implements MeetingRepositoryPort {
     @Override
     public Optional<Meeting> findById(UUID id) {
         return springDataMeetingRepository.findById(id).map(MeetingEntity::toDomain);
+    }
+
+    @Override
+    public List<Meeting> findByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return springDataMeetingRepository.findAllById(ids).stream()
+                .map(MeetingEntity::toDomain)
+                .toList();
     }
 
     @Override

@@ -2,6 +2,8 @@ package com.meetbowl.application.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -28,7 +30,8 @@ class MinutesUseCaseTest {
     @Test
     void reviewerCanReviseMinutes() {
         Fixture fixture = new Fixture();
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         MinutesResult result =
                 useCase.execute(
@@ -48,7 +51,8 @@ class MinutesUseCaseTest {
     @Test
     void nonReviewerCannotReviseMinutes() {
         Fixture fixture = new Fixture();
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         BusinessException exception =
                 assertThrows(
@@ -74,6 +78,7 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
                         fixture.clock);
 
         BusinessException exception =
@@ -98,6 +103,7 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
                         fixture.clock);
 
         MinutesResult result =
@@ -135,6 +141,7 @@ class MinutesUseCaseTest {
                         fixture.attendeeRepository,
                         fixture.eventPublisher,
                         fixture.textExtractor,
+                        fixture.metadataAssembler,
                         fixture.clock);
 
         useCase.execute(
@@ -150,7 +157,8 @@ class MinutesUseCaseTest {
     void missingMinutesReturnsDomainError() {
         Fixture fixture = new Fixture();
         fixture.repository.minutes = null;
-        ReviseMinutesUseCase useCase = new ReviseMinutesUseCase(fixture.repository);
+        ReviseMinutesUseCase useCase =
+                new ReviseMinutesUseCase(fixture.repository, fixture.metadataAssembler);
 
         BusinessException exception =
                 assertThrows(
@@ -170,13 +178,27 @@ class MinutesUseCaseTest {
     @Test
     void getMinutesReturnsStoredDraft() {
         Fixture fixture = new Fixture();
-        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository);
+        MinutesMeetingMetadataAssembler metadataAssembler = mock(MinutesMeetingMetadataAssembler.class);
+        when(metadataAssembler.assemble(
+                        fixture.meetingId, fixture.organizationId, fixture.reviewerUserId))
+                .thenReturn(
+                        new MinutesMeetingMetadata(
+                                "주간 회의",
+                                fixture.now.minusSeconds(3600),
+                                fixture.now,
+                                3,
+                                fixture.reviewerUserId,
+                                "검토자",
+                                "프로덕트팀"));
+        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository, metadataAssembler);
 
         MinutesResult result = useCase.get(fixture.meetingId, fixture.organizationId);
 
         assertEquals("DRAFT", result.status());
         assertEquals("회의 요약", result.summary());
         assertEquals("회의록 본문", result.content());
+        assertEquals("주간 회의", result.meetingTitle());
+        assertEquals("검토자", result.reviewerName());
     }
 
     @Test
@@ -265,6 +287,7 @@ class MinutesUseCaseTest {
                 new MinutesContentTextExtractor(new com.fasterxml.jackson.databind.ObjectMapper());
         private final FakeDocumentIndexRequestedEventPort eventPublisher =
                 new FakeDocumentIndexRequestedEventPort();
+        private final MinutesMeetingMetadataAssembler metadataAssembler = metadataAssembler();
         private final FakeMeetingAttendeeRepository attendeeRepository =
                 new FakeMeetingAttendeeRepository(
                         new ArrayList<>(List.of(hostUserId, participantUserId, reviewerUserId)));
@@ -285,6 +308,21 @@ class MinutesUseCaseTest {
                                 null));
         private final FakeMinutesGeneratedEventRepository eventRepository =
                 new FakeMinutesGeneratedEventRepository();
+
+        private MinutesMeetingMetadataAssembler metadataAssembler() {
+            MinutesMeetingMetadataAssembler assembler = mock(MinutesMeetingMetadataAssembler.class);
+            when(assembler.assemble(meetingId, organizationId, reviewerUserId))
+                    .thenReturn(
+                            new MinutesMeetingMetadata(
+                                    "주간 회의",
+                                    now.minusSeconds(3600),
+                                    now,
+                                    3,
+                                    reviewerUserId,
+                                    "검토자",
+                                    "프로덕트팀"));
+            return assembler;
+        }
     }
 
     private static class FakeMinutesGeneratedEventRepository

@@ -155,6 +155,12 @@ class MinutesControllerTest {
                 status,
                 summary,
                 content,
-                approvedAt);
+                approvedAt,
+                "Weekly Sync",
+                Instant.parse("2099-01-01T00:00:00Z"),
+                Instant.parse("2099-01-01T01:00:00Z"),
+                3,
+                "Reviewer",
+                "Product");
     }
 }

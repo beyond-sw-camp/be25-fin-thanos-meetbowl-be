@@ -13,7 +13,13 @@ public record MinutesResponse(
         String status,
         String summary,
         String content,
-        Instant approvedAt) {
+        Instant approvedAt,
+        String meetingTitle,
+        Instant meetingStartedAt,
+        Instant meetingEndedAt,
+        int attendeeCount,
+        String reviewerName,
+        String reviewerDepartment) {
 
     public static MinutesResponse from(MinutesResult result) {
         return new MinutesResponse(
@@ -23,6 +29,12 @@ public record MinutesResponse(
                 result.status(),
                 result.summary(),
                 result.content(),
-                result.approvedAt());
+                result.approvedAt(),
+                result.meetingTitle(),
+                result.meetingStartedAt(),
+                result.meetingEndedAt(),
+                result.attendeeCount(),
+                result.reviewerName(),
+                result.reviewerDepartment());
     }
 }

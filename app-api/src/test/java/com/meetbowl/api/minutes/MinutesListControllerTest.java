@@ -66,7 +66,13 @@ class MinutesListControllerTest {
                                         "APPROVED",
                                         "Meeting summary",
                                         APPROVED_AT,
-                                        true)));
+                                        true,
+                                        "Weekly Sync",
+                                        Instant.parse("2099-01-01T00:00:00Z"),
+                                        Instant.parse("2099-01-01T01:00:00Z"),
+                                        3,
+                                        "Reviewer",
+                                        "Product")));
 
         mockMvc.perform(
                         get("/api/v1/minutes")
@@ -77,7 +83,10 @@ class MinutesListControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].minutesId").value(MINUTES_ID.toString()))
-                .andExpect(jsonPath("$.data[0].favorite").value(true));
+                .andExpect(jsonPath("$.data[0].favorite").value(true))
+                .andExpect(jsonPath("$.data[0].meetingTitle").value("Weekly Sync"))
+                .andExpect(jsonPath("$.data[0].attendeeCount").value(3))
+                .andExpect(jsonPath("$.data[0].reviewerName").value("Reviewer"));
 
         verify(getMinutesListUseCase).execute(USER_ID, ORGANIZATION_ID, "meeting");
     }

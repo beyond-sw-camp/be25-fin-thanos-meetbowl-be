@@ -27,6 +27,7 @@ public class ApproveMinutesUseCase {
     private final MeetingMinutesAccessScopePort meetingMinutesAccessScopePort;
     private final DocumentIndexRequestedEventPort documentIndexRequestedEventPort;
     private final MinutesContentTextExtractor minutesContentTextExtractor;
+    private final MinutesMeetingMetadataAssembler metadataAssembler;
     private final Clock clock;
 
     /**
@@ -39,11 +40,13 @@ public class ApproveMinutesUseCase {
             MeetingMinutesAccessScopePort meetingMinutesAccessScopePort,
             DocumentIndexRequestedEventPort documentIndexRequestedEventPort,
             MinutesContentTextExtractor minutesContentTextExtractor,
+            MinutesMeetingMetadataAssembler metadataAssembler,
             Clock clock) {
         this.minutesRepositoryPort = minutesRepositoryPort;
         this.meetingMinutesAccessScopePort = meetingMinutesAccessScopePort;
         this.documentIndexRequestedEventPort = documentIndexRequestedEventPort;
         this.minutesContentTextExtractor = minutesContentTextExtractor;
+        this.metadataAssembler = metadataAssembler;
         this.clock = clock;
     }
 
@@ -90,7 +93,10 @@ public class ApproveMinutesUseCase {
                         readableUserIds,
                         List.of(),
                         List.of()));
-        return MinutesResult.from(saved);
+        return MinutesResult.from(
+                saved,
+                metadataAssembler.assemble(
+                        saved.meetingId(), saved.organizationId(), saved.reviewerUserId()));
     }
 
     /** 회의 테이블이 없는 현재 단계에서는 회의록의 meetingId unique 관계를 조회 기준으로 사용한다. */
