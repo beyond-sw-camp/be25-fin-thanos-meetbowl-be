@@ -18,8 +18,8 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
  * 검사한 뒤, (3) 겹치는 활성 회의가 없을 때만 저장한다. 잠금이 검사~저장 구간을 보호하므로, 같은 회의실·시간을 동시에 요청해도 하나만 성공하고 나머지는 {@link
  * ErrorCode#MEETING_ROOM_ALREADY_RESERVED}로 실패한다. 화상회의만 진행하는 회의(회의실 없음)는 잠금/검사 없이 저장한다.
  *
- * <p>참석자: 주최자는 HOST로 자동 포함하고, {@code attendeeUserIds}는 PARTICIPANT로 저장하며, 그중 검토자로 지정된 사용자는
- * REVIEWER로 저장한다. 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인 소유이며, 참석자 검색은
+ * <p>참석자: 주최자는 HOST 신분으로 자동 포함하고, {@code attendeeUserIds}는 PARTICIPANT 신분으로 저장하며, 검토자로 지정된 사용자에게는
+ * reviewer 플래그를 단다(주최자도 검토자가 될 수 있다). 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인 소유이며, 참석자 검색은
  * ElasticSearch 기반 조직 도메인(F5)에서 처리한다 — 이 UseCase는 확정된 userId만 받고, 사용자 존재/유효성 검증은 조직 도메인 책임이다.
  */
 @Service

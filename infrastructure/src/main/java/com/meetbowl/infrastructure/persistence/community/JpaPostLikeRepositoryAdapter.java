@@ -1,5 +1,8 @@
 package com.meetbowl.infrastructure.persistence.community;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
@@ -26,6 +29,14 @@ public class JpaPostLikeRepositoryAdapter implements PostLikeRepositoryPort {
     @Override
     public boolean existsByPostIdAndUserId(UUID postId, UUID userId) {
         return springDataPostLikeRepository.existsByPostIdAndUserId(postId, userId);
+    }
+
+    @Override
+    public Set<UUID> findLikedPostIds(UUID userId, Collection<UUID> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(springDataPostLikeRepository.findLikedPostIds(userId, postIds));
     }
 
     @Override

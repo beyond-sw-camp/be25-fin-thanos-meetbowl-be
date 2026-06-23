@@ -428,6 +428,121 @@ class AdminUserManagementUseCaseTest {
     }
 
     @Test
+    void updateStatusFailsWhenAdminTriesToInactivateSelf() {
+        AdminUserManagementUseCase useCase = useCase();
+        User current = createUser("self-admin", "self@example.com", UserRole.ADMIN);
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.updateStatus(
+                                        new AdminUserManagementUseCase.UpdateStatusCommand(
+                                                current.id(),
+                                                "INACTIVE",
+                                                current.id(),
+                                                "Root Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+    }
+
+    @Test
+    void deleteSuccessMarksUserInactiveAndWritesAuditLog() {
+        AdminUserManagementUseCase useCase = useCase();
+        User current = createUser("delete-user", "delete@example.com", UserRole.USER);
+        stubOrganizationReferencesForUser(current);
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+        AdminUserManagementUseCase.UserSummary result =
+                useCase.delete(
+                        new AdminUserManagementUseCase.DeleteCommand(
+                                current.id(),
+                                UUID.randomUUID(),
+                                "Root Admin",
+                                "127.0.0.1",
+                                "JUnit"));
+
+        ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
+        verify(userRepositoryPort).save(savedUser.capture());
+        assertEquals(UserStatus.INACTIVE, savedUser.getValue().status());
+        assertEquals("INACTIVE", result.status());
+        verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
+        verifyUserReindexPublished("USER_DELETED", current.id());
+
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("DELETE", logCaptor.getValue().actionName());
+        assertEquals(current.id(), logCaptor.getValue().targetId());
+    }
+
+    @Test
+    void deleteFailsWhenTargetIsCurrentAdmin() {
+        AdminUserManagementUseCase useCase = useCase();
+        User current = createUser("self-admin", "self@example.com", UserRole.ADMIN);
+        stubOrganizationReferencesForUser(current);
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.delete(
+                                        new AdminUserManagementUseCase.DeleteCommand(
+                                                current.id(),
+                                                current.id(),
+                                                "Root Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        verify(userRepositoryPort, never()).save(any());
+    }
+
+    @Test
+    void deleteFailsWhenUserIsAlreadyInactive() {
+        AdminUserManagementUseCase useCase = useCase();
+        User current =
+                User.of(
+                        UUID.randomUUID(),
+                        "inactive-user",
+                        passwordEncoder.encode("password"),
+                        "Inactive User",
+                        "inactive@example.com",
+                        UserRole.USER,
+                        UserStatus.INACTIVE,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        false,
+                        ACTIVE_FROM,
+                        ACTIVE_UNTIL,
+                        ACTIVE_FROM,
+                        ACTIVE_FROM);
+        stubOrganizationReferencesForUser(current);
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.delete(
+                                        new AdminUserManagementUseCase.DeleteCommand(
+                                                current.id(),
+                                                UUID.randomUUID(),
+                                                "Root Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+        verify(userRepositoryPort, never()).save(any());
+    }
+
+    @Test
     void createAuditSnapshotSerializesQuotesAndNewlinesAndExcludesPasswords() throws Exception {
         AdminUserManagementUseCase useCase = useCase();
         UUID affiliateId = UUID.randomUUID();

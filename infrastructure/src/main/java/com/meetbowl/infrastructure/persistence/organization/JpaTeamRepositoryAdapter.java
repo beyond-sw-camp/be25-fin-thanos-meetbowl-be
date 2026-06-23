@@ -25,6 +25,11 @@ public class JpaTeamRepositoryAdapter implements TeamRepositoryPort {
     }
 
     @Override
+    public void deleteById(UUID teamId) {
+        repository.deleteById(teamId);
+    }
+
+    @Override
     public Optional<Team> findById(UUID teamId) {
         return repository.findById(teamId).map(TeamEntity::toDomain);
     }
@@ -42,6 +47,13 @@ public class JpaTeamRepositoryAdapter implements TeamRepositoryPort {
     @Override
     public List<Team> findAllByIds(Collection<UUID> teamIds) {
         return repository.findAllById(teamIds).stream().map(TeamEntity::toDomain).toList();
+    }
+
+    @Override
+    public List<Team> findAllByDepartmentId(UUID departmentId) {
+        return repository.findByDepartmentId(departmentId).stream()
+                .map(TeamEntity::toDomain)
+                .toList();
     }
 
     @Override

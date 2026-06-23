@@ -247,6 +247,7 @@ public class AdminUserManagementUseCase {
         User current = getUserOrThrow(command.userId());
         ensureManagedUser(current);
         UserStatus status = parseManageableStatus(command.status());
+        ensureNotSelfInactive(current.id(), command.adminId(), status);
         User saved = userRepositoryPort.save(current.changeStatus(status));
         tokenStateRepositoryPort.revokeUserSessions(saved.id(), Instant.now());
 
@@ -263,6 +264,41 @@ public class AdminUserManagementUseCase {
         // 상태값은 관리자/일반 사용자 검색 필터에 바로 쓰이므로 저장 직후 재색인한다.
         publishUserReindex(saved.id(), command.adminId(), "USER_STATUS_UPDATED");
         return summary;
+    }
+
+    /** 회원 삭제 API는 데이터 무결성을 위해 hard delete 대신 INACTIVE 처리로 동작한다. */
+    @Transactional
+    public UserSummary delete(DeleteCommand command) {
+        User current =
+                userRepositoryPort
+                        .findById(command.userId())
+                        .orElseThrow(
+                                () -> {
+                                    saveDeleteFailureAudit(
+                                            command, command.userId(), null, "삭제할 회원을 찾을 수 없습니다.");
+                                    return new BusinessException(ErrorCode.USER_NOT_FOUND);
+                                });
+        ensureManagedUser(current);
+        ensureNotSelfDelete(command, current);
+        ensureUserNotAlreadyInactive(command, current);
+
+        User saved = userRepositoryPort.save(current.changeStatus(UserStatus.INACTIVE));
+        tokenStateRepositoryPort.revokeUserSessions(saved.id(), Instant.now());
+
+        UserSummary before = resolveSummary(current);
+        UserSummary after = resolveSummary(saved);
+        saveAudit(
+                command.adminId(),
+                command.adminName(),
+                command.ipAddress(),
+                command.userAgent(),
+                "DELETE",
+                snapshot(before),
+                snapshot(after),
+                saved.id());
+        // 삭제 API도 검색 문서에는 상태 변경으로 반영해야 목록/검색 결과가 비활성화 상태와 일치한다.
+        publishUserReindex(saved.id(), command.adminId(), "USER_DELETED");
+        return after;
     }
 
     /**
@@ -396,6 +432,28 @@ public class AdminUserManagementUseCase {
             throw new BusinessException(
                     ErrorCode.COMMON_FORBIDDEN,
                     "System accounts cannot be managed with the admin user API.");
+        }
+    }
+
+    private void ensureNotSelfInactive(UUID targetUserId, UUID adminId, UserStatus status) {
+        if (status == UserStatus.INACTIVE && Objects.equals(targetUserId, adminId)) {
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "자기 자신의 계정은 비활성화할 수 없습니다.");
+        }
+    }
+
+    private void ensureNotSelfDelete(DeleteCommand command, User user) {
+        if (Objects.equals(user.id(), command.adminId())) {
+            saveDeleteFailureAudit(
+                    command, user.id(), snapshot(resolveSummary(user)), "자기 자신의 계정은 삭제할 수 없습니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "자기 자신의 계정은 삭제할 수 없습니다.");
+        }
+    }
+
+    private void ensureUserNotAlreadyInactive(DeleteCommand command, User user) {
+        if (user.isInactive()) {
+            saveDeleteFailureAudit(
+                    command, user.id(), snapshot(resolveSummary(user)), "이미 비활성화된 회원입니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "이미 비활성화된 회원입니다.");
         }
     }
 
@@ -696,6 +754,15 @@ public class AdminUserManagementUseCase {
         }
     }
 
+    private String failureSnapshot(String message) {
+        try {
+            return objectMapper.writeValueAsString(new FailureSnapshot(message));
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INTERNAL_ERROR, "Failed to serialize admin audit snapshot.");
+        }
+    }
+
     /**
      * 감사 로그 저장 관리자 작업 내용을 감사 로그에 기록합니다.
      *
@@ -731,6 +798,25 @@ public class AdminUserManagementUseCase {
                         afterValue,
                         ipAddress,
                         userAgent,
+                        Instant.now()));
+    }
+
+    private void saveDeleteFailureAudit(
+            DeleteCommand command, UUID targetId, String beforeValue, String message) {
+        adminAuditLogRepositoryPort.save(
+                new AdminAuditLog(
+                        UUID.randomUUID(),
+                        command.adminId(),
+                        command.adminName(),
+                        "USER",
+                        targetId,
+                        "USER_MANAGEMENT",
+                        "DELETE",
+                        AuditResult.FAILURE,
+                        beforeValue,
+                        failureSnapshot(message),
+                        command.ipAddress(),
+                        command.userAgent(),
                         Instant.now()));
     }
 
@@ -788,6 +874,10 @@ public class AdminUserManagementUseCase {
             String ipAddress,
             String userAgent) {}
 
+    /** ?뚯썝 ??젣 紐낅졊 */
+    public record DeleteCommand(
+            UUID userId, UUID adminId, String adminName, String ipAddress, String userAgent) {}
+
     /** 회원 생성 결과 */
     public record CreateResult(UUID userId, String temporaryPassword, UserSummary user) {}
 
@@ -838,4 +928,6 @@ public class AdminUserManagementUseCase {
             UUID positionId,
             Instant activeFrom,
             Instant activeUntil) {}
+
+    private record FailureSnapshot(String message) {}
 }

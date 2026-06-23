@@ -277,6 +277,7 @@ Guest는 해당 회의 참여에 필요한 API에만 접근할 수 있다.
 프론트엔드는 이 API를 통해서만 LiveKit join info/token을 발급받는다.
 
 - 회의가 `ENDED` 상태면 `409 MEETING_ALREADY_ENDED`를 반환한다.
+- 회의가 `CANCELLED` 상태면 `409 COMMON_CONFLICT`를 반환한다.
 - 예약 회의는 `scheduledAt` 15분 전부터만 입장할 수 있으며, 더 이르면 `409 MEETING_JOIN_TOO_EARLY`를 반환한다.
 
 - 브라우저는 LiveKit API Secret을 보유하지 않는다.
@@ -567,7 +568,9 @@ DELETION_SCHEDULED
 | DELETE | `/workspace/backups/{backupId}/bookmark` | 백업 자료 북마크 해제 | User/Admin |
 | GET | `/workspace/drive/files` | 개인 드라이브 파일 목록 조회 | User/Admin |
 | POST | `/workspace/drive/files` | 개인 드라이브 파일 업로드 | User/Admin |
-| GET | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 다운로드 | Owner |
+| GET | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 메타데이터 조회 | Owner |
+| GET | `/workspace/drive/files/{fileId}/download` | 개인 드라이브 파일 다운로드 | Owner |
+| GET | `/workspace/drive/files/{fileId}/preview` | 개인 드라이브 파일 미리보기 | Owner |
 | DELETE | `/workspace/drive/files/{fileId}` | 개인 드라이브 파일 삭제 | Owner |
 | GET | `/workspace/memos` | 개인 메모 목록 조회 | User/Admin |
 | POST | `/workspace/memos` | 개인 메모 작성 | User/Admin |
@@ -587,6 +590,8 @@ DELETION_SCHEDULED
 - 저장 성공 후 `document.index.requested` 이벤트를 발행한다. 파일 본문은 이벤트에 싣지 않고 `storageKey`와 `contentType`을 전달하며, AI 서버가 파일을 내려받아 텍스트 추출·임베딩·Qdrant 색인을 수행한다.
 - 개인 드라이브 파일의 `accessScope.userIds`에는 소유자만 포함한다. 조직 미소속 사용자는 `organizationId: null`로 발행할 수 있다.
 - 허용되지 않은 형식은 `FILE_INVALID_EXTENSION`, 20MB 초과 파일은 `FILE_SIZE_EXCEEDED`로 거절한다.
+- 다운로드와 미리보기는 모두 소유자 권한 검사를 통과한 뒤 S3 원본을 서버가 읽어 반환한다.
+- `/download` 응답은 `Content-Disposition: attachment`, `/preview` 응답은 `Content-Disposition: inline`을 사용한다.
 
 | GET | `/shared-workspaces` | 접근 가능한 공유 워크스페이스 조회 | User/Admin |
 | POST | `/shared-workspaces` | 공유 워크스페이스 생성 | User/Admin |
@@ -599,7 +604,9 @@ DELETION_SCHEDULED
 | PATCH | `/shared-workspaces/{spaceId}/audience` | 전 직원 공유 대상 설정 | Owner/Admin |
 | GET | `/shared-workspaces/{spaceId}/files` | 공유 자료 목록 조회 | Member |
 | POST | `/shared-workspaces/{spaceId}/files` | 공유 자료 업로드 | Member |
-| GET | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 다운로드 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 메타데이터 조회 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}/download` | 공유 자료 다운로드 | Member |
+| GET | `/shared-workspaces/{spaceId}/files/{fileId}/preview` | 공유 자료 미리보기 | Member |
 | DELETE | `/shared-workspaces/{spaceId}/files/{fileId}` | 공유 자료 삭제 | Member/Owner |
 | POST | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 새 버전 업로드 | Member |
 | GET | `/shared-workspaces/{spaceId}/files/{fileId}/versions` | 파일 버전 목록 조회 | Member |
@@ -615,6 +622,8 @@ DELETION_SCHEDULED
 - 파일 원본은 S3 호환 Object Storage에 저장하고, DB에는 메타데이터(파일명, Content-Type, 크기, `storageKey`)만 저장한다. 버전마다 별도 `storageKey`를 두어 이전 버전 원본도 보존한다.
 - 저장 성공 후 `document.index.requested`를 발행한다. 색인 단위는 파일(`documentId=fileId`)이라 새 버전이 올라오면 같은 문서를 최신 내용으로 교체 색인한다.
 - 공유 자료이므로 `accessScope.sharedWorkspaceIds`에 워크스페이스 ID를 담아 멤버 전원이 검색할 수 있게 한다.
+- 다운로드와 미리보기는 모두 워크스페이스 멤버 권한 검사를 통과한 뒤 S3 원본을 서버가 읽어 반환한다.
+- `/download` 응답은 `Content-Disposition: attachment`, `/preview` 응답은 `Content-Disposition: inline`을 사용한다.
 
 ---
 

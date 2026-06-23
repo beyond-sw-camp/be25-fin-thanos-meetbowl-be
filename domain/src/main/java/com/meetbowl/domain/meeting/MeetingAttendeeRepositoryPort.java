@@ -25,8 +25,8 @@ public interface MeetingAttendeeRepositoryPort {
     List<MeetingAttendee> findByUserId(UUID userId);
 
     /**
-     * 회의록 검토자 연동(T4-002)용: 해당 회의의 회의록 검토자(REVIEWER 역할 참석자) userId를 조회한다. 검토자를 지정하지 않은 회의는 빈 값을
-     * 반환한다. 회의당 검토자는 최대 1명이다.
+     * 회의록 검토자 연동(T4-002)용: 해당 회의의 회의록 검토자(reviewer 플래그가 붙은 참석자) userId를 조회한다. 검토자를 지정하지 않은 회의는 빈
+     * 값을 반환한다. 회의당 검토자는 최대 1명이다.
      */
     Optional<UUID> findReviewerUserId(UUID meetingId);
 
