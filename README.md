@@ -21,6 +21,12 @@ common          공통 응답, 예외, Event Envelope, 시간/ID 유틸
 ./gradlew :app-api:bootRun
 ```
 
+Docker image build:
+
+```bash
+docker build -t meetbowl-be:local .
+```
+
 ## Profiles
 
 기본 profile은 `local`이다. 운영/로컬 스키마는 Flyway migration으로 관리하고, 테스트만 H2

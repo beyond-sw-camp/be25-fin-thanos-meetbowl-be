@@ -550,3 +550,11 @@
 - 동작 변경: PR에서는 테스트만 수행한다. main push에서는 테스트 후 Dockerfile/배포 스크립트 유무를 확인하고, 둘 다 준비됐을 때만 ECR push와 EC2 배포를 진행한다. 준비 전에는 skip notice만 남기고 실패시키지 않는다.
 - 제외 범위: 실제 `Dockerfile`, `deploy-be.sh`, 운영 compose, smoke test 스크립트, GitHub secrets 등록, AWS IAM role 생성은 아직 하지 않았다.
 - 검증: 워크플로 YAML을 로컬 diff로 검토했다. 실제 GitHub Actions 실행 검증은 아직 하지 않았다.
+
+2026-06-23 meetbowl-be Dockerfile 추가
+
+- 작업 목적: GitHub Actions의 ECR build 단계와 운영 compose가 공통으로 사용할 `meetbowl-be` 런타임 이미지를 만든다.
+- 변경 내용: 루트 `Dockerfile`을 추가해 Temurin 25 JDK/JRE 기반 멀티스테이지 빌드로 `:app-api:bootJar` 결과만 런타임 이미지에 포함하도록 구성했다. `.dockerignore`를 추가해 `.git`, 각 모듈 `build`, 로컬 task 로그 등 불필요한 파일이 빌드 컨텍스트에 들어가지 않게 했다. `README.md`에는 로컬 이미지 빌드 명령을 추가했다.
+- 동작 변경: 컨테이너 빌드 시 Gradle wrapper로 `app-api` bootJar를 생성하고, 런타임 이미지는 `/app/app.jar`만 가진 `prod` 기본 프로필 컨테이너로 실행된다. `JAVA_OPTS`를 환경변수로 주입할 수 있고 기본 timezone은 UTC다.
+- 제외 범위: healthcheck, Actuator endpoint, 운영 compose, deploy script 연결은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootJar -x test`를 실행해 `app-api/build/libs/app-api-0.0.1-SNAPSHOT.jar` 생성과 Dockerfile의 jar copy 경로가 맞는 것을 확인했다. 실제 `docker build` 실행 검증은 아직 하지 않았다.
