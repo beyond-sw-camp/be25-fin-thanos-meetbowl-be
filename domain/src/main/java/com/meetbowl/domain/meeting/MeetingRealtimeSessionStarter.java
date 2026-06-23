@@ -1,4 +1,4 @@
-package com.meetbowl.application.meeting;
+package com.meetbowl.domain.meeting;
 
 import java.util.UUID;
 

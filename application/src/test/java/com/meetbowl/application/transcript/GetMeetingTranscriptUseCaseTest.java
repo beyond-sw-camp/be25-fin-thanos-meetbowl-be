@@ -76,8 +76,7 @@ class GetMeetingTranscriptUseCaseTest {
                                                 "둘째 문장",
                                                 600L,
                                                 1000L,
-                                                UUID.randomUUID()))),
-                        new FinalTranscriptTextAssembler());
+                                                UUID.randomUUID()))));
 
         GetMeetingTranscriptResult result = useCase.execute(meetingId, participantUserId, false);
 
@@ -105,8 +104,7 @@ class GetMeetingTranscriptUseCaseTest {
                                         Instant.parse("2026-06-12T02:00:00Z"),
                                         null)),
                         new StubAttendeeRepository(List.of()),
-                        new StubTranscriptRepository(List.of()),
-                        new FinalTranscriptTextAssembler());
+                        new StubTranscriptRepository(List.of()));
 
         assertThrows(
                 BusinessException.class,

@@ -17,6 +17,7 @@ import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
 

@@ -8,13 +8,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Repository;
 
-import com.meetbowl.application.minutes.MinutesGenerationContextQueryPort;
-import com.meetbowl.application.minutes.MinutesGenerationContextResult;
-import com.meetbowl.application.transcript.FinalTranscriptTextAssembler;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
+import com.meetbowl.domain.minutes.MinutesGenerationContext;
+import com.meetbowl.domain.minutes.MinutesGenerationContextQueryPort;
+import com.meetbowl.domain.transcript.FinalTranscriptTextAssembler;
 import com.meetbowl.domain.transcript.MeetingTranscriptSegmentRepositoryPort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
@@ -28,27 +28,24 @@ public class JpaMinutesGenerationContextQueryAdapter
     private final MeetingAttendeeRepositoryPort attendeeRepositoryPort;
     private final MeetingTranscriptSegmentRepositoryPort transcriptRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
-    private final FinalTranscriptTextAssembler transcriptTextAssembler;
 
     public JpaMinutesGenerationContextQueryAdapter(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort attendeeRepositoryPort,
             MeetingTranscriptSegmentRepositoryPort transcriptRepositoryPort,
-            UserRepositoryPort userRepositoryPort,
-            FinalTranscriptTextAssembler transcriptTextAssembler) {
+            UserRepositoryPort userRepositoryPort) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.attendeeRepositoryPort = attendeeRepositoryPort;
         this.transcriptRepositoryPort = transcriptRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
-        this.transcriptTextAssembler = transcriptTextAssembler;
     }
 
     @Override
-    public Optional<MinutesGenerationContextResult> findByMeetingId(UUID meetingId) {
+    public Optional<MinutesGenerationContext> findByMeetingId(UUID meetingId) {
         return meetingRepositoryPort.findById(meetingId).map(this::toContext);
     }
 
-    private MinutesGenerationContextResult toContext(Meeting meeting) {
+    private MinutesGenerationContext toContext(Meeting meeting) {
         var attendees = attendeeRepositoryPort.findByMeetingId(meeting.id());
         Map<UUID, User> users =
                 attendees.stream()
@@ -69,13 +66,13 @@ public class JpaMinutesGenerationContextQueryAdapter
                         .filter(java.util.Objects::nonNull)
                         .map(
                                 user ->
-                                        new MinutesGenerationContextResult.Participant(
+                                        new MinutesGenerationContext.Participant(
                                                 user.id(), user.name(), null))
                         .toList();
         String rawTranscript =
-                transcriptTextAssembler.assemble(
+                FinalTranscriptTextAssembler.assemble(
                         transcriptRepositoryPort.findAllByMeetingIdOrderBySequence(meeting.id()));
-        return new MinutesGenerationContextResult(
+        return new MinutesGenerationContext(
                 meeting.id(),
                 organizationId,
                 meeting.hostUserId(),

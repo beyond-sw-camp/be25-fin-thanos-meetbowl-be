@@ -38,7 +38,7 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                         "회의록",
                         "색인할 회의록 본문",
                         new DocumentIndexRequestedEvent.Metadata(
-                                meetingId, approvedAt, null, null, null),
+                                meetingId, approvedAt, null, null, null, null, null),
                         List.of(reviewerUserId),
                         List.of(),
                         List.of()));
@@ -83,8 +83,14 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                         ownerUserId,
                         "자료.pdf",
                         null,
-                        storageKey,
-                        "application/pdf",
+                        new DocumentIndexRequestedEvent.Metadata(
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                storageKey,
+                                "application/pdf"),
                         List.of(ownerUserId),
                         List.of(),
                         List.of()));
@@ -98,8 +104,10 @@ class RabbitDocumentIndexRequestedEventPublisherTest {
                                             (DocumentIndexRequestedMessage) payload;
                                     return message.documentId().equals(fileId)
                                             && message.content() == null
-                                            && message.storageKey().equals(storageKey)
-                                            && message.contentType().equals("application/pdf")
+                                            && message.metadata().storageKey().equals(storageKey)
+                                            && message.metadata()
+                                                    .contentType()
+                                                    .equals("application/pdf")
                                             && message.accessScope()
                                                     .userIds()
                                                     .equals(List.of(ownerUserId));

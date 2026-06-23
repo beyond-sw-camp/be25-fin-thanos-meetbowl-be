@@ -1,18 +1,15 @@
-package com.meetbowl.application.transcript;
+package com.meetbowl.domain.transcript;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.stereotype.Component;
-
-import com.meetbowl.domain.transcript.MeetingTranscriptSegment;
-
 /** Final Transcript 세그먼트를 AI 입력과 사용자 조회가 공유하는 하나의 원문 문자열로 조립한다. */
-@Component
-public class FinalTranscriptTextAssembler {
+public final class FinalTranscriptTextAssembler {
 
-    public String assemble(List<MeetingTranscriptSegment> segments) {
+    private FinalTranscriptTextAssembler() {}
+
+    public static String assemble(List<MeetingTranscriptSegment> segments) {
         if (segments == null || segments.isEmpty()) {
             return "";
         }

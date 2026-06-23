@@ -10,6 +10,7 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
+import com.meetbowl.domain.transcript.FinalTranscriptTextAssembler;
 import com.meetbowl.domain.transcript.MeetingTranscriptSegmentRepositoryPort;
 
 /**
@@ -30,17 +31,14 @@ public class GetMeetingTranscriptUseCase {
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
     private final MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort;
-    private final FinalTranscriptTextAssembler transcriptTextAssembler;
 
     public GetMeetingTranscriptUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
-            MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort,
-            FinalTranscriptTextAssembler transcriptTextAssembler) {
+            MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.meetingTranscriptSegmentRepositoryPort = meetingTranscriptSegmentRepositoryPort;
-        this.transcriptTextAssembler = transcriptTextAssembler;
     }
 
     /**
@@ -94,7 +92,7 @@ public class GetMeetingTranscriptUseCase {
          * 회의 원문 화면에서는 세그먼트 목록 자체도 필요하지만,
          * 회의록 초안 생성이나 복사용 전체 텍스트도 자주 쓰이므로 여기서 개행 기준으로 한 번 더 합친다.
          */
-        String fullText = transcriptTextAssembler.assemble(storedSegments);
+        String fullText = FinalTranscriptTextAssembler.assemble(storedSegments);
 
         return new GetMeetingTranscriptResult(meetingId, fullText, segments);
     }
