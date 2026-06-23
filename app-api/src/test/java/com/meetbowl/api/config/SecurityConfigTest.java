@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.meetbowl.api.common.ApiHeaders;
 import com.meetbowl.application.auth.AccessTokenValidationService;
 import com.meetbowl.application.meeting.MeetingRealtimeSessionStarter;
+import com.meetbowl.application.meeting.MeetingRealtimeSessionStopper;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -37,6 +38,7 @@ class SecurityConfigTest {
     @Autowired private MockMvc mockMvc;
     @MockitoBean private AccessTokenValidationService accessTokenValidationService;
     @MockitoBean private MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
+    @MockitoBean private MeetingRealtimeSessionStopper meetingRealtimeSessionStopper;
 
     @Test
     void healthEndpointIsPublic() throws Exception {
