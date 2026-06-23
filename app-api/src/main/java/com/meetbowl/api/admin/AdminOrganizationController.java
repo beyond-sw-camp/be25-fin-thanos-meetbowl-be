@@ -30,6 +30,7 @@ import com.meetbowl.api.admin.dto.AdminTeamRequest;
 import com.meetbowl.api.admin.dto.AdminTeamResponse;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.ClientIpResolver;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
@@ -174,7 +175,7 @@ public class AdminOrganizationController extends BaseController {
                         departmentId,
                         admin.userId(),
                         admin.displayName(),
-                        httpServletRequest.getRemoteAddr(),
+                        ClientIpResolver.resolve(httpServletRequest),
                         httpServletRequest.getHeader("User-Agent")));
         return ok();
     }
@@ -240,7 +241,7 @@ public class AdminOrganizationController extends BaseController {
                         teamId,
                         admin.userId(),
                         admin.displayName(),
-                        httpServletRequest.getRemoteAddr(),
+                        ClientIpResolver.resolve(httpServletRequest),
                         httpServletRequest.getHeader("User-Agent")));
         return ok();
     }
@@ -306,7 +307,7 @@ public class AdminOrganizationController extends BaseController {
                         positionId,
                         admin.userId(),
                         admin.displayName(),
-                        httpServletRequest.getRemoteAddr(),
+                        ClientIpResolver.resolve(httpServletRequest),
                         httpServletRequest.getHeader("User-Agent")));
         return ok();
     }

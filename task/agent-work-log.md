@@ -602,3 +602,29 @@
   Attempted targeted `:application:test` runs for the new auth/admin use cases, but `application:compileTestJava` is blocked by pre-existing unrelated failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.
   Attempted `:app-api:compileTestJava`, but it is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
   Attempted targeted `:infrastructure:test` for the new password-reset-request adapter test, but `infrastructure:compileTestJava` is blocked by pre-existing unrelated messaging test failures in `RabbitEventPublisherTest` and `RabbitDocumentIndexRequestedEventPublisherTest`.
+
+2026-06-24 Admin audit log client IP capture
+
+- Purpose: fix QA issue where new admin audit logs showed worker IP as `-` by resolving and persisting the requester client IP for all admin log-producing APIs.
+- Changed files:
+  `app-api/common/ApiHeaders`,
+  `app-api/common/ClientIpResolver`,
+  `app-api/admin/AdminUserController`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/AdminOrganizationMembersExcelController`,
+  `app-api/admin/PasswordResetRequestAdminController`,
+  `app-api/admin/MailRetentionPolicyController`,
+  `application/admin/AdminAuditLogResult`,
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  related admin/api tests,
+  and this log.
+- Behavior:
+  New admin audit logs now resolve client IP in the order `X-Forwarded-For` first IP, then `X-Real-IP`, then `request.getRemoteAddr()`.
+  Local development addresses such as `127.0.0.1` and `::1` are preserved instead of being dropped, so new rows store a non-blank IP whenever the servlet request provides one.
+  The same resolver is applied across admin member create/update/delete/password reset, organization delete flows, password reset request approval/rejection, mail retention policy update, and organization-member Excel import.
+  Audit log query results now expose `ipAddress`; old rows that never stored an IP still fall back to `-` at response mapping time.
+  Sensitive fields such as passwords, JWTs, refresh tokens, and similar secrets remain excluded from audit payload handling.
+- Verification:
+  Passed `.\gradlew :app-api:compileJava`
+  Attempted targeted audit-related Gradle tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted application tests, but `application:compileTestJava` is blocked by pre-existing unrelated compile failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.

@@ -73,6 +73,7 @@ class AdminDashboardSummaryUseCaseTest {
                                                 TARGET_ID,
                                                 "user01",
                                                 "User One",
+                                                "127.0.0.1",
                                                 "SUCCESS",
                                                 null,
                                                 null,

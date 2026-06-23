@@ -18,6 +18,7 @@ public record AdminAuditLogResponse(
         UUID targetId,
         String targetLoginId,
         String targetName,
+        String ipAddress,
         String result,
         String reason,
         String displayTitle,
@@ -41,6 +42,7 @@ public record AdminAuditLogResponse(
                 result.targetId(),
                 fallbackTargetValue(result.targetLoginId()),
                 fallbackTargetValue(result.targetName()),
+                fallbackValue(result.ipAddress()),
                 result.result(),
                 result.reason(),
                 displayInfo.displayTitle(),
@@ -63,6 +65,10 @@ public record AdminAuditLogResponse(
     }
 
     private static String fallbackTargetValue(String value) {
+        return fallbackValue(value);
+    }
+
+    private static String fallbackValue(String value) {
         return value == null || value.isBlank() ? "-" : value;
     }
 

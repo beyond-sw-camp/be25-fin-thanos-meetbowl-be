@@ -16,6 +16,7 @@ import com.meetbowl.api.admin.dto.AdminPasswordResetRequestListResponse;
 import com.meetbowl.api.admin.dto.AdminPasswordResetRequestResponse;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.ClientIpResolver;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
@@ -85,7 +86,7 @@ public class PasswordResetRequestAdminController extends BaseController {
                 requestId,
                 admin.userId(),
                 admin.displayName(),
-                httpServletRequest.getRemoteAddr(),
+                ClientIpResolver.resolve(httpServletRequest),
                 httpServletRequest.getHeader("User-Agent"));
     }
 

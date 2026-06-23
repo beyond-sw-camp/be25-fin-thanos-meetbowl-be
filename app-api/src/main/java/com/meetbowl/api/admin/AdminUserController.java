@@ -28,6 +28,7 @@ import com.meetbowl.api.admin.dto.AdminUserStatusUpdateRequest;
 import com.meetbowl.api.admin.dto.AdminUserUpdateRequest;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.ClientIpResolver;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
@@ -101,7 +102,7 @@ public class AdminUserController extends BaseController {
                                         request.activeUntil(),
                                         admin.userId(),
                                         admin.displayName(),
-                                        httpServletRequest.getRemoteAddr(),
+                                        ClientIpResolver.resolve(httpServletRequest),
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
@@ -181,7 +182,7 @@ public class AdminUserController extends BaseController {
                                         request.activeUntil(),
                                         admin.userId(),
                                         admin.displayName(),
-                                        httpServletRequest.getRemoteAddr(),
+                                        ClientIpResolver.resolve(httpServletRequest),
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
@@ -209,7 +210,7 @@ public class AdminUserController extends BaseController {
                                         request.status().name(),
                                         admin.userId(),
                                         admin.displayName(),
-                                        httpServletRequest.getRemoteAddr(),
+                                        ClientIpResolver.resolve(httpServletRequest),
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
@@ -234,7 +235,7 @@ public class AdminUserController extends BaseController {
                                         userId,
                                         admin.userId(),
                                         admin.displayName(),
-                                        httpServletRequest.getRemoteAddr(),
+                                        ClientIpResolver.resolve(httpServletRequest),
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 
@@ -251,7 +252,7 @@ public class AdminUserController extends BaseController {
                                 userId,
                                 admin.userId(),
                                 admin.displayName(),
-                                httpServletRequest.getRemoteAddr(),
+                                ClientIpResolver.resolve(httpServletRequest),
                                 httpServletRequest.getHeader("User-Agent")));
 
         return ok(new AdminResetPasswordResponse(result.temporaryPassword()));
