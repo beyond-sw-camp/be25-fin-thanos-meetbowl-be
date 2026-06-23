@@ -511,3 +511,27 @@
   Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `./gradlew spotlessApply`
   `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'` was blocked before executing the target test because existing unrelated test sources in `meeting`, `minutes`, and `transcript` packages do not compile against the current domain/port contracts.
+
+2026-06-23 Document indexing queue topology hardening
+
+- Purpose: 워크스페이스 파일 업로드 후 AI 서버가 늦게 뜨거나 재시작 중이어도 `document.index.requested` 이벤트가 RabbitMQ에서 유실되지 않도록 색인 큐와 binding을 BE 기동 시점에도 보장한다.
+- Changed files:
+  `app-api/messaging/RabbitMqMessagingConfig` and this log.
+- Behavior:
+  BE now declares `ai.index.document` and `ai.index.document.removed` queues with their dead-letter routing before publishing document indexing/removal events.
+  BE also declares `document.index.requested` / `document.index.removed` bindings on `meetbowl.topic`, plus `dlq.ai.index.document` / `dlq.ai.index.document.removed` queues on `meetbowl.dlx`.
+  This preserves upload/delete events even when the AI consumer is not running yet; AI can consume the queued events after it starts.
+  Existing AI queue names and DLQ routing keys are kept compatible with the AI server topology.
+- Verification:
+  Passed `./gradlew :app-api:compileJava`
+
+2026-06-23 AI server client timeout adjustment
+
+- Purpose: 다중 문서 RAG 챗봇 질의가 20초를 넘길 때 BE가 먼저 read timeout으로 실패 처리해 화면에 "AI 서버를 사용할 수 없습니다"가 표시되는 문제를 줄인다.
+- Changed files:
+  `infrastructure/client/AiServerClientConfig` and this log.
+- Behavior:
+  AI 서버 RestClient의 connect timeout은 3초로 유지한다.
+  AI 서버 RestClient의 read timeout은 20초에서 45초로 늘려 검색·리랭크·생성을 포함한 multi-hop 질의를 기다릴 수 있게 했다.
+- Verification:
+  Passed `./gradlew :infrastructure:compileJava :app-api:compileJava`

@@ -23,10 +23,11 @@ public class AiServerClientConfig {
     RestClient aiServerRestClient(
             @Value("${meetbowl.ai.base-url:http://localhost:8000}") String baseUrl,
             @Value("${meetbowl.security.internal-token}") String internalToken) {
-        // AI 응답이 멈춰도 무한 대기하지 않도록 연결 3초, 응답 20초 상한을 둔다(초과 시 에러로 떨어짐).
+        // 다중 문서 RAG 질의는 검색·리랭크·생성을 거치며 20초를 넘길 수 있다. 연결 실패는 빠르게 감지하되,
+        // 정상 추론 중인 요청은 중간에 끊지 않도록 응답 대기 상한을 45초로 둔다.
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(3));
-        requestFactory.setReadTimeout(Duration.ofSeconds(20));
+        requestFactory.setReadTimeout(Duration.ofSeconds(45));
         return RestClient.builder()
                 .baseUrl(baseUrl)
                 // Uvicorn 내부 API와 통신할 때 JDK HttpClient의 h2c upgrade/chunked 조합을 피하고

@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.meetbowl.common.event.EventTypes;
+
 /**
  * API 서버가 소비/발행하는 RabbitMQ 기본 topology를 선언한다.
  *
@@ -23,6 +25,8 @@ public class RabbitMqMessagingConfig {
     public static final String TRANSCRIPT_FINAL_SAVE_QUEUE = "api.transcript.final.save";
     public static final String USER_SEARCH_REINDEX_QUEUE = "api.user.search.reindex";
     public static final String MINUTES_GENERATED_QUEUE = "api.minutes.generated";
+    public static final String AI_DOCUMENT_INDEX_QUEUE = "ai.index.document";
+    public static final String AI_DOCUMENT_INDEX_REMOVED_QUEUE = "ai.index.document.removed";
 
     @Bean
     TopicExchange meetbowlTopicExchange() {
@@ -152,5 +156,78 @@ public class RabbitMqMessagingConfig {
         return BindingBuilder.bind(userSearchReindexDeadLetterQueue)
                 .to(meetbowlDlxExchange)
                 .with("dlq.user.search.reindex.requested");
+    }
+
+    @Bean
+    Queue aiDocumentIndexQueue() {
+        // 파일 업로드는 BE가 성공 응답을 먼저 반환하고 색인은 비동기로 처리한다. 따라서 AI 서버가 나중에 떠도
+        // document.index.requested 이벤트가 유실되지 않도록 producer인 BE도 AI 색인 큐를 미리 선언한다.
+        return new Queue(
+                AI_DOCUMENT_INDEX_QUEUE,
+                true,
+                false,
+                false,
+                Map.of(
+                        "x-dead-letter-exchange",
+                        DLX_EXCHANGE,
+                        "x-dead-letter-routing-key",
+                        "dlq.document.index.requested"));
+    }
+
+    @Bean
+    Binding aiDocumentIndexBinding(
+            Queue aiDocumentIndexQueue, TopicExchange meetbowlTopicExchange) {
+        return BindingBuilder.bind(aiDocumentIndexQueue)
+                .to(meetbowlTopicExchange)
+                .with(EventTypes.DOCUMENT_INDEX_REQUESTED);
+    }
+
+    @Bean
+    Queue aiDocumentIndexDeadLetterQueue() {
+        return new Queue("dlq.ai.index.document", true);
+    }
+
+    @Bean
+    Binding aiDocumentIndexDeadLetterBinding(
+            Queue aiDocumentIndexDeadLetterQueue, TopicExchange meetbowlDlxExchange) {
+        return BindingBuilder.bind(aiDocumentIndexDeadLetterQueue)
+                .to(meetbowlDlxExchange)
+                .with("dlq.document.index.requested");
+    }
+
+    @Bean
+    Queue aiDocumentIndexRemovedQueue() {
+        // 파일 삭제 이벤트도 AI 서버 미기동 중 발행될 수 있으므로 제거 큐까지 같은 기준으로 보장한다.
+        return new Queue(
+                AI_DOCUMENT_INDEX_REMOVED_QUEUE,
+                true,
+                false,
+                false,
+                Map.of(
+                        "x-dead-letter-exchange",
+                        DLX_EXCHANGE,
+                        "x-dead-letter-routing-key",
+                        "dlq.document.index.removed"));
+    }
+
+    @Bean
+    Binding aiDocumentIndexRemovedBinding(
+            Queue aiDocumentIndexRemovedQueue, TopicExchange meetbowlTopicExchange) {
+        return BindingBuilder.bind(aiDocumentIndexRemovedQueue)
+                .to(meetbowlTopicExchange)
+                .with(EventTypes.DOCUMENT_INDEX_REMOVED);
+    }
+
+    @Bean
+    Queue aiDocumentIndexRemovedDeadLetterQueue() {
+        return new Queue("dlq.ai.index.document.removed", true);
+    }
+
+    @Bean
+    Binding aiDocumentIndexRemovedDeadLetterBinding(
+            Queue aiDocumentIndexRemovedDeadLetterQueue, TopicExchange meetbowlDlxExchange) {
+        return BindingBuilder.bind(aiDocumentIndexRemovedDeadLetterQueue)
+                .to(meetbowlDlxExchange)
+                .with("dlq.document.index.removed");
     }
 }
