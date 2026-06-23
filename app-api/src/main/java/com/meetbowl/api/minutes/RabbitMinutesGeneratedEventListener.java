@@ -32,9 +32,11 @@ public class RabbitMinutesGeneratedEventListener {
             throw new IllegalArgumentException("지원하지 않는 이벤트입니다: " + envelope.eventType());
         }
         MinutesGeneratedMessage payload = envelope.payload();
+        validatePayload(payload);
         // 메시지 DTO를 바로 저장 계층에 넘기지 않고 application 명령으로 변환해 계층 경계를 유지한다.
         syncGeneratedMinutesUseCase.execute(
                 new SyncGeneratedMinutesCommand(
+                        envelope.eventId(),
                         payload.meetingId(),
                         payload.organizationId(),
                         payload.reviewerUserId(),
@@ -42,6 +44,19 @@ public class RabbitMinutesGeneratedEventListener {
                         serializeEditorContent(payload),
                         payload.model(),
                         payload.promptVersion()));
+    }
+
+    private void validatePayload(MinutesGeneratedMessage payload) {
+        if (!"DRAFT".equals(payload.status())) {
+            throw new IllegalArgumentException("minutes.generated status는 DRAFT여야 합니다.");
+        }
+        if (payload.editorContent() == null
+                || !payload.editorContent().isObject()
+                || !"doc".equals(payload.editorContent().path("type").asText())
+                || !payload.editorContent().path("content").isArray()) {
+            throw new IllegalArgumentException(
+                    "minutes.generated editorContent는 Tiptap doc 형식이어야 합니다.");
+        }
     }
 
     private EventEnvelope<MinutesGeneratedMessage> readEnvelope(byte[] body) {

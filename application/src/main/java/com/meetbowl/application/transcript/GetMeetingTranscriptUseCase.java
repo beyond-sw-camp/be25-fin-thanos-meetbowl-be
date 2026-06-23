@@ -30,14 +30,17 @@ public class GetMeetingTranscriptUseCase {
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
     private final MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort;
+    private final FinalTranscriptTextAssembler transcriptTextAssembler;
 
     public GetMeetingTranscriptUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
-            MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort) {
+            MeetingTranscriptSegmentRepositoryPort meetingTranscriptSegmentRepositoryPort,
+            FinalTranscriptTextAssembler transcriptTextAssembler) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.meetingTranscriptSegmentRepositoryPort = meetingTranscriptSegmentRepositoryPort;
+        this.transcriptTextAssembler = transcriptTextAssembler;
     }
 
     /**
@@ -72,10 +75,10 @@ public class GetMeetingTranscriptUseCase {
          * 처럼 STREAMING이 여러 번 흔들릴 수 있지만,
          * 여기서는 그중 마지막에 확정된 FINALIZED 문장만 내려간다.
          */
+        var storedSegments =
+                meetingTranscriptSegmentRepositoryPort.findAllByMeetingIdOrderBySequence(meetingId);
         var segments =
-                meetingTranscriptSegmentRepositoryPort
-                        .findAllByMeetingIdOrderBySequence(meetingId)
-                        .stream()
+                storedSegments.stream()
                         .map(
                                 segment ->
                                         new TranscriptSegmentResult(
@@ -91,13 +94,7 @@ public class GetMeetingTranscriptUseCase {
          * 회의 원문 화면에서는 세그먼트 목록 자체도 필요하지만,
          * 회의록 초안 생성이나 복사용 전체 텍스트도 자주 쓰이므로 여기서 개행 기준으로 한 번 더 합친다.
          */
-        String fullText =
-                segments.stream()
-                        .map(TranscriptSegmentResult::sourceText)
-                        .filter(text -> text != null && !text.isBlank())
-                        .map(String::trim)
-                        .reduce((left, right) -> left + "\n" + right)
-                        .orElse("");
+        String fullText = transcriptTextAssembler.assemble(storedSegments);
 
         return new GetMeetingTranscriptResult(meetingId, fullText, segments);
     }

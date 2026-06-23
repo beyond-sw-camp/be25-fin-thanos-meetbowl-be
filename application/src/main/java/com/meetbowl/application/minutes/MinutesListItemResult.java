@@ -14,9 +14,20 @@ public record MinutesListItemResult(
         String status,
         String summary,
         Instant approvedAt,
-        boolean favorite) {
+        boolean favorite,
+        String meetingTitle,
+        Instant meetingStartedAt,
+        Instant meetingEndedAt,
+        int attendeeCount,
+        String reviewerName,
+        String reviewerDepartment) {
 
     public static MinutesListItemResult from(Minutes minutes, boolean favorite) {
+        return from(minutes, favorite, MinutesMeetingMetadata.empty(minutes.reviewerUserId()));
+    }
+
+    public static MinutesListItemResult from(
+            Minutes minutes, boolean favorite, MinutesMeetingMetadata metadata) {
         return new MinutesListItemResult(
                 minutes.id(),
                 minutes.meetingId(),
@@ -25,6 +36,12 @@ public record MinutesListItemResult(
                 minutes.status().name(),
                 minutes.summary(),
                 minutes.approvedAt(),
-                favorite);
+                favorite,
+                metadata.title(),
+                metadata.startedAt(),
+                metadata.endedAt(),
+                metadata.attendeeCount(),
+                metadata.reviewerName(),
+                metadata.reviewerDepartment());
     }
 }

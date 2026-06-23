@@ -1,6 +1,7 @@
 package com.meetbowl.application.minutes;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,12 +19,15 @@ public class GetMinutesListUseCase {
 
     private final MinutesRepositoryPort minutesRepositoryPort;
     private final MinutesFavoriteRepositoryPort favoriteRepositoryPort;
+    private final MinutesMeetingMetadataAssembler metadataAssembler;
 
     public GetMinutesListUseCase(
             MinutesRepositoryPort minutesRepositoryPort,
-            MinutesFavoriteRepositoryPort favoriteRepositoryPort) {
+            MinutesFavoriteRepositoryPort favoriteRepositoryPort,
+            MinutesMeetingMetadataAssembler metadataAssembler) {
         this.minutesRepositoryPort = minutesRepositoryPort;
         this.favoriteRepositoryPort = favoriteRepositoryPort;
+        this.metadataAssembler = metadataAssembler;
     }
 
     @Transactional(readOnly = true)
@@ -39,12 +43,20 @@ public class GetMinutesListUseCase {
                 favoriteRepositoryPort.findByUserId(actorUserId).stream()
                         .map(favorite -> favorite.minutesId())
                         .collect(Collectors.toSet());
+        Map<UUID, MinutesMeetingMetadata> metadataByMeetingId =
+                metadataAssembler.assemble(
+                        minutes.stream().map(Minutes::meetingId).toList(), actorOrganizationId);
 
         return minutes.stream()
                 .map(
                         item ->
                                 MinutesListItemResult.from(
-                                        item, favoriteMinutesIds.contains(item.id())))
+                                        item,
+                                        favoriteMinutesIds.contains(item.id()),
+                                        metadataByMeetingId.getOrDefault(
+                                                item.meetingId(),
+                                                MinutesMeetingMetadata.empty(
+                                                        item.reviewerUserId()))))
                 .toList();
     }
 

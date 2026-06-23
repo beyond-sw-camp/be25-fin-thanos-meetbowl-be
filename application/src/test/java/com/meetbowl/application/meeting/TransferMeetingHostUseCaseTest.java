@@ -200,6 +200,13 @@ class TransferMeetingHostUseCaseTest {
         }
 
         @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return attendees.stream()
+                    .filter(attendee -> meetingIds.contains(attendee.meetingId()))
+                    .toList();
+        }
+
+        @Override
         public List<MeetingAttendee> findByUserId(UUID userId) {
             return attendees.stream().filter(attendee -> attendee.userId().equals(userId)).toList();
         }

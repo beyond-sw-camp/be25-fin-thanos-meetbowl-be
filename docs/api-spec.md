@@ -391,18 +391,30 @@ STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료
 | POST | `/meetings/{meetingId}/minutes/generate` | AI 회의록 초안 생성 요청 | Host/Admin |
 | GET | `/meetings/{meetingId}/minutes` | 회의록 조회 | Participant/Admin |
 | PATCH | `/meetings/{meetingId}/minutes` | 회의록 요약/본문 검토 및 수정 | Reviewer |
-| POST | `/meetings/{meetingId}/minutes/approve` | 회의록 승인 및 AI 색인 요청 | Reviewer |
-| POST | `/meetings/{meetingId}/minutes/share/participants` | 참석자에게 회의록 내부 메일 공유 | System |
-| POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 공유 | Participant |
+| POST | `/meetings/{meetingId}/minutes/approve` | 회의록 승인, 참석자 자동 내부 메일 공유 및 AI 색인 요청 | Reviewer |
+| POST | `/meetings/{meetingId}/minutes/share` | 미참석자에게 회의록 추가 공유 | Participant |
 | GET | `/minutes` | 회의록 목록/검색 | User/Admin |
 | POST | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 등록 | User/Admin |
 | DELETE | `/minutes/{minutesId}/favorite` | 개인 워크스페이스 회의록 즐겨찾기 해제 | User/Admin |
 
 AI 회의록 초안 저장의 운영 기본 경로는 RabbitMQ `minutes.generated` 이벤트 소비다.
 
+AI 서버는 RabbitMQ `meeting.ended`를 받은 뒤 시스템 전용
+`GET /api/v1/internal/meetings/{meetingId}/minutes-generation-context`로 생성 Context를 조회한다.
+
+- `X-Internal-Token` SYSTEM 인증이 필요하다.
+- 회의 제목, 조직, Host, Reviewer, 참석자, 실제 시작·종료 시각을 반환한다.
+- MariaDB의 Final Transcript segment를 sequence 순으로 정렬해 `rawTranscript`로 결합한다.
+- Final Transcript가 없거나 Reviewer·조직 정보가 없으면 Context를 반환하지 않는다.
+- 원문은 AI 입력으로만 사용하며 `minutes.content`에는 AI가 생성한 Tiptap 초안만 저장한다.
+- `minutes.generated`는 `eventId` inbox로 멱등 처리하며 `DRAFT`만 재생성 결과로 교체할 수 있다.
+
 `GET /minutes`는 `keyword` query parameter로 `summary`, `content`를 검색할 수 있다.
 목록 응답에는 사용자별 즐겨찾기 여부를 나타내는 `favorite` 필드가 포함된다.
-목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`를 반환한다.
+목록 항목은 `minutesId`, `meetingId`, `reviewerUserId`, `status`, `summary`, `approvedAt`, `favorite`와
+화면 표시용 회의 메타데이터 `meetingTitle`, `meetingStartedAt`, `meetingEndedAt`, `attendeeCount`,
+`reviewerName`, `reviewerDepartment`를 반환한다. `GET /meetings/{meetingId}/minutes` 상세 응답도 같은
+회의 메타데이터와 `content` Tiptap JSON 문자열을 함께 반환한다.
 
 내부 API는 장애 대응, 수동 재처리, 테스트 용도로만 사용한다.
 
@@ -416,12 +428,18 @@ SHARED
 DELETION_SCHEDULED
 ```
 
-검토자 승인 전 자동 공유는 금지한다.
+검토자 승인 전 자동 공유와 수동 공유는 금지한다.
 
 `POST /meetings/{meetingId}/minutes/approve` 성공 시 `meetbowl-be`는 승인된 회의록 본문을 담은 RabbitMQ
 `document.index.requested` 이벤트를 발행한다. 회의·참석자 테이블이 구현되기 전에는 임시 제목 `회의록`을 사용하고,
 `accessScope.userIds`에는 지정 검토자만 포함해 권한 없는 AI 검색 노출을 방지한다.
 문서 타입 분리를 위해 회의록 이벤트에는 `metadata.meetingId`, `metadata.approvedAt`를 함께 담는다.
+승인이 완료되면 회의 참여자에게 `MINUTES_SHARE` 내부 메일을 자동 발송한다. 메일 발신자는 승인자이며,
+메일 도메인의 자기 자신 발송 금지 규칙 때문에 승인자는 자동 수신자에서 제외한다.
+
+`POST /meetings/{meetingId}/minutes/share`는 승인 이후 회의에 참여하지 않은 사용자에게 회의록을 별도로 보내는
+수동 공유 API다. 요청 본문은 `recipientUserIds`, `subject`, `body`, `idempotencyKey`를 포함한다.
+수신자에 회의 참여자가 포함되면 `COMMON_INVALID_REQUEST`로 거절한다. 회의 참여자는 승인 시 자동 공유 대상이기 때문이다.
 
 ---
 

@@ -39,14 +39,15 @@ class MeetingControllerTest {
                                 Instant.parse("2026-06-12T02:00:00Z")));
 
         MeetingController controller =
-                new MeetingController(null, null, null, null, null, null, joinMeetingUseCase);
+                new MeetingController(
+                        null, null, null, null, null, null, null, joinMeetingUseCase);
 
         ApiResponse<JoinMeetingResponse> response =
                 controller.joinMeeting(
                         meetingId,
                         new AuthenticatedUser(
                                 UUID.fromString("31f73d71-c04e-4410-a98c-fdc15e918091"),
-                                null,
+                                UUID.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6"),
                                 AuthenticatedUserRole.USER,
                                 "테스터"),
                         new JoinMeetingRequest("테스터", "frontend-id"));
