@@ -527,3 +527,10 @@
 - Verification:
   Passed `./gradlew :app-api:compileJava :application:compileJava :infrastructure:compileJava`
   `./gradlew spotlessApply :application:test --tests '*DriveUseCaseTest' :infrastructure:test --tests '*S3ObjectStorageAdapterTest'` was blocked before executing the target tests because existing unrelated test sources in `meeting`, `minutes`, `transcript`, and messaging packages do not compile against the current domain/port contracts.
+
+2026-06-23 회의록 검토자 부서 미배정 조회 오류 수정 및 user1 검증
+
+- 작업 목적: 더미 계정 `user1`을 회의록 검토자로 둔 실제 API 검증 중, 검토자 부서가 없는 경우 회의록 조회가 500으로 실패하는 문제를 수정한다.
+- 변경 내용: `MinutesMeetingMetadataAssembler`에서 검토자의 `departmentId`가 null이면 부서명 조회를 건너뛰도록 null 경계를 추가했다. `MinutesMeetingMetadataAssemblerTest`를 추가해 부서 미배정 검토자도 조회 메타데이터를 정상 조립하는지 검증했다.
+- 동작 변경: 검토자가 부서에 배정되지 않은 경우에도 회의록 목록/상세/수정/승인 응답은 성공하며 `reviewerDepartment`만 null로 내려간다.
+- 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 권한 상승 후 `:application:test --tests com.meetbowl.application.minutes.MinutesMeetingMetadataAssemblerTest` 통과. 로컬 BE를 18080 포트로 재기동해 user2 주최, user1 검토자 회의를 생성하고 RabbitMQ `minutes.generated`를 발행했다. user1 초안 조회(DRAFT), user1 수정(IN_REVIEW), user1 승인(SHARED), user2 자동 메일 수신(`MINUTES_SHARE`, `MEETING_MINUTES`, 수정 본문 포함)을 실제 API로 확인했다. 회의 참여자인 user2 대상 수동 공유는 `COMMON_INVALID_REQUEST`로 거절되는 것도 확인했다.

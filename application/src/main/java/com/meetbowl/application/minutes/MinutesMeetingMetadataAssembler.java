@@ -96,6 +96,10 @@ public class MinutesMeetingMetadataAssembler {
                         .findFirst()
                         .orElse(null);
         User reviewer = reviewerUserId == null ? null : usersById.get(reviewerUserId);
+        String reviewerDepartment =
+                reviewer == null || reviewer.departmentId() == null
+                        ? null
+                        : departmentNamesById.get(reviewer.departmentId());
         return new MinutesMeetingMetadata(
                 meeting == null ? null : meeting.title(),
                 meeting == null ? null : meeting.startedAt(),
@@ -103,7 +107,7 @@ public class MinutesMeetingMetadataAssembler {
                 attendees.size(),
                 reviewerUserId,
                 reviewer == null ? null : reviewer.name(),
-                reviewer == null ? null : departmentNamesById.get(reviewer.departmentId()));
+                reviewerDepartment);
     }
 
     private Map<UUID, String> departmentNames(Collection<User> users) {
