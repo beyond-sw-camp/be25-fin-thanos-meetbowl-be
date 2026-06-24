@@ -144,7 +144,16 @@ class JpaUserRepositoryAdapterTest {
         assertThat(
                         loginIds(
                                 adapter.search(
-                                        "ZZANG", null, null, null, null, UserStatus.ACTIVE, 1, 20)))
+                                        "ZZANG",
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        UserStatus.ACTIVE,
+                                        NOW,
+                                        NOW.plusSeconds(24 * 60 * 60),
+                                        1,
+                                        20)))
                 .contains("zzanggu");
         assertThat(
                         loginIds(
@@ -155,6 +164,8 @@ class JpaUserRepositoryAdapterTest {
                                         null,
                                         null,
                                         UserStatus.ACTIVE,
+                                        NOW,
+                                        NOW.plusSeconds(24 * 60 * 60),
                                         1,
                                         20)))
                 .contains("admin-user", "zzanggu");
@@ -167,6 +178,8 @@ class JpaUserRepositoryAdapterTest {
                                         null,
                                         null,
                                         UserStatus.ACTIVE,
+                                        NOW,
+                                        NOW.plusSeconds(24 * 60 * 60),
                                         1,
                                         20)))
                 .isEmpty();

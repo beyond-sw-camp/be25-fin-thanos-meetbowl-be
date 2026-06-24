@@ -160,6 +160,7 @@ public class AdminOrganizationMasterDataUseCase {
         loadAffiliate(command.affiliateId());
         // 같은 Affiliate 안에서는 동일한 부서명을 허용하지 않는다.
         ensureDepartmentNameUnique(command.affiliateId(), name, null);
+        ensureDepartmentSortOrderUnique(command.affiliateId(), command.sortOrder(), null);
         return toDepartmentResult(
                 departmentRepositoryPort.save(
                         new Department(
@@ -180,6 +181,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Department name is required.");
         loadAffiliate(command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
+        ensureDepartmentSortOrderUnique(command.affiliateId(), command.sortOrder(), department.id());
         Department saved =
                 departmentRepositoryPort.save(
                         new Department(
@@ -288,9 +290,11 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Team name is required.");
         String code = nextTeamCode();
         // 팀은 Department에 소속되므로 상위 Department 존재 여부를 먼저 확인한다.
-        loadDepartment(command.departmentId());
+        Department department = loadDepartment(command.departmentId());
         // 같은 Department 안에서는 동일한 팀명을 허용하지 않는다.
         ensureTeamNameUnique(command.departmentId(), name, null);
+        // 팀 순서는 상위 부서와 무관하게 같은 계열사 전체 범위에서 유일해야 한다.
+        ensureTeamSortOrderUnique(department.affiliateId(), command.sortOrder(), null);
         return toTeamResult(
                 teamRepositoryPort.save(
                         new Team(
@@ -308,8 +312,9 @@ public class AdminOrganizationMasterDataUseCase {
     public TeamResult updateTeam(UpdateTeamCommand command) {
         Team team = loadTeam(command.teamId());
         String name = requiredText(command.name(), "Team name is required.");
-        loadDepartment(command.departmentId());
+        Department department = loadDepartment(command.departmentId());
         ensureTeamNameUnique(command.departmentId(), name, team.id());
+        ensureTeamSortOrderUnique(department.affiliateId(), command.sortOrder(), team.id());
         Team saved =
                 teamRepositoryPort.save(
                         new Team(
@@ -403,6 +408,7 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Position name is required.");
         // 직급 코드는 P-prefix 자동 채번 정책을 따르고, 이름 중복만 별도로 막는다.
         ensurePositionNameUnique(name, null);
+        ensurePositionSortOrderUnique(command.sortOrder(), null);
         String code = nextPositionCode();
         // 직급은 독립 기준정보이므로 이름/코드를 전역으로 유니크하게 관리한다.
         return toPositionResult(
@@ -422,6 +428,7 @@ public class AdminOrganizationMasterDataUseCase {
         Position position = loadPosition(command.positionId());
         String name = requiredText(command.name(), "Position name is required.");
         ensurePositionNameUnique(name, position.id());
+        ensurePositionSortOrderUnique(command.sortOrder(), position.id());
         Position saved =
                 positionRepositoryPort.save(
                         new Position(
@@ -532,6 +539,19 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
+    private void ensureDepartmentSortOrderUnique(
+            UUID affiliateId, Integer sortOrder, UUID departmentId) {
+        boolean duplicated =
+                departmentId == null
+                        ? departmentRepositoryPort.existsByAffiliateIdAndSortOrder(
+                                affiliateId, sortOrder)
+                        : departmentRepositoryPort.existsByAffiliateIdAndSortOrderAndIdNot(
+                                affiliateId, sortOrder, departmentId);
+        if (duplicated) {
+            throw duplicatedSortOrderException();
+        }
+    }
+
     private void ensureTeamNameUnique(UUID departmentId, String name, UUID teamId) {
         boolean duplicated =
                 teamId == null
@@ -544,6 +564,17 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
+    private void ensureTeamSortOrderUnique(UUID affiliateId, Integer sortOrder, UUID teamId) {
+        boolean duplicated =
+                teamId == null
+                        ? teamRepositoryPort.existsByAffiliateIdAndSortOrder(affiliateId, sortOrder)
+                        : teamRepositoryPort.existsByAffiliateIdAndSortOrderAndIdNot(
+                                affiliateId, sortOrder, teamId);
+        if (duplicated) {
+            throw duplicatedSortOrderException();
+        }
+    }
+
     private void ensurePositionNameUnique(String name, UUID positionId) {
         boolean duplicatedName =
                 positionId == null
@@ -552,6 +583,22 @@ public class AdminOrganizationMasterDataUseCase {
         if (duplicatedName) {
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "Position name already exists.");
         }
+    }
+
+    private void ensurePositionSortOrderUnique(Integer sortOrder, UUID positionId) {
+        boolean duplicated =
+                positionId == null
+                        ? positionRepositoryPort.existsBySortOrder(sortOrder)
+                        : positionRepositoryPort.existsBySortOrderAndIdNot(sortOrder, positionId);
+        if (duplicated) {
+            throw duplicatedSortOrderException();
+        }
+    }
+
+    private BusinessException duplicatedSortOrderException() {
+        return new BusinessException(
+                ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED,
+                "이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.");
     }
 
     private String nextDepartmentCode() {
@@ -669,6 +716,8 @@ public class AdminOrganizationMasterDataUseCase {
                         adminName,
                         targetType,
                         targetId,
+                        null,
+                        null,
                         "ORGANIZATION_MASTER_DATA",
                         "DELETE",
                         AuditResult.SUCCESS,
@@ -695,6 +744,8 @@ public class AdminOrganizationMasterDataUseCase {
                         adminName,
                         targetType,
                         targetId,
+                        null,
+                        null,
                         "ORGANIZATION_MASTER_DATA",
                         "DELETE",
                         AuditResult.FAILURE,

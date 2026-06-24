@@ -2,6 +2,7 @@ package com.meetbowl.infrastructure.search.user;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -101,6 +102,8 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                 null,
                 null,
                 null,
+                null,
+                null,
                 null);
     }
 
@@ -111,6 +114,8 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
             UUID teamId,
             UUID positionId,
             String status,
+            Instant dayStart,
+            Instant nextDayStart,
             int page,
             int size) {
         return executeSearch(
@@ -124,7 +129,9 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                 departmentId,
                 teamId,
                 positionId,
-                status);
+                status,
+                dayStart,
+                nextDayStart);
     }
 
     @Override
@@ -265,10 +272,11 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
             UUID departmentId,
             UUID teamId,
             UUID positionId,
-            String status) {
+            String status,
+            Instant dayStart,
+            Instant nextDayStart) {
         ensureIndexReady();
 
-        // 기존 API의 page/size 계약을 그대로 유지하기 위해 ES 요청도 같은 범위 계산으로 만든다.
         ObjectNode requestBody = objectMapper.createObjectNode();
         requestBody.put("from", (page - 1) * size);
         requestBody.put("size", size);
@@ -284,7 +292,9 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                         departmentId,
                         teamId,
                         positionId,
-                        status));
+                        status,
+                        dayStart,
+                        nextDayStart));
         requestBody.set("sort", buildSort(keyword, includeRoleSearch));
 
         JsonNode response =
@@ -308,13 +318,14 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
             UUID departmentId,
             UUID teamId,
             UUID positionId,
-            String status) {
+            String status,
+            Instant dayStart,
+            Instant nextDayStart) {
         String trimmedKeyword = keyword == null ? null : keyword.trim();
         ObjectNode bool = objectMapper.createObjectNode();
         ArrayNode filters = bool.putArray("filter");
         ArrayNode should = bool.putArray("should");
 
-        // 이번 범위에서 검색 가능한 권한은 ADMIN / USER뿐이므로 다른 role 문서는 처음부터 제외한다.
         filters.add(
                 objectMapper
                         .createObjectNode()
@@ -328,15 +339,22 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                                                         .createArrayNode()
                                                         .add("admin")
                                                         .add("user"))));
+        filters.add(
+                objectMapper
+                        .createObjectNode()
+                        .set(
+                                "term",
+                                objectMapper
+                                        .createObjectNode()
+                                        .put("deleted", false)));
 
         addTermFilter(filters, "affiliateId", affiliateId);
         addTermFilter(filters, "departmentId", departmentId);
         addTermFilter(filters, "teamId", teamId);
         addTermFilter(filters, "positionId", positionId);
-        addTermFilter(filters, "status", status);
+        addEffectiveStatusFilter(filters, status, dayStart, nextDayStart);
 
         if (trimmedKeyword != null && !trimmedKeyword.isBlank()) {
-            // 자동완성 성격의 prefix 검색은 multi_match로, 중간 문자열 검색은 wildcard로 보완한다.
             should.add(buildMultiMatchQuery(trimmedKeyword, multiMatchFields));
             for (String wildcardField : wildcardFields) {
                 should.add(buildWildcardQuery(wildcardField, trimmedKeyword));
@@ -350,8 +368,51 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
         return objectMapper.createObjectNode().set("bool", bool);
     }
 
+    private void addEffectiveStatusFilter(
+            ArrayNode filters, String status, Instant dayStart, Instant nextDayStart) {
+        if (status == null) {
+            return;
+        }
+
+        if ("LOCKED".equals(status)) {
+            addTermFilter(filters, "status", status);
+            return;
+        }
+
+        if (dayStart == null || nextDayStart == null) {
+            throw new IllegalArgumentException("Directory status search requires day bounds.");
+        }
+
+        if ("ACTIVE".equals(status)) {
+            ObjectNode activeBool = objectMapper.createObjectNode();
+            ArrayNode activeFilters = activeBool.putArray("filter");
+            activeFilters.add(termNode("status", "ACTIVE"));
+            activeFilters.add(rangeOrMissingNode("activeFrom", "lt", nextDayStart.toString()));
+            activeFilters.add(rangeOrMissingNode("activeUntil", "gte", dayStart.toString()));
+            filters.add(objectMapper.createObjectNode().set("bool", activeBool));
+            return;
+        }
+
+        if ("INACTIVE".equals(status)) {
+            ObjectNode inactiveBool = objectMapper.createObjectNode();
+            ArrayNode should = inactiveBool.putArray("should");
+            should.add(termNode("status", "INACTIVE"));
+
+            ObjectNode expiredOrFutureBool = objectMapper.createObjectNode();
+            ArrayNode activeFilters = expiredOrFutureBool.putArray("filter");
+            activeFilters.add(termNode("status", "ACTIVE"));
+            ArrayNode dateShould = expiredOrFutureBool.putArray("should");
+            dateShould.add(rangeNode("activeFrom", "gte", nextDayStart.toString()));
+            dateShould.add(rangeNode("activeUntil", "lt", dayStart.toString()));
+            expiredOrFutureBool.put("minimum_should_match", 1);
+            should.add(objectMapper.createObjectNode().set("bool", expiredOrFutureBool));
+
+            inactiveBool.put("minimum_should_match", 1);
+            filters.add(objectMapper.createObjectNode().set("bool", inactiveBool));
+        }
+    }
+
     private ObjectNode buildMultiMatchQuery(String keyword, List<String> fields) {
-        // edge_ngram analyzer로 생성된 prefix 토큰을 활용해 추천 검색어처럼 앞부분 일치를 우선 잡는다.
         ObjectNode multiMatch = objectMapper.createObjectNode();
         multiMatch.put("query", keyword);
         multiMatch.put("type", "bool_prefix");
@@ -361,7 +422,6 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
     }
 
     private ObjectNode buildWildcardQuery(String field, String keyword) {
-        // 이메일, 로그인 ID처럼 중간 문자열 검색이 필요한 필드는 wildcard로 추가 보완한다.
         ObjectNode wildcardConfig = objectMapper.createObjectNode();
         wildcardConfig.put("value", "*" + keyword + "*");
         wildcardConfig.put("case_insensitive", true);
@@ -392,14 +452,49 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
         if (value == null) {
             return;
         }
-        filters.add(
+        filters.add(termNode(field, value.toString()));
+    }
+
+    private ObjectNode termNode(String field, String value) {
+        return objectMapper
+                .createObjectNode()
+                .set(
+                        "term",
+                        objectMapper.createObjectNode().put(field, value));
+    }
+
+    private ObjectNode rangeOrMissingNode(String field, String operator, String value) {
+        ObjectNode bool = objectMapper.createObjectNode();
+        ArrayNode should = bool.putArray("should");
+        should.add(rangeNode(field, operator, value));
+        should.add(
                 objectMapper
                         .createObjectNode()
                         .set(
-                                "term",
+                                "bool",
                                 objectMapper
                                         .createObjectNode()
-                                        .set(field, objectMapper.valueToTree(value.toString()))));
+                                        .putArray("must_not")
+                                        .add(
+                                                objectMapper
+                                                        .createObjectNode()
+                                                        .set(
+                                                                "exists",
+                                                                objectMapper
+                                                                        .createObjectNode()
+                                                                        .put("field", field)))));
+        bool.put("minimum_should_match", 1);
+        return objectMapper.createObjectNode().set("bool", bool);
+    }
+
+    private ObjectNode rangeNode(String field, String operator, String value) {
+        ObjectNode rangeConfig = objectMapper.createObjectNode();
+        rangeConfig.put(operator, value);
+        return objectMapper
+                .createObjectNode()
+                .set(
+                        "range",
+                        objectMapper.createObjectNode().set(field, rangeConfig));
     }
 
     private SearchIdsPage parseSearchIdsPage(JsonNode response) {
@@ -409,7 +504,6 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                         ? hitsNode.path("hits").size()
                         : hitsNode.path("total").path("value").asLong();
 
-        // 응답 DTO 조립은 기존 DB 매핑 흐름을 재사용하기 위해 ES에서는 userId 목록만 추린다.
         List<UUID> userIds = new ArrayList<>();
         for (JsonNode hit : hitsNode.path("hits")) {
             String userId = hit.path("_source").path("userId").asText(null);
@@ -421,7 +515,6 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
     }
 
     private ObjectNode toDocument(UserSearchSourceRow row) {
-        // 검색 전용 인덱스이므로 비밀번호/토큰 같은 민감 정보는 넣지 않고 표시용 필드만 저장한다.
         ObjectNode document = objectMapper.createObjectNode();
         document.put("userId", row.userId().toString());
         document.put("loginId", row.loginId());
@@ -430,6 +523,7 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
         document.put("role", row.role().name());
         document.put("roleLabel", toRoleLabel(row.role().name()));
         document.put("status", row.status().name());
+        document.put("deleted", row.deletedAt() != null);
         putNullable(document, "affiliateId", row.affiliateId());
         putNullable(document, "affiliateName", row.affiliateName());
         putNullable(document, "departmentId", row.departmentId());
@@ -438,15 +532,17 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
         putNullable(document, "teamName", row.teamName());
         putNullable(document, "positionId", row.positionId());
         putNullable(document, "positionName", row.positionName());
+        putNullable(document, "activeFrom", row.activeFrom());
+        putNullable(document, "activeUntil", row.activeUntil());
+        putNullable(document, "deletedAt", row.deletedAt());
         document.put("createdAt", row.createdAt().toString());
         return document;
     }
 
-    // 권한 영문 코드와 한글 별칭을 같이 색인해 ADMIN/관리자 모두 같은 검색 경험을 제공한다.
     private String toRoleLabel(String role) {
         return switch (role) {
-            case "ADMIN" -> "관리자";
-            case "USER" -> "일반 사용자";
+            case "ADMIN" -> "愿由ъ옄";
+            case "USER" -> "?쇰컲 ?ъ슜??";
             default -> role;
         };
     }
@@ -473,7 +569,6 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
                             "Elasticsearch user search index is missing: "
                                     + properties.userIndexName());
                 }
-                // 로컬/개발 환경에서는 수동 생성 단계를 줄이기 위해 인덱스를 자동으로 준비한다.
                 createIndex();
             }
             indexPrepared.set(true);
@@ -491,7 +586,6 @@ public class ElasticsearchUserSearchAdapter implements UserSearchIndexPort {
 
     private void createIndex() {
         try {
-            // analyzer와 매핑은 리소스 파일에 고정해 Java 코드 변경 없이도 추적 가능하게 유지한다.
             restClient
                     .put()
                     .uri("/{index}", properties.userIndexName())

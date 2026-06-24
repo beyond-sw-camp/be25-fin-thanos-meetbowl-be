@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.user;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -22,19 +23,22 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             select u
             from UserEntity u
             where u.role in :roles
+              and u.deletedAt is null
             order by lower(u.name) asc, lower(u.email) asc, lower(u.loginId) asc, u.id asc
             """)
     List<UserEntity> findAllForExcelExportByRoles(@Param("roles") Set<UserRole> roles);
 
-    Optional<UserEntity> findByLoginId(String loginId);
+    Optional<UserEntity> findByLoginIdAndDeletedAtIsNull(String loginId);
 
-    Optional<UserEntity> findByEmail(String email);
+    Optional<UserEntity> findByEmailAndDeletedAtIsNull(String email);
 
-    boolean existsByLoginId(String loginId);
+    boolean existsByLoginIdAndDeletedAtIsNull(String loginId);
 
-    boolean existsByEmail(String email);
+    boolean existsByEmailAndDeletedAtIsNull(String email);
 
-    // 사용자 이름/이메일/로그인 ID뿐 아니라 조직명과 권한 표시명까지 부분검색한다.
+    Optional<UserEntity> findByIdAndDeletedAtIsNull(UUID userId);
+
+    // ?ъ슜???대쫫/?대찓??濡쒓렇??ID肉??꾨땲??議곗쭅紐낃낵 沅뚰븳 ?쒖떆紐낃퉴吏 遺遺꾧??됲븳??
     @Query(
             """
             select u
@@ -44,6 +48,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             left join TeamEntity team on team.id = u.teamId
             left join PositionEntity position on position.id = u.positionId
             where u.role in ('USER', 'ADMIN')
+              and u.deletedAt is null
               and (:keyword is null or :keyword = ''
                 or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                 or lower(u.name) like lower(concat('%', :keyword, '%'))
@@ -69,7 +74,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             """)
     Page<UserEntity> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
-    // 일반 사용자 검색은 관리자 전용 정보를 노출하지 않으면서 조직명까지 같이 검색한다.
+    // ?쇰컲 ?ъ슜??寃?됱? 愿由ъ옄 ?꾩슜 ?뺣낫瑜??몄텧?섏? ?딆쑝硫댁꽌 議곗쭅紐낃퉴吏 媛숈씠 寃?됲븳??
     @Query(
             """
             select u
@@ -79,6 +84,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             left join TeamEntity team on team.id = u.teamId
             left join PositionEntity position on position.id = u.positionId
             where u.role in ('USER', 'ADMIN')
+              and u.deletedAt is null
               and (:keyword is null or :keyword = ''
                     or lower(u.loginId) like lower(concat('%', :keyword, '%'))
                     or lower(u.name) like lower(concat('%', :keyword, '%'))
@@ -91,7 +97,24 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
               and (:departmentId is null or u.departmentId = :departmentId)
               and (:teamId is null or u.teamId = :teamId)
               and (:positionId is null or u.positionId = :positionId)
-              and (:status is null or u.status = :status)
+              and (
+                    :statusName is null
+                    or (:statusName = 'ACTIVE'
+                        and u.status = com.meetbowl.domain.user.UserStatus.ACTIVE
+                        and (u.activeFrom is null or u.activeFrom < :nextDayStart)
+                        and (u.activeUntil is null or u.activeUntil >= :dayStart))
+                    or (:statusName = 'INACTIVE'
+                        and (
+                            u.status = com.meetbowl.domain.user.UserStatus.INACTIVE
+                            or (u.status = com.meetbowl.domain.user.UserStatus.ACTIVE
+                                and (
+                                    (u.activeFrom is not null and u.activeFrom >= :nextDayStart)
+                                    or (u.activeUntil is not null and u.activeUntil < :dayStart)
+                                ))
+                        ))
+                    or (:statusName = 'LOCKED'
+                        and u.status = com.meetbowl.domain.user.UserStatus.LOCKED)
+                  )
             """)
     Page<UserEntity> searchUsers(
             @Param("keyword") String keyword,
@@ -99,16 +122,18 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             @Param("departmentId") UUID departmentId,
             @Param("teamId") UUID teamId,
             @Param("positionId") UUID positionId,
-            @Param("status") UserStatus status,
+            @Param("statusName") String statusName,
+            @Param("dayStart") Instant dayStart,
+            @Param("nextDayStart") Instant nextDayStart,
             Pageable pageable);
 
-    List<UserEntity> findByAffiliateId(UUID affiliateId);
+    List<UserEntity> findByAffiliateIdAndDeletedAtIsNull(UUID affiliateId);
 
-    List<UserEntity> findByDepartmentId(UUID departmentId);
+    List<UserEntity> findByDepartmentIdAndDeletedAtIsNull(UUID departmentId);
 
-    List<UserEntity> findByTeamId(UUID teamId);
+    List<UserEntity> findByTeamIdAndDeletedAtIsNull(UUID teamId);
 
-    List<UserEntity> findByPositionId(UUID positionId);
+    List<UserEntity> findByPositionIdAndDeletedAtIsNull(UUID positionId);
 
     @Query(
             """
@@ -127,6 +152,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
@@ -155,6 +183,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
@@ -182,6 +213,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
@@ -211,6 +245,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
@@ -240,6 +277,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId
@@ -268,6 +308,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                 team.name,
                 u.positionId,
                 position.name,
+                u.activeFrom,
+                u.activeUntil,
+                u.deletedAt,
                 u.createdAt)
             from UserEntity u
             left join AffiliateEntity affiliate on affiliate.id = u.affiliateId

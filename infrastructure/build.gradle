@@ -5,7 +5,10 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
-    implementation 'org.flywaydb:flyway-core'
+    // Spring Boot 4에서는 Flyway 자동 설정이 별도 모듈로 분리되므로 starter를 통해 FlywayAutoConfiguration까지 런타임에 포함한다.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    // Flyway 11부터 MariaDB/MySQL 지원은 별도 모듈이므로 DB 플러그인은 명시적으로 포함한다.
+    implementation 'org.flywaydb:flyway-mysql'
     implementation 'org.springframework:spring-context'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'

@@ -681,6 +681,8 @@ public class AdminOrganizationMembersExcelApplyService {
                         command.adminName(),
                         "ORGANIZATION_MEMBER_EXCEL",
                         null,
+                        null,
+                        null,
                         "ORGANIZATION_MEMBER_EXCEL",
                         "IMPORT",
                         AuditResult.SUCCESS,

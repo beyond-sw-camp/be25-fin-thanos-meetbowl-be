@@ -10,7 +10,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,7 +53,10 @@ import com.meetbowl.domain.user.UserStatus;
 class AdminUserManagementUseCaseTest {
 
     private static final Instant ACTIVE_FROM = Instant.parse("2026-06-11T00:00:00Z");
-    private static final Instant ACTIVE_UNTIL = Instant.parse("2026-06-12T00:00:00Z");
+    // 고정 clock(2026-06-23) 기준으로 기본 fixture 사용자는 현재 시점에 유효한 ACTIVE 상태여야 한다.
+    private static final Instant ACTIVE_UNTIL = Instant.parse("2026-06-30T00:00:00Z");
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-06-23T00:00:00Z"), ZoneOffset.UTC);
 
     @Mock private UserRepositoryPort userRepositoryPort;
     @Mock private AffiliateRepositoryPort affiliateRepositoryPort;
@@ -101,6 +106,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals(UserRole.ADMIN.name(), result.user().role());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("admin01", logCaptor.getValue().targetLoginId());
+        assertEquals("Admin One", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_CREATED", result.userId());
     }
 
@@ -392,6 +401,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals("updated@example.com", savedUser.getValue().email());
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
         assertEquals("ADMIN", result.role());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("current", logCaptor.getValue().targetLoginId());
+        assertEquals("Updated User", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_UPDATED", current.id());
     }
 
@@ -450,11 +463,11 @@ class AdminUserManagementUseCaseTest {
     }
 
     @Test
-    void deleteSuccessMarksUserInactiveAndWritesAuditLog() {
+    void deleteSuccessSoftDeletesUserAndWritesAuditLog() {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("delete-user", "delete@example.com", UserRole.USER);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.UserSummary result =
@@ -468,7 +481,9 @@ class AdminUserManagementUseCaseTest {
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
-        assertEquals(UserStatus.INACTIVE, savedUser.getValue().status());
+        assertEquals(UserStatus.ACTIVE, savedUser.getValue().status());
+        assertEquals(Instant.parse("2026-06-23T00:00:00Z"), savedUser.getValue().deletedAt());
+        assertEquals("deleted+" + current.id() + "@deleted.local", savedUser.getValue().email());
         assertEquals("INACTIVE", result.status());
         verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
         verifyUserReindexPublished("USER_DELETED", current.id());
@@ -477,6 +492,8 @@ class AdminUserManagementUseCaseTest {
         verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
         assertEquals("DELETE", logCaptor.getValue().actionName());
         assertEquals(current.id(), logCaptor.getValue().targetId());
+        assertEquals("delete-user", logCaptor.getValue().targetLoginId());
+        assertEquals("User Name", logCaptor.getValue().targetName());
     }
 
     @Test
@@ -484,7 +501,7 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("self-admin", "self@example.com", UserRole.ADMIN);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
@@ -521,10 +538,11 @@ class AdminUserManagementUseCaseTest {
                         false,
                         ACTIVE_FROM,
                         ACTIVE_UNTIL,
+                        FIXED_CLOCK.instant(),
                         ACTIVE_FROM,
                         ACTIVE_FROM);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
@@ -696,6 +714,10 @@ class AdminUserManagementUseCaseTest {
         assertEquals(expectedStatus, savedUser.getValue().status());
         assertEquals(expectedStatus.name(), result.status());
         verify(tokenStateRepositoryPort).revokeUserSessions(eq(current.id()), any());
+        ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
+        verify(adminAuditLogRepositoryPort).save(logCaptor.capture());
+        assertEquals("status", logCaptor.getValue().targetLoginId());
+        assertEquals("User Name", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_STATUS_UPDATED", current.id());
     }
 
@@ -710,7 +732,8 @@ class AdminUserManagementUseCaseTest {
                 adminAuditLogRepositoryPort,
                 tokenStateRepositoryPort,
                 objectMapper,
-                userSearchReindexRequestDispatcher);
+                userSearchReindexRequestDispatcher,
+                FIXED_CLOCK);
     }
 
     private void verifyUserReindexPublished(String reason, UUID userId) {

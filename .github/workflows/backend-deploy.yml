@@ -15,7 +15,7 @@ concurrency:
 
 env:
   JAVA_VERSION: "25"
-  AWS_REGION: ap-northeast-2
+  AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: meetbowl-be
   IMAGE_TAG: ${{ github.sha }}
 
@@ -128,7 +128,6 @@ jobs:
   build-and-push:
     name: Build And Push Image
     runs-on: ubuntu-latest
-    needs: test
     if: github.event_name != 'pull_request'
     permissions:
       id-token: write
@@ -180,6 +179,23 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Load CORS origin patterns from SSM
+        run: |
+          set -euo pipefail
+
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME="/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
+
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS="$(
+            aws ssm get-parameter \
+              --name "$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME" \
+              --with-decryption \
+              --query 'Parameter.Value' \
+              --output text
+          )"
+
+          echo "::add-mask::$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
+          echo "MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS=$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS" >> "$GITHUB_ENV"
+
       - name: Deploy on EC2
         env:
           SSH_HOST: ${{ secrets.MEETBOWL_EC2_HOST }}
@@ -189,6 +205,7 @@ jobs:
           AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS: ${{ env.MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS }}
         run: |
           set -euo pipefail
 
@@ -198,7 +215,7 @@ jobs:
           ssh-keyscan "$SSH_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' bash -s" <<'EOF'
+            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS='$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS' bash -s" <<'EOF'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"

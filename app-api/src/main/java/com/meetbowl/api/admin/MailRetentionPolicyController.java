@@ -14,6 +14,7 @@ import com.meetbowl.api.admin.dto.MailRetentionPolicyRequest;
 import com.meetbowl.api.admin.dto.MailRetentionPolicyResponse;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.ClientIpResolver;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
@@ -56,7 +57,7 @@ public class MailRetentionPolicyController extends BaseController {
                                         request.autoDeleteEnabled(),
                                         admin.userId(),
                                         admin.displayName(),
-                                        httpServletRequest.getRemoteAddr(),
+                                        ClientIpResolver.resolve(httpServletRequest),
                                         httpServletRequest.getHeader("User-Agent")))));
     }
 

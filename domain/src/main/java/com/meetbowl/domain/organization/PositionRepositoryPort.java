@@ -28,4 +28,8 @@ public interface PositionRepositoryPort {
     boolean existsByNameAndIdNot(String name, UUID positionId);
 
     boolean existsByCodeAndIdNot(String code, UUID positionId);
+
+    boolean existsBySortOrder(Integer sortOrder);
+
+    boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId);
 }

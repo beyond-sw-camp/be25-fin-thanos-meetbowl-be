@@ -1,5 +1,6 @@
 package com.meetbowl.domain.user;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -12,6 +13,10 @@ public interface UserRepositoryPort {
     User save(User user);
 
     Optional<User> findById(UUID userId);
+
+    default Optional<User> findByIdIncludingDeleted(UUID userId) {
+        return findById(userId);
+    }
 
     List<User> findAll();
 
@@ -35,6 +40,8 @@ public interface UserRepositoryPort {
             UUID teamId,
             UUID positionId,
             UserStatus status,
+            Instant dayStart,
+            Instant nextDayStart,
             int page,
             int size);
 

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 
+import com.meetbowl.domain.meeting.AttendeeConflict;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
@@ -87,6 +88,22 @@ public class JpaMeetingRepositoryAdapter implements MeetingRepositoryPort {
                 .stream()
                 .map(MeetingEntity::toDomain)
                 .toList();
+    }
+
+    @Override
+    public List<AttendeeConflict> findActiveByAttendees(
+            Collection<UUID> userIds, Instant from, Instant to, UUID excludeMeetingId) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        // 활성 상태 집합은 회의실 겹침과 동일하게 adapter가 주입한다(SCHEDULED/IN_PROGRESS). 쿼리가 AttendeeConflict로
+        // 직접 투영하므로 별도 매핑이 필요 없다.
+        return springDataMeetingRepository.findActiveByAttendees(
+                userIds,
+                List.of(MeetingStatus.SCHEDULED, MeetingStatus.IN_PROGRESS),
+                from,
+                to,
+                excludeMeetingId);
     }
 
     @Override

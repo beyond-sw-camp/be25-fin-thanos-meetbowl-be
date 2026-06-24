@@ -1,5 +1,7 @@
 package com.meetbowl.application.user;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,6 +32,7 @@ public class MyProfileUseCase {
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
     private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
+    private final Clock clock;
 
     public MyProfileUseCase(
             UserRepositoryPort userRepositoryPort,
@@ -37,13 +40,15 @@ public class MyProfileUseCase {
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort,
-            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher,
+            Clock clock) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
         this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -102,7 +107,7 @@ public class MyProfileUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 resolveAffiliateName(user.affiliateId()),
                 resolveDepartmentName(user.departmentId()),
                 resolveTeamName(user.teamId()),

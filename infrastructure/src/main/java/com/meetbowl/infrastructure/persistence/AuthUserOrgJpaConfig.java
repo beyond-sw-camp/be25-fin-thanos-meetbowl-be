@@ -6,6 +6,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import com.meetbowl.infrastructure.persistence.admin.AdminAuditLogEntity;
 import com.meetbowl.infrastructure.persistence.admin.SpringDataAdminAuditLogRepository;
+import com.meetbowl.infrastructure.persistence.auth.PasswordResetRequestEntity;
+import com.meetbowl.infrastructure.persistence.auth.SpringDataPasswordResetRequestRepository;
 import com.meetbowl.infrastructure.persistence.mail.MailRetentionPolicyEntity;
 import com.meetbowl.infrastructure.persistence.mail.SpringDataMailRetentionPolicyRepository;
 import com.meetbowl.infrastructure.persistence.organization.AffiliateEntity;
@@ -30,7 +32,8 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
             PositionEntity.class,
             TeamEntity.class,
             AdminAuditLogEntity.class,
-            MailRetentionPolicyEntity.class
+            MailRetentionPolicyEntity.class,
+            PasswordResetRequestEntity.class
         })
 @EnableJpaRepositories(
         basePackageClasses = {
@@ -41,7 +44,8 @@ import com.meetbowl.infrastructure.persistence.user.UserSettingEntity;
             SpringDataPositionRepository.class,
             SpringDataTeamRepository.class,
             SpringDataAdminAuditLogRepository.class,
-            SpringDataMailRetentionPolicyRepository.class
+            SpringDataMailRetentionPolicyRepository.class,
+            SpringDataPasswordResetRequestRepository.class
         })
 @Configuration
 public class AuthUserOrgJpaConfig {}

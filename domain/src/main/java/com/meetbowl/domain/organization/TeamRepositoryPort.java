@@ -26,4 +26,9 @@ public interface TeamRepositoryPort {
     boolean existsByDepartmentIdAndName(UUID departmentId, String name);
 
     boolean existsByDepartmentIdAndNameAndIdNot(UUID departmentId, String name, UUID teamId);
+
+    boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder);
+
+    boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            UUID affiliateId, Integer sortOrder, UUID teamId);
 }
