@@ -27,6 +27,8 @@ class JoinMeetingUseCaseTest {
 
     private static final Clock FIXED_CLOCK =
             Clock.fixed(Instant.parse("2026-06-12T00:40:00Z"), ZoneOffset.UTC);
+    private static final UUID DEFAULT_ORGANIZATION_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000000");
 
     @Test
     void providerRoomId가있으면기존Room으로토큰을발급한다() {
@@ -99,7 +101,8 @@ class JoinMeetingUseCaseTest {
         assertEquals("meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39", result.roomName());
         assertEquals("frontend-participant", result.participantIdentity());
         assertEquals("frontend-participant", tokenIssuer.lastCommand.participantIdentity());
-        assertTrue(!realtimeSessionStarter.called);
+        assertTrue(realtimeSessionStarter.called);
+        assertEquals(DEFAULT_ORGANIZATION_ID, realtimeSessionStarter.lastOrganizationId);
     }
 
     @Test
@@ -152,7 +155,8 @@ class JoinMeetingUseCaseTest {
 
         assertTrue(result.participantName().startsWith("게스트 "));
         assertEquals(result.participantName(), tokenIssuer.lastCommand.participantName());
-        assertTrue(!realtimeSessionStarter.called);
+        assertTrue(realtimeSessionStarter.called);
+        assertEquals(DEFAULT_ORGANIZATION_ID, realtimeSessionStarter.lastOrganizationId);
     }
 
     @Test
@@ -283,7 +287,8 @@ class JoinMeetingUseCaseTest {
                 useCase.execute(new JoinMeetingCommand(meetingId, null, "게스트", "guest-open-test"));
 
         assertEquals("provider-room-open", result.roomName());
-        assertTrue(!realtimeSessionStarter.called);
+        assertTrue(realtimeSessionStarter.called);
+        assertEquals(DEFAULT_ORGANIZATION_ID, realtimeSessionStarter.lastOrganizationId);
     }
 
     @Test

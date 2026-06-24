@@ -10,6 +10,7 @@ public record MyProfileResult(
         String email,
         String role,
         String status,
+        UUID affiliateId,
         String affiliate,
         String department,
         String team,

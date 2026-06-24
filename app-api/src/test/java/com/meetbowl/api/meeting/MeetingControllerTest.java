@@ -29,6 +29,7 @@ class MeetingControllerTest {
                 .willReturn(
                         new JoinMeetingResult(
                                 meetingId,
+                                "테스트 회의",
                                 "meeting-3ef5f58f-50b2-4f0b-97bf-42e79d91ac39",
                                 "http://localhost:7880",
                                 UUID.fromString("31f73d71-c04e-4410-a98c-fdc15e918091"),

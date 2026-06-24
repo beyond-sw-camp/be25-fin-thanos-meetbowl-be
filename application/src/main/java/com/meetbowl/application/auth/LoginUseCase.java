@@ -90,6 +90,7 @@ public class LoginUseCase {
                         user.email(),
                         user.role().name(),
                         user.status().name(),
+                        user.affiliateId(),
                         getAffiliateName(user.affiliateId()),
                         getDepartmentName(user.departmentId()),
                         getTeamName(user.teamId()),

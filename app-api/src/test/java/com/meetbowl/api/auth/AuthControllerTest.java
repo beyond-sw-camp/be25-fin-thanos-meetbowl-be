@@ -73,6 +73,7 @@ class AuthControllerTest {
                                 "user1@test.com",
                                 null,
                                 null,
+                                null,
                                 "Affiliate",
                                 "Department",
                                 "Team",

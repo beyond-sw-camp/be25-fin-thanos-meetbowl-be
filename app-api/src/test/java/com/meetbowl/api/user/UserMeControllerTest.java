@@ -275,6 +275,7 @@ class UserMeControllerTest {
                 "user01@example.com",
                 role,
                 "ACTIVE",
+                ORGANIZATION_ID,
                 "Affiliate",
                 "Department",
                 "Team",
