@@ -745,3 +745,17 @@
 - Verification:
   Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest' --no-daemon`
   Passed full `./gradlew :infrastructure:test --no-daemon`
+
+2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
+
+- Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.
+- Changed files:
+  `infrastructure/build.gradle`,
+  and this log.
+- Behavior:
+  Replaced the direct `flyway-core` dependency with `spring-boot-starter-flyway` so the application runtime includes Spring Boot's `spring-boot-flyway` module and `FlywayAutoConfiguration`.
+  Kept `flyway-mysql` explicitly because Flyway 11 requires the separate MariaDB/MySQL database plugin.
+- Verification:
+  Confirmed `spring-boot-flyway:4.0.6` on `:app-api:runtimeClasspath` with Gradle dependency insight.
+  Confirmed `flyway-mysql:11.14.1` remains on `:app-api:runtimeClasspath`.
+  Passed `./gradlew :app-api:compileJava --no-daemon`.
