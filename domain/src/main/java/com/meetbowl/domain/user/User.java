@@ -1,6 +1,8 @@
 package com.meetbowl.domain.user;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import com.meetbowl.common.exception.BusinessException;
@@ -22,6 +24,7 @@ public class User {
     private final boolean initialPasswordChangeRequired;
     private final Instant activeFrom;
     private final Instant activeUntil;
+    private final Instant deletedAt;
     private final Instant createdAt;
     private final Instant updatedAt;
 
@@ -40,6 +43,7 @@ public class User {
             boolean initialPasswordChangeRequired,
             Instant activeFrom,
             Instant activeUntil,
+            Instant deletedAt,
             Instant createdAt,
             Instant updatedAt) {
         this.id = id;
@@ -56,6 +60,7 @@ public class User {
         this.initialPasswordChangeRequired = initialPasswordChangeRequired;
         this.activeFrom = activeFrom;
         this.activeUntil = activeUntil;
+        this.deletedAt = deletedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -77,16 +82,54 @@ public class User {
             Instant activeUntil,
             Instant createdAt,
             Instant updatedAt) {
-        validateRequired(loginId, "로그인 ID는 필수입니다.");
-        validateRequired(passwordHash, "비밀번호 해시는 필수입니다.");
-        validateRequired(name, "사용자 이름은 필수입니다.");
-        validateRequired(email, "이메일은 필수입니다.");
+        return of(
+                id,
+                loginId,
+                passwordHash,
+                name,
+                email,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                initialPasswordChangeRequired,
+                activeFrom,
+                activeUntil,
+                null,
+                createdAt,
+                updatedAt);
+    }
+
+    public static User of(
+            UUID id,
+            String loginId,
+            String passwordHash,
+            String name,
+            String email,
+            UserRole role,
+            UserStatus status,
+            UUID affiliateId,
+            UUID departmentId,
+            UUID positionId,
+            UUID teamId,
+            boolean initialPasswordChangeRequired,
+            Instant activeFrom,
+            Instant activeUntil,
+            Instant deletedAt,
+            Instant createdAt,
+            Instant updatedAt) {
+        validateRequired(loginId, "濡쒓렇??ID???꾩닔?낅땲??");
+        validateRequired(passwordHash, "鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
+        validateRequired(name, "?ъ슜???대쫫? ?꾩닔?낅땲??");
+        validateRequired(email, "?대찓?쇱? ?꾩닔?낅땲??");
         if (role == null || status == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 권한과 상태는 필수입니다.");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "?ъ슜??沅뚰븳怨??곹깭???꾩닔?낅땲??");
         }
         if (activeFrom != null && activeUntil != null && activeFrom.isAfter(activeUntil)) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "활성 시작일은 종료일보다 이후일 수 없습니다.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "?쒖꽦 ?쒖옉?쇱? 醫낅즺?쇰낫???댄썑?????놁뒿?덈떎.");
         }
         return new User(
                 id,
@@ -103,6 +146,7 @@ public class User {
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
@@ -115,10 +159,12 @@ public class User {
 
     public boolean isWithinActivePeriod(Instant now) {
         if (now == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "기준 시간은 필수입니다.");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "湲곗? ?쒓컙? ?꾩닔?낅땲??");
         }
-        boolean afterStart = activeFrom == null || !now.isBefore(activeFrom);
-        boolean beforeEnd = activeUntil == null || !now.isAfter(activeUntil);
+        Instant dayStart = toUtcDate(now).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant nextDayStart = dayStart.plusSeconds(24 * 60 * 60);
+        boolean afterStart = activeFrom == null || activeFrom.isBefore(nextDayStart);
+        boolean beforeEnd = activeUntil == null || !activeUntil.isBefore(dayStart);
         return afterStart && beforeEnd;
     }
 
@@ -134,18 +180,35 @@ public class User {
         return !isWithinActivePeriod(now);
     }
 
+    public UserStatus effectiveStatusAt(Instant now) {
+        if (isDeleted()) {
+            return UserStatus.INACTIVE;
+        }
+        if (status == UserStatus.LOCKED) {
+            return UserStatus.LOCKED;
+        }
+        if (status != UserStatus.ACTIVE) {
+            return status;
+        }
+        return isWithinActivePeriod(now) ? UserStatus.ACTIVE : UserStatus.INACTIVE;
+    }
+
     public boolean canLoginAt(Instant now) {
-        return status == UserStatus.ACTIVE && isWithinActivePeriod(now);
+        return !isDeleted() && effectiveStatusAt(now) == UserStatus.ACTIVE;
     }
 
     public boolean isSystemAccount() {
         return role == UserRole.SYSTEM;
     }
 
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     public User completeInitialPasswordChange(String newPasswordHash) {
-        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
+        validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
         if (!initialPasswordChangeRequired) {
-            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "초기 비밀번호 변경이 필요한 상태가 아닙니다.");
+            throw new BusinessException(ErrorCode.COMMON_CONFLICT, "珥덇린 鍮꾨?踰덊샇 蹂寃쎌씠 ?꾩슂???곹깭媛 ?꾨떃?덈떎.");
         }
 
         return new User(
@@ -163,12 +226,13 @@ public class User {
                 false,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
 
     public User resetPasswordByAdmin(String newPasswordHash) {
-        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
+        validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
 
         return new User(
                 id,
@@ -185,12 +249,13 @@ public class User {
                 true,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
 
     public User changePassword(String newPasswordHash) {
-        validateRequired(newPasswordHash, "새 비밀번호 해시는 필수입니다.");
+        validateRequired(newPasswordHash, "??鍮꾨?踰덊샇 ?댁떆???꾩닔?낅땲??");
 
         return new User(
                 id,
@@ -207,6 +272,7 @@ public class User {
                 false,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
@@ -221,14 +287,14 @@ public class User {
             UserRole role,
             Instant activeFrom,
             Instant activeUntil) {
-        validateRequired(name, "사용자 이름은 필수입니다.");
-        validateRequired(email, "이메일은 필수입니다.");
+        validateRequired(name, "?ъ슜???대쫫? ?꾩닔?낅땲??");
+        validateRequired(email, "?대찓?쇱? ?꾩닔?낅땲??");
         if (role == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 권한은 필수입니다.");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "?ъ슜??沅뚰븳? ?꾩닔?낅땲??");
         }
         if (activeFrom != null && activeUntil != null && activeFrom.isAfter(activeUntil)) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST, "활성 시작일은 종료일보다 이후일 수 없습니다.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "?쒖꽦 ?쒖옉?쇱? 醫낅즺?쇰낫???댄썑?????놁뒿?덈떎.");
         }
 
         return new User(
@@ -246,6 +312,7 @@ public class User {
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
@@ -269,13 +336,14 @@ public class User {
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
     }
 
     public User changeStatus(UserStatus newStatus) {
         if (newStatus == null) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "사용자 상태는 필수입니다.");
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "?ъ슜???곹깭???꾩닔?낅땲??");
         }
 
         return new User(
@@ -293,8 +361,40 @@ public class User {
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 createdAt,
                 updatedAt);
+    }
+
+    public User delete(Instant deletedAt, String deletedLoginId, String deletedEmail) {
+        if (deletedAt == null) {
+            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "??젣 ?쒓컙? ?꾩닔?낅땲??");
+        }
+        validateRequired(deletedLoginId, "??젣???濡쒓렇??ID??蹂댁젙媛믪씠 ?꾩닔?낅땲??");
+        validateRequired(deletedEmail, "??젣???대찓???댁젙媛믪씠 ?꾩닔?낅땲??");
+
+        return new User(
+                id,
+                deletedLoginId,
+                passwordHash,
+                name,
+                deletedEmail,
+                role,
+                status,
+                affiliateId,
+                departmentId,
+                positionId,
+                teamId,
+                initialPasswordChangeRequired,
+                activeFrom,
+                activeUntil,
+                deletedAt,
+                createdAt,
+                updatedAt);
+    }
+
+    private LocalDate toUtcDate(Instant instant) {
+        return instant.atZone(ZoneOffset.UTC).toLocalDate();
     }
 
     public UUID id() {
@@ -359,5 +459,9 @@ public class User {
 
     public Instant updatedAt() {
         return updatedAt;
+    }
+
+    public Instant deletedAt() {
+        return deletedAt;
     }
 }

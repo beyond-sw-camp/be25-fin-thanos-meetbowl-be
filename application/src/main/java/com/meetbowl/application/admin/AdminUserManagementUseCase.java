@@ -1,5 +1,6 @@
 package com.meetbowl.application.admin;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -52,6 +53,7 @@ public class AdminUserManagementUseCase {
     private final TokenStateRepositoryPort tokenStateRepositoryPort;
     private final ObjectMapper objectMapper;
     private final UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher;
+    private final Clock clock;
 
     /**
      * AdminUserManagementUseCase 생성자
@@ -77,7 +79,8 @@ public class AdminUserManagementUseCase {
             AdminAuditLogRepositoryPort adminAuditLogRepositoryPort,
             TokenStateRepositoryPort tokenStateRepositoryPort,
             ObjectMapper objectMapper,
-            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher) {
+            UserSearchReindexRequestDispatcher userSearchReindexRequestDispatcher,
+            Clock clock) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
@@ -88,6 +91,7 @@ public class AdminUserManagementUseCase {
         this.tokenStateRepositoryPort = tokenStateRepositoryPort;
         this.objectMapper = objectMapper;
         this.userSearchReindexRequestDispatcher = userSearchReindexRequestDispatcher;
+        this.clock = clock;
     }
 
     /**
@@ -110,7 +114,7 @@ public class AdminUserManagementUseCase {
         ensureLoginIdIsUnique(command.loginId());
         ensureEmailIsUnique(command.email(), null);
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         User savedUser =
                 userRepositoryPort.save(
                         User.of(
@@ -140,7 +144,8 @@ public class AdminUserManagementUseCase {
                 "CREATE",
                 null,
                 snapshot(summary),
-                savedUser.id());
+                savedUser.id(),
+                new AuditTarget(savedUser.loginId(), savedUser.name()));
         // 회원 저장 이후 바로 색인을 갱신해 관리자/사용자 검색 결과가 지연되지 않게 맞춘다.
         publishUserReindex(savedUser.id(), command.adminId(), "USER_CREATED");
         return new CreateResult(savedUser.id(), PasswordPolicy.INITIAL_PASSWORD, summary);
@@ -230,7 +235,8 @@ public class AdminUserManagementUseCase {
                 "UPDATE",
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
-                saved.id());
+                saved.id(),
+                new AuditTarget(saved.loginId(), saved.name()));
         // 관리자 수정은 이름, 이메일, 권한, 조직 표시값을 바꿀 수 있어 검색 문서도 즉시 맞춘다.
         publishUserReindex(saved.id(), command.adminId(), "USER_UPDATED");
         return summary;
@@ -260,7 +266,8 @@ public class AdminUserManagementUseCase {
                 "STATUS_CHANGE",
                 snapshot(resolveSummary(current)),
                 snapshot(summary),
-                saved.id());
+                saved.id(),
+                new AuditTarget(saved.loginId(), saved.name()));
         // 상태값은 관리자/일반 사용자 검색 필터에 바로 쓰이므로 저장 직후 재색인한다.
         publishUserReindex(saved.id(), command.adminId(), "USER_STATUS_UPDATED");
         return summary;
@@ -271,7 +278,7 @@ public class AdminUserManagementUseCase {
     public UserSummary delete(DeleteCommand command) {
         User current =
                 userRepositoryPort
-                        .findById(command.userId())
+                        .findByIdIncludingDeleted(command.userId())
                         .orElseThrow(
                                 () -> {
                                     saveDeleteFailureAudit(
@@ -280,10 +287,18 @@ public class AdminUserManagementUseCase {
                                 });
         ensureManagedUser(current);
         ensureNotSelfDelete(command, current);
-        ensureUserNotAlreadyInactive(command, current);
+        ensureUserNotAlreadyDeleted(command, current);
 
-        User saved = userRepositoryPort.save(current.changeStatus(UserStatus.INACTIVE));
-        tokenStateRepositoryPort.revokeUserSessions(saved.id(), Instant.now());
+        // tombstone 치환 전에 원본 로그인 ID/이름을 고정해 삭제 감사 로그에 남긴다.
+        AuditTarget auditTarget = new AuditTarget(current.loginId(), current.name());
+        Instant deletedAt = Instant.now(clock);
+        User saved =
+                userRepositoryPort.save(
+                        current.delete(
+                                deletedAt,
+                                createDeletedLoginId(current.id()),
+                                createDeletedEmail(current.id())));
+        tokenStateRepositoryPort.revokeUserSessions(saved.id(), deletedAt);
 
         UserSummary before = resolveSummary(current);
         UserSummary after = resolveSummary(saved);
@@ -295,7 +310,8 @@ public class AdminUserManagementUseCase {
                 "DELETE",
                 snapshot(before),
                 snapshot(after),
-                saved.id());
+                saved.id(),
+                auditTarget);
         // 삭제 API도 검색 문서에는 상태 변경으로 반영해야 목록/검색 결과가 비활성화 상태와 일치한다.
         publishUserReindex(saved.id(), command.adminId(), "USER_DELETED");
         return after;
@@ -449,8 +465,8 @@ public class AdminUserManagementUseCase {
         }
     }
 
-    private void ensureUserNotAlreadyInactive(DeleteCommand command, User user) {
-        if (user.isInactive()) {
+    private void ensureUserNotAlreadyDeleted(DeleteCommand command, User user) {
+        if (user.isDeleted()) {
             saveDeleteFailureAudit(
                     command, user.id(), snapshot(resolveSummary(user)), "이미 비활성화된 회원입니다.");
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "이미 비활성화된 회원입니다.");
@@ -561,7 +577,7 @@ public class AdminUserManagementUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 user.affiliateId(),
                 resolveAffiliateName(user.affiliateId()),
                 user.departmentId(),
@@ -591,7 +607,7 @@ public class AdminUserManagementUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 user.affiliateId(),
                 lookups.affiliateNames().get(user.affiliateId()),
                 user.departmentId(),
@@ -783,7 +799,8 @@ public class AdminUserManagementUseCase {
             String actionName,
             String beforeValue,
             String afterValue,
-            UUID targetId) {
+            UUID targetId,
+            AuditTarget auditTarget) {
         adminAuditLogRepositoryPort.save(
                 new AdminAuditLog(
                         UUID.randomUUID(),
@@ -791,6 +808,8 @@ public class AdminUserManagementUseCase {
                         adminName,
                         "USER",
                         targetId,
+                        auditTarget == null ? null : auditTarget.loginId(),
+                        auditTarget == null ? null : auditTarget.name(),
                         "USER_MANAGEMENT",
                         actionName,
                         AuditResult.SUCCESS,
@@ -798,7 +817,7 @@ public class AdminUserManagementUseCase {
                         afterValue,
                         ipAddress,
                         userAgent,
-                        Instant.now()));
+                        Instant.now(clock)));
     }
 
     private void saveDeleteFailureAudit(
@@ -810,6 +829,8 @@ public class AdminUserManagementUseCase {
                         command.adminName(),
                         "USER",
                         targetId,
+                        null,
+                        null,
                         "USER_MANAGEMENT",
                         "DELETE",
                         AuditResult.FAILURE,
@@ -817,7 +838,7 @@ public class AdminUserManagementUseCase {
                         failureSnapshot(message),
                         command.ipAddress(),
                         command.userAgent(),
-                        Instant.now()));
+                        Instant.now(clock)));
     }
 
     private void publishUserReindex(UUID userId, UUID requestedByUserId, String reason) {
@@ -828,6 +849,14 @@ public class AdminUserManagementUseCase {
     }
 
     /** 회원 생성 명령 */
+    private String createDeletedLoginId(UUID userId) {
+        return "deleted-" + userId.toString().replace("-", "");
+    }
+
+    private String createDeletedEmail(UUID userId) {
+        return "deleted+" + userId + "@deleted.local";
+    }
+
     public record CreateCommand(
             String loginId,
             String name,
@@ -928,6 +957,8 @@ public class AdminUserManagementUseCase {
             UUID positionId,
             Instant activeFrom,
             Instant activeUntil) {}
+
+    private record AuditTarget(String loginId, String name) {}
 
     private record FailureSnapshot(String message) {}
 }

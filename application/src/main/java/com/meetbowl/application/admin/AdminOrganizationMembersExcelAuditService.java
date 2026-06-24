@@ -45,6 +45,8 @@ public class AdminOrganizationMembersExcelAuditService {
                         adminName,
                         "ORGANIZATION_MEMBER_EXCEL",
                         null,
+                        null,
+                        null,
                         "ORGANIZATION_MEMBER_EXCEL",
                         "IMPORT",
                         AuditResult.FAILURE,

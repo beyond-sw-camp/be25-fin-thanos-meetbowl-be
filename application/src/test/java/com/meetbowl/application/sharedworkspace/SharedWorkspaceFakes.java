@@ -293,6 +293,8 @@ final class SharedWorkspaceFakes {
                 UUID teamId,
                 UUID positionId,
                 UserStatus status,
+                Instant dayStart,
+                Instant nextDayStart,
                 int page,
                 int size) {
             return new Paged<>(List.copyOf(store.values()), store.size());

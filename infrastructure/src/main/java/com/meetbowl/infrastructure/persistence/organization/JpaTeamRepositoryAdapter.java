@@ -66,4 +66,15 @@ public class JpaTeamRepositoryAdapter implements TeamRepositoryPort {
             UUID departmentId, String name, UUID teamId) {
         return repository.existsByDepartmentIdAndNameIgnoreCaseAndIdNot(departmentId, name, teamId);
     }
+
+    @Override
+    public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+        return repository.existsByAffiliateIdAndSortOrder(affiliateId, sortOrder);
+    }
+
+    @Override
+    public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            UUID affiliateId, Integer sortOrder, UUID teamId) {
+        return repository.existsByAffiliateIdAndSortOrderAndIdNot(affiliateId, sortOrder, teamId);
+    }
 }

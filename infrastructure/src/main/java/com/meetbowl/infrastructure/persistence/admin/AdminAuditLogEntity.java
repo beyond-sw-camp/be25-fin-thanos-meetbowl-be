@@ -33,6 +33,12 @@ public class AdminAuditLogEntity extends BaseEntity {
     @Column(columnDefinition = "BINARY(16)")
     private UUID targetId;
 
+    @Column(length = 100)
+    private String targetLoginId;
+
+    @Column(length = 100)
+    private String targetName;
+
     /** 작업 영역(예: AUTH, USER_MANAGEMENT 등). */
     @Column(nullable = false, length = 100)
     private String actionArea;
@@ -73,6 +79,8 @@ public class AdminAuditLogEntity extends BaseEntity {
         actorName = log.actorName();
         targetType = log.targetType();
         targetId = log.targetId();
+        targetLoginId = log.targetLoginId();
+        targetName = log.targetName();
         actionArea = log.actionArea();
         actionName = log.actionName();
         result = log.result();
@@ -96,6 +104,8 @@ public class AdminAuditLogEntity extends BaseEntity {
                 actorName,
                 targetType,
                 targetId,
+                targetLoginId,
+                targetName,
                 actionArea,
                 actionName,
                 result,

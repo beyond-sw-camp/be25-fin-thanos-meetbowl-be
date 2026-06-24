@@ -5,6 +5,8 @@ public final class ApiHeaders {
 
     public static final String AUTHORIZATION = "Authorization";
     public static final String INTERNAL_TOKEN = "X-Internal-Token";
+    public static final String X_FORWARDED_FOR = "X-Forwarded-For";
+    public static final String X_REAL_IP = "X-Real-IP";
 
     private ApiHeaders() {}
 }

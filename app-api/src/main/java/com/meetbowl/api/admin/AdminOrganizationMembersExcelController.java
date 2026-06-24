@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.meetbowl.api.admin.dto.AdminOrganizationMembersExcelImportResponse;
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.ClientIpResolver;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.GlobalPermissionChecker;
@@ -77,7 +78,7 @@ public class AdminOrganizationMembersExcelController extends BaseController {
                                         file.getOriginalFilename(),
                                         admin.userId(),
                                         admin.displayName(),
-                                        request.getRemoteAddr(),
+                                        ClientIpResolver.resolve(request),
                                         request.getHeader("User-Agent")))));
     }
 

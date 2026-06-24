@@ -13,7 +13,7 @@ import com.meetbowl.common.exception.BusinessException;
 class AdminAuditLogTest {
 
     @Test
-    void create_success() {
+    void createSuccess() {
         AdminAuditLog log =
                 new AdminAuditLog(
                         UUID.randomUUID(),
@@ -21,6 +21,8 @@ class AdminAuditLogTest {
                         "관리자",
                         "USER",
                         UUID.randomUUID(),
+                        "user01",
+                        "홍길동",
                         "AUTH",
                         "ROLE_CHANGE",
                         AuditResult.SUCCESS,
@@ -31,10 +33,12 @@ class AdminAuditLogTest {
                         Instant.parse("2026-06-08T08:00:00Z"));
 
         assertEquals(AuditResult.SUCCESS, log.result());
+        assertEquals("user01", log.targetLoginId());
+        assertEquals("홍길동", log.targetName());
     }
 
     @Test
-    void create_fail_when_actor_name_missing() {
+    void createFailsWhenActorNameMissing() {
         assertThrows(
                 BusinessException.class,
                 () ->
@@ -44,6 +48,8 @@ class AdminAuditLogTest {
                                 " ",
                                 "USER",
                                 UUID.randomUUID(),
+                                null,
+                                null,
                                 "AUTH",
                                 "ROLE_CHANGE",
                                 AuditResult.SUCCESS,

@@ -12,6 +12,8 @@ public record AdminAuditLog(
         String actorName,
         String targetType,
         UUID targetId,
+        String targetLoginId,
+        String targetName,
         String actionArea,
         String actionName,
         AuditResult result,
