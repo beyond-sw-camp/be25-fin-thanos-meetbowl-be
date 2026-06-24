@@ -64,8 +64,8 @@ public class SyncGeneratedMinutesUseCase {
      * AI 초안 준비 완료를 지정 검토자에게 알린다(MINUTES_REVIEW_REQUEST).
      *
      * <p>이 알림 행의 createdAt이 검토 미완료 재알림의 기준 시각(검토 요청 시각) 원장으로도 쓰인다({@link
-     * com.meetbowl.application.notification.SendMinutesReviewRemindersUseCase}). 발송은 현재 트랜잭션에 함께 저장되고
-     * 커밋 후 SSE로 전달된다(초안 저장이 롤백되면 알림도 함께 롤백).
+     * com.meetbowl.application.notification.SendMinutesReviewRemindersUseCase}). 발송은 현재 트랜잭션에 함께
+     * 저장되고 커밋 후 SSE로 전달된다(초안 저장이 롤백되면 알림도 함께 롤백).
      */
     private void notifyReviewRequested(Minutes minutes) {
         dispatchNotificationUseCase.execute(

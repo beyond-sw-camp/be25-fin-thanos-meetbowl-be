@@ -68,7 +68,8 @@ class MinutesMeetingMetadataAssemblerTest {
         UserRepositoryPort userRepositoryPort = mock(UserRepositoryPort.class);
         DepartmentRepositoryPort departmentRepositoryPort = mock(DepartmentRepositoryPort.class);
         when(meetingRepositoryPort.findByIds(List.of(meetingId))).thenReturn(List.of(savedMeeting));
-        when(attendeeRepositoryPort.findByMeetingIds(List.of(meetingId))).thenReturn(List.of(reviewer));
+        when(attendeeRepositoryPort.findByMeetingIds(List.of(meetingId)))
+                .thenReturn(List.of(reviewer));
         when(userRepositoryPort.findAllByAffiliateId(organizationId))
                 .thenReturn(List.of(host, reviewerUser));
 
@@ -79,7 +80,8 @@ class MinutesMeetingMetadataAssemblerTest {
                         userRepositoryPort,
                         departmentRepositoryPort);
 
-        Map<UUID, MinutesMeetingMetadata> result = assembler.assemble(List.of(meetingId), organizationId);
+        Map<UUID, MinutesMeetingMetadata> result =
+                assembler.assemble(List.of(meetingId), organizationId);
 
         MinutesMeetingMetadata metadata = result.get(meetingId);
         assertEquals("회의록 테스트", metadata.title());

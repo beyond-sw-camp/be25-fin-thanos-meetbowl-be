@@ -108,4 +108,80 @@ class SendMailUseCaseTest {
                 List.of(MailboxType.SENT, MailboxType.INBOX),
                 captor.getValue().stream().map(MailboxEntry::mailboxType).toList());
     }
+
+    @Test
+    void sendToSelfCreatesBothSentAndInboxEntriesForSender() {
+        MailRepositoryPort mailRepository = mock(MailRepositoryPort.class);
+        MailboxEntryRepositoryPort mailboxRepository = mock(MailboxEntryRepositoryPort.class);
+        UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
+        com.meetbowl.domain.storage.ObjectStoragePort objectStorage =
+                mock(com.meetbowl.domain.storage.ObjectStoragePort.class);
+        Instant now = Instant.parse("2099-01-01T00:00:00Z");
+        UUID organizationId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID mailId = UUID.randomUUID();
+        UUID idempotencyKey = UUID.randomUUID();
+        User sender = mock(User.class);
+
+        when(sender.affiliateId()).thenReturn(organizationId);
+        when(sender.canLoginAt(now)).thenReturn(true);
+        when(sender.isSystemAccount()).thenReturn(false);
+        when(userRepository.findById(senderId)).thenReturn(Optional.of(sender));
+        when(mailRepository.findByIdempotencyKey(idempotencyKey)).thenReturn(Optional.empty());
+        when(mailRepository.save(any(Mail.class)))
+                .thenAnswer(
+                        invocation -> {
+                            Mail mail = invocation.getArgument(0);
+                            return Mail.of(
+                                    mailId,
+                                    mail.organizationId(),
+                                    mail.senderUserId(),
+                                    mail.recipientUserIds(),
+                                    mail.subject(),
+                                    mail.body(),
+                                    mail.mailType(),
+                                    mail.bodyType(),
+                                    mail.relatedResourceType(),
+                                    mail.relatedResourceId(),
+                                    mail.idempotencyKey(),
+                                    mail.deliveryStatus(),
+                                    mail.requestedAt(),
+                                    mail.sentAt(),
+                                    mail.failedAt(),
+                                    mail.failureCode(),
+                                    mail.retryCount(),
+                                    mail.attachments());
+                        });
+        when(mailboxRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SendMailUseCase useCase =
+                new SendMailUseCase(
+                        mailRepository,
+                        mailboxRepository,
+                        userRepository,
+                        objectStorage,
+                        Clock.fixed(now, ZoneOffset.UTC));
+
+        useCase.execute(
+                new SendMailCommand(
+                        organizationId,
+                        senderId,
+                        List.of(senderId),
+                        "내게 보내는 메일",
+                        "본문",
+                        "TEXT",
+                        null,
+                        null,
+                        idempotencyKey));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<MailboxEntry>> captor = ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(mailboxRepository).saveAll(captor.capture());
+        assertEquals(
+                List.of(MailboxType.SENT, MailboxType.INBOX),
+                captor.getValue().stream().map(MailboxEntry::mailboxType).toList());
+        assertEquals(
+                List.of(senderId, senderId),
+                captor.getValue().stream().map(MailboxEntry::ownerUserId).toList());
+    }
 }

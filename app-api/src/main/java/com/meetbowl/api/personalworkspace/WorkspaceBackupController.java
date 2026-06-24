@@ -16,9 +16,12 @@ import com.meetbowl.api.common.BaseController;
 import com.meetbowl.api.common.auth.AuthenticatedUser;
 import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
+import com.meetbowl.api.personalworkspace.dto.BackupDetailResponse;
 import com.meetbowl.api.personalworkspace.dto.BackupResponse;
 import com.meetbowl.application.personalworkspace.backup.AddBackupBookmarkUseCase;
+import com.meetbowl.application.personalworkspace.backup.BackupDetailResult;
 import com.meetbowl.application.personalworkspace.backup.BackupResult;
+import com.meetbowl.application.personalworkspace.backup.GetBackupDetailUseCase;
 import com.meetbowl.application.personalworkspace.backup.GetBackupsUseCase;
 import com.meetbowl.application.personalworkspace.backup.RemoveBackupBookmarkUseCase;
 import com.meetbowl.application.personalworkspace.backup.SearchBackupsUseCase;
@@ -35,19 +38,29 @@ import com.meetbowl.common.response.ApiResponse;
 public class WorkspaceBackupController extends BaseController {
 
     private final GetBackupsUseCase getBackupsUseCase;
+    private final GetBackupDetailUseCase getBackupDetailUseCase;
     private final SearchBackupsUseCase searchBackupsUseCase;
     private final AddBackupBookmarkUseCase addBackupBookmarkUseCase;
     private final RemoveBackupBookmarkUseCase removeBackupBookmarkUseCase;
 
     public WorkspaceBackupController(
             GetBackupsUseCase getBackupsUseCase,
+            GetBackupDetailUseCase getBackupDetailUseCase,
             SearchBackupsUseCase searchBackupsUseCase,
             AddBackupBookmarkUseCase addBackupBookmarkUseCase,
             RemoveBackupBookmarkUseCase removeBackupBookmarkUseCase) {
         this.getBackupsUseCase = getBackupsUseCase;
+        this.getBackupDetailUseCase = getBackupDetailUseCase;
         this.searchBackupsUseCase = searchBackupsUseCase;
         this.addBackupBookmarkUseCase = addBackupBookmarkUseCase;
         this.removeBackupBookmarkUseCase = removeBackupBookmarkUseCase;
+    }
+
+    @GetMapping("/{backupId}")
+    public ApiResponse<BackupDetailResponse> getBackupDetail(
+            @CurrentUser AuthenticatedUser user, @PathVariable UUID backupId) {
+        BackupDetailResult result = getBackupDetailUseCase.execute(user.userId(), backupId);
+        return ok(BackupDetailResponse.from(result));
     }
 
     @GetMapping

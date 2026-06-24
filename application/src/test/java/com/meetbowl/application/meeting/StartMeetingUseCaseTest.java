@@ -99,7 +99,8 @@ class StartMeetingUseCaseTest {
 
         StartMeetingUseCase useCase = new StartMeetingUseCase(meetingRepository, FIXED_CLOCK);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> useCase.execute(meetingId));
+        BusinessException exception =
+                assertThrows(BusinessException.class, () -> useCase.execute(meetingId));
 
         assertEquals(ErrorCode.MEETING_ALREADY_ENDED, exception.errorCode());
     }

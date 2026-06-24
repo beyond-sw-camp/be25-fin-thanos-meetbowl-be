@@ -43,7 +43,12 @@ class MeetingCalendarSyncAdapterTest {
 
         adapter.syncFromMeeting(
                 new MeetingCalendarSyncCommand(
-                        meetingId, List.of(attendee1, attendee2), "주간 회의", null, startedAt, endedAt));
+                        meetingId,
+                        List.of(attendee1, attendee2),
+                        "주간 회의",
+                        null,
+                        startedAt,
+                        endedAt));
 
         ArgumentCaptor<PersonalWorkspaceCalendarEvent> captor =
                 ArgumentCaptor.forClass(PersonalWorkspaceCalendarEvent.class);

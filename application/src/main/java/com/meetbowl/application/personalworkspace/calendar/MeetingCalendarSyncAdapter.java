@@ -68,6 +68,7 @@ public class MeetingCalendarSyncAdapter implements MeetingCalendarSyncPort {
     @Override
     @Transactional
     public void removeMeetingEvents(UUID meetingId) {
-        calendarEventRepositoryPort.deleteBySourceIdAndSource(meetingId, CalendarEventSource.MEETING);
+        calendarEventRepositoryPort.deleteBySourceIdAndSource(
+                meetingId, CalendarEventSource.MEETING);
     }
 }

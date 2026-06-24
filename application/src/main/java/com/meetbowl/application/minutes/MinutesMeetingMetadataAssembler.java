@@ -62,7 +62,9 @@ public class MinutesMeetingMetadataAssembler {
         Map<UUID, User> usersById =
                 userRepositoryPort.findAllByAffiliateId(organizationId).stream()
                         .filter(user -> userIds.contains(user.id()))
-                        .collect(Collectors.toMap(User::id, Function.identity(), (left, right) -> left));
+                        .collect(
+                                Collectors.toMap(
+                                        User::id, Function.identity(), (left, right) -> left));
         Map<UUID, String> departmentNamesById = departmentNames(usersById.values());
 
         return meetingIds.stream()

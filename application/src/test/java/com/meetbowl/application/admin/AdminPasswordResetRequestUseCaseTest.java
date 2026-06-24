@@ -49,7 +49,9 @@ class AdminPasswordResetRequestUseCaseTest {
     @Test
     void listFiltersByStatus() {
         PasswordResetRequest pending = request(PasswordResetRequestStatus.PENDING);
-        given(passwordResetRequestRepositoryPort.findAllByStatus(PasswordResetRequestStatus.PENDING))
+        given(
+                        passwordResetRequestRepositoryPort.findAllByStatus(
+                                PasswordResetRequestStatus.PENDING))
                 .willReturn(List.of(pending));
 
         List<PasswordResetRequestResult> results = useCase().list("PENDING");
@@ -62,7 +64,8 @@ class AdminPasswordResetRequestUseCaseTest {
     void approveResetsPasswordAndMarksRequestApproved() {
         PasswordResetRequest request = request(PasswordResetRequestStatus.PENDING);
         User user = user(request.userId(), UserRole.USER);
-        given(passwordResetRequestRepositoryPort.findById(request.id())).willReturn(Optional.of(request));
+        given(passwordResetRequestRepositoryPort.findById(request.id()))
+                .willReturn(Optional.of(request));
         given(userRepositoryPort.findById(request.userId())).willReturn(Optional.of(user));
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
         given(passwordResetRequestRepositoryPort.save(any()))
@@ -93,7 +96,8 @@ class AdminPasswordResetRequestUseCaseTest {
     @Test
     void rejectFailsWhenAlreadyProcessed() {
         PasswordResetRequest request = request(PasswordResetRequestStatus.REJECTED);
-        given(passwordResetRequestRepositoryPort.findById(request.id())).willReturn(Optional.of(request));
+        given(passwordResetRequestRepositoryPort.findById(request.id()))
+                .willReturn(Optional.of(request));
         executeTransactionCallback();
 
         BusinessException exception =
@@ -102,7 +106,8 @@ class AdminPasswordResetRequestUseCaseTest {
                         () ->
                                 useCase()
                                         .reject(
-                                                new AdminPasswordResetRequestUseCase.DecisionCommand(
+                                                new AdminPasswordResetRequestUseCase
+                                                        .DecisionCommand(
                                                         request.id(),
                                                         UUID.randomUUID(),
                                                         "admin",
@@ -128,7 +133,8 @@ class AdminPasswordResetRequestUseCaseTest {
         given(transactionOperations.execute(any()))
                 .willAnswer(
                         invocation ->
-                                ((org.springframework.transaction.support.TransactionCallback<Object>)
+                                ((org.springframework.transaction.support.TransactionCallback<
+                                                        Object>)
                                                 invocation.getArgument(0))
                                         .doInTransaction(null));
     }

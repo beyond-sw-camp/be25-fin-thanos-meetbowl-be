@@ -181,7 +181,8 @@ public class AdminOrganizationMasterDataUseCase {
         String name = requiredText(command.name(), "Department name is required.");
         loadAffiliate(command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
-        ensureDepartmentSortOrderUnique(command.affiliateId(), command.sortOrder(), department.id());
+        ensureDepartmentSortOrderUnique(
+                command.affiliateId(), command.sortOrder(), department.id());
         Department saved =
                 departmentRepositoryPort.save(
                         new Department(
@@ -597,8 +598,7 @@ public class AdminOrganizationMasterDataUseCase {
 
     private BusinessException duplicatedSortOrderException() {
         return new BusinessException(
-                ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED,
-                "이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.");
+                ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, "이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.");
     }
 
     private String nextDepartmentCode() {

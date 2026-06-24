@@ -40,8 +40,7 @@ class GetMinutesGenerationContextUseCaseTest {
     void rejectsContextWithoutFinalTranscript() {
         UUID meetingId = UUID.randomUUID();
         GetMinutesGenerationContextUseCase useCase =
-                new GetMinutesGenerationContextUseCase(
-                        id -> Optional.of(context(meetingId, " ")));
+                new GetMinutesGenerationContextUseCase(id -> Optional.of(context(meetingId, " ")));
 
         BusinessException exception =
                 assertThrows(BusinessException.class, () -> useCase.execute(meetingId));
