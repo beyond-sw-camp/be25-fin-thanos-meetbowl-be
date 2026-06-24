@@ -219,6 +219,27 @@
 
 2026-06-18 User partial search API improvement
 
+2026-06-23 Actions test failure triage and test expectation fix
+
+- 작업 목적: actions 파이프라인에서 보고된 `UserDirectoryUseCaseTest > searchByOrganizationFiltersSuccess()` 실패 원인을 확인하고, 현재 구현과 어긋난 테스트 기대값을 정리한다.
+- 변경 파일: `application/src/test/java/com/meetbowl/application/user/UserDirectoryUseCaseTest.java`, `task/agent-work-log.md`
+- 원인 분석:
+  `UserDirectoryUseCase.search()`는 `status`가 없으면 `ACTIVE`를 기본값으로 사용하고, `status`가 전달되면 해당 상태로 정확히 필터링한다.
+  문제 테스트는 `affiliate/department/team/position + status="ACTIVE"` 조건으로 검색하면서도 같은 조직의 `INACTIVE` 사용자까지 포함된 `2건`을 기대하고 있었다.
+  fixture 상 같은 조직 사용자는 `ACTIVE 1명`, `INACTIVE 1명`이므로 실제 결과는 `1건`이 맞다.
+- 동작 변경:
+  프로덕션 코드는 변경하지 않았다.
+  테스트 기대값을 `2 -> 1`로 수정하고, 왜 비활성 사용자가 제외되는지 한글 주석을 추가했다.
+- 제외 범위:
+  `AdminDashboardSummaryUseCaseTest`의 CI 이력상 Mockito `PotentialStubbingProblem`은 현재 워킹트리에서는 재현되지 않아 코드 수정 대상에서 제외했다.
+- 검증 방법과 결과:
+  실행: `./gradlew :application:test --tests 'com.meetbowl.application.user.UserDirectoryUseCaseTest'`
+  결과: 통과
+  추가 확인: `./gradlew :application:test --tests 'com.meetbowl.application.admin.AdminDashboardSummaryUseCaseTest'`
+  결과: 통과
+- 남은 작업:
+  CI가 실제로 어떤 SHA를 실행했는지 필요하면 workflow run의 checkout commit과 로컬 HEAD를 대조해 admin 테스트의 과거 실패 원인을 추가 확인해야 한다.
+
 - Purpose: expand backend user search so admin/user directory APIs support trimmed, case-insensitive partial matches across user identity fields and organization names, while keeping existing API paths and DTOs unchanged.
 - Changed files:
   `application/admin/AdminUserManagementUseCase`, `infrastructure/persistence/user/SpringDataUserRepository`, `app-api/admin/AdminUserControllerTest`, `app-api/user/UserDirectoryControllerTest`, `application/admin/AdminUserManagementUseCaseTest`, `application/user/UserDirectoryUseCaseTest`, new `infrastructure/persistence/user/JpaUserRepositoryAdapterTest`, and this log.
@@ -437,6 +458,44 @@
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
 - 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+2026-06-22 BE local environment duplicate secret cleanup
+
+- Purpose: fix local login returning `COMMON_INTERNAL_ERROR` after the BE environment file was extended for LiveKit/STT configuration.
+- Changed files: `.env`, `.env.example`, and this log.
+- Behavior: removed the later empty duplicate declarations that overwrote `MEETBOWL_JWT_SECRET` and `MEETBOWL_INTERNAL_TOKEN`. The optional `MEETBOWL_STT_INTERNAL_TOKEN` is now commented out by default so Spring falls back to the shared internal token instead of receiving an explicit empty value.
+- Excluded scope: did not change authentication logic, token format, CORS, database configuration, or LiveKit/STT implementation.
+- Verification: confirmed `.env` and `.env.example` have no duplicate keys, then loaded the corrected `.env` into a separately started backend on port 18080 and confirmed the local seed login returns HTTP 200 with access/refresh tokens.
+
+2026-06-22 Meeting join STT session contract fix
+
+- Purpose: fix meeting join returning HTTP 503 after STT startup because BE omitted the organization ID required by the STT `ensure-started` contract.
+- Changed files: `JoinMeetingCommand`, `MeetingRealtimeSessionStarter`, `JoinMeetingUseCase`, `MeetingController`, `HttpMeetingRealtimeSessionStarter`, related meeting tests, local BE/Infra environment files, and this log.
+- Behavior: authenticated meeting joins now propagate the JWT organization ID through the application port into the STT `organizationId` request field. Organization-less local/guest fallback joins skip STT session creation instead of blocking LiveKit token issuance. Local BE-to-STT internal token values and the LiveKit secret were aligned, and the LiveKit container was recreated with the corrected secret.
+- Verification: passed application/infrastructure/app-api compilation, Spotless, and `MeetingControllerTest`. A separately started BE completed `login -> meeting join -> STT RUNNING -> LiveKit token response` with HTTP 200; both diagnostic STT sessions were stopped afterward. The targeted `JoinMeetingUseCaseTest` could not run because the existing application test source set has 14 unrelated compile failures in transcript/minutes/meeting tests caused by stale domain and repository signatures.
+
+2026-06-23 AI 회의록 생성 Context 및 저장 멱등성 연결
+
+- 작업 목적: `meeting.ended` 필수 식별자를 정상 발행하고, AI가 실제 Final Transcript로 생성한 Tiptap 회의록 초안을 안전하게 저장한다.
+- 변경 내용: Host 조직 기반 `organizationId` 해석 Port, Reviewer 필수 검증, 시스템 전용 minutes-generation-context API, 회의·참석자·사용자·Transcript 조립 Adapter, 공통 Final Transcript 텍스트 조립 컴포넌트, `minutes.generated` payload 검증과 durable inbox를 추가했다.
+- 동작 변경: Context API는 Final Transcript를 sequence 순으로 결합한다. AI 생성 결과는 `summary`와 Tiptap `editorContent` JSON으로 저장한다. 동일 `eventId`는 다시 처리하지 않고, 재생성 결과는 `DRAFT`만 교체해 `IN_REVIEW` 검토자 수정본을 보호한다.
+- 제외 범위: FE 회의록 편집·승인 연결, 회의록 공유, 별도 agenda/action 컬럼 저장은 변경하지 않았다.
+- 검증: `:app-api:compileJava` 성공. 오래된 회의/Transcript/Minutes 테스트 Stub을 현재 Port 계약에 맞춘 뒤 `EndMeetingUseCaseTest`, `FinalTranscriptTextAssemblerTest`, `GetMeetingTranscriptUseCaseTest`, `GetMinutesGenerationContextUseCaseTest`, `MinutesUseCaseTest`와 app-api 회의록 Controller/Consumer 테스트가 통과했다. 전체 Spotless 검사는 이번 작업과 무관한 기존 domain/application 파일 포맷 위반으로 차단됐다.
+
+2026-06-23 회의록 FE 연결용 응답 메타데이터 보강
+
+- 작업 목적: FE 회의록 목록/상세 화면이 mock 데이터 대신 BE API만으로 회의명, 시간, 참석자 수, 검토자 표시명을 렌더링할 수 있게 한다.
+- 변경 내용: `MinutesMeetingMetadataAssembler`를 추가해 회의, 참석자, 사용자, 부서 정보를 조립하고 `GET /minutes`, `GET/PATCH/approve /meetings/{meetingId}/minutes` 응답에 `meetingTitle`, `meetingStartedAt`, `meetingEndedAt`, `attendeeCount`, `reviewerName`, `reviewerDepartment`를 추가했다.
+- 동작 변경: 회의록 조회/수정/승인 응답이 모두 같은 화면 메타데이터를 포함한다. JPA 회의 저장소에는 batch 조회 `findByIds` override를 추가했고, domain port에는 테스트 fake 호환용 기본 구현을 두었다.
+- 검증: `:application:test --tests MinutesUseCaseTest --tests MinutesFavoriteUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests MinutesListControllerTest`, `:app-api:compileJava` 통과.
+
+2026-06-23 회의록 승인 자동 공유 및 미참석자 수동 공유 분리
+
+- 작업 목적: 내부메일 공유 의미를 바로잡아, 회의 참여자 전체 발송은 회의록 승인 시 자동 수행하고 사용자가 누르는 내부메일 공유는 회의 미참석자에게 별도로 보내는 기능으로 제한한다.
+- 변경 내용: `ApproveMinutesUseCase`가 승인 후 `document.index.requested` 발행과 함께 참여자 자동 공유 메일을 발송하도록 변경했다. `ShareMinutesUseCase`, `ShareMinutesCommand`, `ShareMinutesRequest`, `POST /meetings/{meetingId}/minutes/share`를 추가해 승인된 회의록의 미참석자 수동 공유를 처리한다. 제거된 별도 참여자 공유 경로는 보안 내부 토큰 대상과 API 문서에서 제외했다.
+- 동작 변경: 승인 성공 후 회의록 상태는 `SHARED`가 되며, 승인자는 메일 도메인의 자기 자신 발송 금지 규칙 때문에 자동 수신자에서 제외된다. 수동 공유는 `APPROVED` 또는 `SHARED` 상태에서만 가능하고, 수신자에 회의 참여자가 포함되면 `COMMON_INVALID_REQUEST`로 거절한다.
+- 제외 범위: 외부 SMTP 발송 어댑터, 메일함 UI 세부 화면, 참석자 자동 공유 실패 재시도 정책은 변경하지 않았다.
+- 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 실행되지 않아 권한 상승으로 재실행했다. 이후 `:application:test --tests MinutesUseCaseTest --tests ShareMinutesUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests SecurityConfigTest`, `:app-api:compileJava` 통과. FE 연동 변경은 `npm run build`, `npm test`, `git diff --check` 통과.
+
 2026-06-22 Organization code auto generation API
 
 - Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.

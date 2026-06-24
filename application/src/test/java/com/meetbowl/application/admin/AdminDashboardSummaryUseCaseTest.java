@@ -1,6 +1,7 @@
 package com.meetbowl.application.admin;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -114,10 +115,8 @@ class AdminDashboardSummaryUseCaseTest {
                                         BUILDING_B_ID,
                                         "Building B",
                                         RoomAvailabilityStatus.RESERVED)));
-        given(
-                        meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
-                                Instant.parse("2026-06-13T00:00:00Z"),
-                                Instant.parse("2026-06-14T00:00:00Z")))
+        // 날짜 경계 계산 자체는 아래 verify에서 검증하고, stub은 반환값 제공에만 집중시켜 strict stubbing 오탐을 줄인다.
+        given(meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(any(), any()))
                 .willReturn(
                         List.of(
                                 meeting(
@@ -144,9 +143,19 @@ class AdminDashboardSummaryUseCaseTest {
         assertEquals(1, result.recentAuditLogs().size());
         assertEquals(AUDIT_LOG_ID, result.recentAuditLogs().get(0).auditLogId());
         assertEquals(365, result.mailRetentionPolicy().retentionDays());
-        assertEquals(2, result.meetingRoomSummary().todayReservationCount());
+        assertEquals(3, result.meetingRoomSummary().todayReservationCount());
         assertEquals(2, result.meetingRoomSummary().inUseMeetingRoomCount());
         assertEquals(1, result.meetingRoomSummary().availableMeetingRoomCount());
+        assertEquals(
+                1,
+                result.meetingRoomSummary().timeSlotUsage().stream()
+                        .filter(
+                                slot ->
+                                        slot.slotStartAt()
+                                                .equals(Instant.parse("2026-06-12T23:00:00Z")))
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
         assertEquals(
                 1,
                 result.meetingRoomSummary().timeSlotUsage().stream()
@@ -186,6 +195,11 @@ class AdminDashboardSummaryUseCaseTest {
                 ArgumentCaptor.forClass(RoomStatusQuery.class);
         verify(getMeetingRoomStatusUseCase).execute(roomStatusCaptor.capture());
         assertEquals(Instant.parse("2026-06-13T10:15:30Z"), roomStatusCaptor.getValue().from());
+        // 관리자 대시보드는 KST 자정 경계로 하루를 집계하므로 repository 조회 구간도 그 기준을 따라야 한다.
+        verify(meetingRepositoryPort)
+                .findNonCancelledRoomMeetingsOverlapping(
+                        eq(Instant.parse("2026-06-12T15:00:00Z")),
+                        eq(Instant.parse("2026-06-13T15:00:00Z")));
     }
 
     private RoomStatusResult roomStatus(

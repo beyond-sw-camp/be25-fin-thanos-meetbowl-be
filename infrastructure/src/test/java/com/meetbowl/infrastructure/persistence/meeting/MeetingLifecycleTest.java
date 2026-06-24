@@ -2,6 +2,7 @@ package com.meetbowl.infrastructure.persistence.meeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
@@ -26,13 +28,18 @@ import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
+import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaMeetingRoomRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.MeetingRoomJpaConfig;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaBuildingRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaSiteRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.SpringDataMeetingRoomRepository;
 
 /** 회의 조회/수정/취소 UseCase의 동작과 권한·겹침 규칙을 실제 DB(H2)로 검증한다. */
@@ -54,7 +61,9 @@ class MeetingLifecycleTest {
     @Autowired private CreateMeetingUseCase createMeetingUseCase;
     @Autowired private GetMeetingUseCase getMeetingUseCase;
     @Autowired private UpdateMeetingUseCase updateMeetingUseCase;
+    @Autowired private GetRoomReservationsUseCase getRoomReservationsUseCase;
     @Autowired private CancelMeetingUseCase cancelMeetingUseCase;
+    @Autowired private MeetingRepositoryPort meetingRepositoryPort;
     @Autowired private MeetingRoomRepositoryPort meetingRoomRepositoryPort;
     @Autowired private SpringDataMeetingRepository springDataMeetingRepository;
     @Autowired private SpringDataMeetingRoomRepository springDataMeetingRoomRepository;
@@ -232,6 +241,48 @@ class MeetingLifecycleTest {
         assertThat(updated.title()).isEqualTo("수정된 회의");
         assertThat(updated.scheduledAt()).isEqualTo(newStart);
         assertThat(updated.scheduledEndAt()).isEqualTo(newEnd);
+    }
+
+    @Test
+    void remoteMeetingUpdatedToRoomMeetingIsPersistedAndIncludedInRoomQueries() {
+        UUID host = UUID.randomUUID();
+        UUID roomId = givenRoom();
+        MeetingResult created =
+                createMeetingUseCase.execute(
+                        new CreateMeetingCommand(
+                                "원격 회의", START, END, host, null, null, null, null, null, null));
+
+        MeetingResult updated =
+                updateMeetingUseCase.execute(
+                        new UpdateMeetingCommand(
+                                created.meetingId(),
+                                host,
+                                "회의실로 전환",
+                                START,
+                                END,
+                                roomId,
+                                null,
+                                null,
+                                null));
+
+        assertThat(updated.meetingRoomId()).isEqualTo(roomId);
+        assertThat(meetingRepositoryPort.findById(created.meetingId()))
+                .get()
+                .extracting(meeting -> meeting.meetingRoomId())
+                .isEqualTo(roomId);
+
+        assertThat(
+                        getRoomReservationsUseCase.getReservationBoard(
+                                START.minusSeconds(3600), END.plusSeconds(3600), null, null))
+                .flatExtracting(room -> room.reservations())
+                .extracting(reservation -> reservation.meetingId())
+                .contains(created.meetingId());
+
+        assertThat(
+                        meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
+                                START.minusSeconds(3600), END.plusSeconds(3600)))
+                .extracting(meeting -> meeting.id())
+                .contains(created.meetingId());
     }
 
     @Test
@@ -483,12 +534,21 @@ class MeetingLifecycleTest {
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaBuildingRepositoryAdapter.class,
+        JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingUseCase.class,
+        GetRoomReservationsUseCase.class,
         UpdateMeetingUseCase.class,
         CancelMeetingUseCase.class
     })
-    static class TestApplication {}
+    static class TestApplication {
+
+        @Bean
+        DispatchNotificationUseCase dispatchNotificationUseCase() {
+            return mock(DispatchNotificationUseCase.class);
+        }
+    }
 }

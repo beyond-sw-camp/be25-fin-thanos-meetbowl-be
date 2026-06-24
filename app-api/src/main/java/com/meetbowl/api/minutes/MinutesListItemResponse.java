@@ -13,7 +13,13 @@ public record MinutesListItemResponse(
         String status,
         String summary,
         Instant approvedAt,
-        boolean favorite) {
+        boolean favorite,
+        String meetingTitle,
+        Instant meetingStartedAt,
+        Instant meetingEndedAt,
+        int attendeeCount,
+        String reviewerName,
+        String reviewerDepartment) {
 
     public static MinutesListItemResponse from(MinutesListItemResult result) {
         return new MinutesListItemResponse(
@@ -23,6 +29,12 @@ public record MinutesListItemResponse(
                 result.status(),
                 result.summary(),
                 result.approvedAt(),
-                result.favorite());
+                result.favorite(),
+                result.meetingTitle(),
+                result.meetingStartedAt(),
+                result.meetingEndedAt(),
+                result.attendeeCount(),
+                result.reviewerName(),
+                result.reviewerDepartment());
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.test.context.TestPropertySource;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingListFilter;
+import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
 import com.meetbowl.application.meetingroom.ReservationItemResult;
@@ -198,6 +199,7 @@ class MeetingRoomReservationsTest {
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetRoomReservationsUseCase.class
     })

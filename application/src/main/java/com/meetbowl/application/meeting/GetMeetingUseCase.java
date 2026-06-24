@@ -95,12 +95,13 @@ public class GetMeetingUseCase {
     private List<Meeting> invitedMeetings(UUID userId) {
         List<Meeting> meetings = new ArrayList<>();
         meetingAttendeeRepositoryPort.findByUserId(userId).stream()
-                .filter(attendee -> attendee.role() != AttendeeRole.HOST)
                 .map(MeetingAttendee::meetingId)
                 .distinct()
                 .forEach(
                         meetingId ->
-                                meetingRepositoryPort.findById(meetingId).ifPresent(meetings::add));
+                                meetingRepositoryPort.findById(meetingId)
+                                        .filter(meeting -> !meeting.isHostedBy(userId))
+                                        .ifPresent(meetings::add));
         return meetings;
     }
 

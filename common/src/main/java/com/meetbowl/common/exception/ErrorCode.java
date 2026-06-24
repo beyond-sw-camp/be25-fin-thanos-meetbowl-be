@@ -39,11 +39,15 @@ public enum ErrorCode {
     MEETING_ROOM_UNAVAILABLE("MEETING_ROOM_UNAVAILABLE", "사용할 수 없는 회의실입니다.", 409),
     MEETING_FORBIDDEN_GUEST_ACCESS(
             "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
+    MEETING_ORGANIZATION_REQUIRED("MEETING_ORGANIZATION_REQUIRED", "회의 조직 정보가 필요합니다.", 409),
 
     // Minutes
     MINUTES_NOT_FOUND("MINUTES_NOT_FOUND", "회의록을 찾을 수 없습니다.", 404),
     MINUTES_REVIEW_REQUIRED("MINUTES_REVIEW_REQUIRED", "회의록 검토자 승인이 필요합니다.", 409),
     MINUTES_ALREADY_APPROVED("MINUTES_ALREADY_APPROVED", "이미 승인된 회의록입니다.", 409),
+    MINUTES_REVIEWER_REQUIRED("MINUTES_REVIEWER_REQUIRED", "회의록 검토자 지정이 필요합니다.", 409),
+    MINUTES_TRANSCRIPT_REQUIRED(
+            "MINUTES_TRANSCRIPT_REQUIRED", "회의록을 생성할 Final Transcript가 필요합니다.", 409),
 
     // Mail
     MAIL_NOT_FOUND("MAIL_NOT_FOUND", "메일을 찾을 수 없습니다.", 404),

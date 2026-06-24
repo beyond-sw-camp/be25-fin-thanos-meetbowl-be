@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,12 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.mail.Mail;
+import com.meetbowl.domain.mail.MailAttachment;
 import com.meetbowl.domain.mail.MailBodyType;
 import com.meetbowl.domain.mail.MailRepositoryPort;
 import com.meetbowl.domain.mail.MailType;
 import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
 import com.meetbowl.domain.mail.RelatedResourceType;
+import com.meetbowl.domain.storage.ObjectStoragePort;
 import com.meetbowl.domain.user.User;
 import com.meetbowl.domain.user.UserRepositoryPort;
 
@@ -30,27 +33,40 @@ import com.meetbowl.domain.user.UserRepositoryPort;
 @Service
 public class SendMailUseCase {
 
+    // 첨부 1건당 업무 제한(공유문서/드라이브와 동일한 20MB).
+    private static final long MAX_ATTACHMENT_BYTES = 20L * 1024 * 1024;
+    private static final String ATTACHMENT_KEY_PREFIX = "mail-attachment/";
+
     private final MailRepositoryPort mailRepositoryPort;
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
+    private final ObjectStoragePort objectStoragePort;
     private final Clock clock;
 
     @Autowired
     public SendMailUseCase(
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
-            UserRepositoryPort userRepositoryPort) {
-        this(mailRepositoryPort, mailboxEntryRepositoryPort, userRepositoryPort, Clock.systemUTC());
+            UserRepositoryPort userRepositoryPort,
+            ObjectStoragePort objectStoragePort) {
+        this(
+                mailRepositoryPort,
+                mailboxEntryRepositoryPort,
+                userRepositoryPort,
+                objectStoragePort,
+                Clock.systemUTC());
     }
 
     SendMailUseCase(
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
+            ObjectStoragePort objectStoragePort,
             Clock clock) {
         this.mailRepositoryPort = mailRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
+        this.objectStoragePort = objectStoragePort;
         this.clock = clock;
     }
 
@@ -79,6 +95,8 @@ public class SendMailUseCase {
                         parseRelatedResourceType(command.relatedResourceType()),
                         command.relatedResourceId(),
                         command.idempotencyKey());
+        // 첨부는 DRAFT 상태에서만 등록 가능하므로 발송 전이(requestDelivery/markSent) 이전에 붙인다.
+        attachFiles(mail, command);
         mail.requestDelivery(now);
         mail.markSent(now);
         Mail saved = mailRepositoryPort.save(mail);
@@ -89,6 +107,38 @@ public class SendMailUseCase {
                 .forEach(recipientId -> entries.add(MailboxEntry.inbox(saved.id(), recipientId)));
         mailboxEntryRepositoryPort.saveAll(entries);
         return result(saved);
+    }
+
+    private void attachFiles(Mail mail, SendMailCommand command) {
+        for (SendMailCommand.AttachmentUpload upload : command.attachments()) {
+            byte[] content = upload.content();
+            if (content == null || content.length == 0) {
+                throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "빈 첨부파일은 보낼 수 없습니다.");
+            }
+            if (content.length > MAX_ATTACHMENT_BYTES) {
+                throw new BusinessException(ErrorCode.FILE_SIZE_EXCEEDED, "첨부파일은 20MB 이하여야 합니다.");
+            }
+            // 파일명/Content-Type은 클라이언트 값이 없을 수 있어 기본값으로 보정한다(도메인은 빈 값을 거부).
+            String originalFileName =
+                    isBlank(upload.originalFileName()) ? "attachment" : upload.originalFileName();
+            String contentType =
+                    isBlank(upload.contentType()) ? "application/octet-stream" : upload.contentType();
+            String storedFileName = UUID.randomUUID().toString();
+            String objectKey = ATTACHMENT_KEY_PREFIX + command.senderUserId() + "/" + storedFileName;
+            objectStoragePort.upload(objectKey, contentType, content);
+            mail.addAttachment(
+                    MailAttachment.create(
+                            command.senderUserId(),
+                            objectKey,
+                            originalFileName,
+                            storedFileName,
+                            contentType,
+                            content.length));
+        }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void validateParticipants(SendMailCommand command, Instant now) {

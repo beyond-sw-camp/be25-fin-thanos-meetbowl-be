@@ -9,29 +9,36 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFile;
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
+import com.meetbowl.domain.storage.ObjectStoragePort;
 
 /**
- * 공유 자료 다운로드에 필요한 메타데이터를 조회한다. 실제 원본 스트림은 storageKey로 Object Storage에서 받아야 하므로, 이 UseCase는 권한 검증과
- * 저장 경로 확정까지만 책임진다. 권한 검증을 통과하지 못한 storageKey가 외부로 나가지 않게 하는 경계 지점이다.
+ * 공유 자료 다운로드에 필요한 권한을 검증하고 원본 파일을 내려받는다.
+ *
+ * <p>워크스페이스 멤버 여부와 파일 소속 워크스페이스를 먼저 확인한다. 그 이후에만 storageKey로 Object Storage를 조회해, 권한 없는 사용자가 파일 저장
+ * 경로를 통해 우회 다운로드하지 못하게 한다.
  */
 @Service
 public class DownloadSharedWorkspaceFileUseCase {
 
     private final SharedWorkspaceFileRepositoryPort fileRepositoryPort;
     private final SharedWorkspaceAccessGuard accessGuard;
+    private final ObjectStoragePort objectStoragePort;
 
     public DownloadSharedWorkspaceFileUseCase(
             SharedWorkspaceFileRepositoryPort fileRepositoryPort,
-            SharedWorkspaceAccessGuard accessGuard) {
+            SharedWorkspaceAccessGuard accessGuard,
+            ObjectStoragePort objectStoragePort) {
         this.fileRepositoryPort = fileRepositoryPort;
         this.accessGuard = accessGuard;
+        this.objectStoragePort = objectStoragePort;
     }
 
     @Transactional(readOnly = true)
-    public SharedWorkspaceFileResult execute(UUID workspaceId, UUID fileId, UUID userId) {
+    public SharedWorkspaceFileDownloadResult execute(UUID workspaceId, UUID fileId, UUID userId) {
         accessGuard.requireActiveMember(workspaceId, userId);
         SharedWorkspaceFile file = loadActiveFileInWorkspace(workspaceId, fileId);
-        return SharedWorkspaceFileResult.from(file);
+        return SharedWorkspaceFileDownloadResult.from(
+                file, objectStoragePort.download(file.storageKey()));
     }
 
     private SharedWorkspaceFile loadActiveFileInWorkspace(UUID workspaceId, UUID fileId) {

@@ -11,9 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.meetbowl.domain.common.Paged;
 import com.meetbowl.domain.organization.Affiliate;
 import com.meetbowl.domain.organization.Department;
@@ -126,9 +129,10 @@ class JpaUserRepositoryAdapterTest {
     void findPageSupportsPartialSearchAcrossUserOrganizationAndRoleFields() {
         assertThat(loginIds(adapter.findPage("\uC9F1", 1, 20))).contains("zzanggu");
         assertThat(loginIds(adapter.findPage("ADMIN@LOCAL", 1, 20))).contains("admin-user");
-        assertThat(loginIds(adapter.findPage("\uC11C\uBE44\uC2A4", 1, 20)))
+        assertThat(loginIds(adapter.findPage("service", 1, 20)))
                 .contains("zzanggu", "admin-user");
-        assertThat(loginIds(adapter.findPage("\uB300", 1, 20))).contains("zzanggu", "admin-user");
+        assertThat(loginIds(adapter.findPage("assistant", 1, 20)))
+                .contains("zzanggu", "admin-user");
         assertThat(loginIds(adapter.findPage("ADMIN", 1, 20))).contains("admin-user");
         assertThat(loginIds(adapter.findPage("\uAD00\uB9AC\uC790", 1, 20))).contains("admin-user");
         assertThat(loginIds(adapter.findPage("\uC77C\uBC18 \uC0AC\uC6A9\uC790", 1, 20)))
@@ -252,5 +256,11 @@ class JpaUserRepositoryAdapterTest {
         JpaTeamRepositoryAdapter.class,
         JpaPositionRepositoryAdapter.class
     })
-    static class TestApplication {}
+    static class TestApplication {
+
+        @Bean
+        ObjectMapper objectMapper() {
+            return JsonMapper.builder().findAndAddModules().build();
+        }
+    }
 }

@@ -36,13 +36,15 @@ class GetMeetingTranscriptUseCaseTest {
                                         meetingId,
                                         "회의",
                                         Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
                                         hostUserId,
                                         null,
                                         "LIVEKIT",
                                         "room",
                                         MeetingStatus.ENDED,
                                         Instant.parse("2026-06-12T01:00:00Z"),
-                                        Instant.parse("2026-06-12T02:00:00Z"))),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        null)),
                         new StubAttendeeRepository(
                                 List.of(
                                         MeetingAttendee.of(
@@ -92,13 +94,15 @@ class GetMeetingTranscriptUseCaseTest {
                                         meetingId,
                                         "회의",
                                         Instant.parse("2026-06-12T01:00:00Z"),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
                                         UUID.randomUUID(),
                                         null,
                                         "LIVEKIT",
                                         "room",
                                         MeetingStatus.ENDED,
                                         Instant.parse("2026-06-12T01:00:00Z"),
-                                        Instant.parse("2026-06-12T02:00:00Z"))),
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        null)),
                         new StubAttendeeRepository(List.of()),
                         new StubTranscriptRepository(List.of()));
 
@@ -120,6 +124,23 @@ class GetMeetingTranscriptUseCaseTest {
 
         @Override
         public List<Meeting> findByHostUserId(UUID hostUserId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findActiveRoomOverlaps(
+                UUID meetingRoomId, Instant scheduledStartAt, Instant scheduledEndAt) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findActiveOverlapsInRooms(
+                List<UUID> meetingRoomIds, Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
             return List.of();
         }
 
@@ -149,6 +170,21 @@ class GetMeetingTranscriptUseCaseTest {
         @Override
         public List<MeetingAttendee> findByUserId(UUID userId) {
             return attendees.stream().filter(attendee -> attendee.userId().equals(userId)).toList();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return attendees.stream()
+                    .filter(attendee -> meetingIds.contains(attendee.meetingId()))
+                    .toList();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return findByMeetingId(meetingId).stream()
+                    .filter(MeetingAttendee::reviewer)
+                    .map(MeetingAttendee::userId)
+                    .findFirst();
         }
 
         @Override

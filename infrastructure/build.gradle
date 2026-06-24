@@ -5,6 +5,9 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.flywaydb:flyway-core'
+    // Flyway 11부터는 MariaDB/MySQL 지원이 별도 모듈로 분리되어, prod 런타임에도 해당 DB 플러그인이 함께 있어야 migration이 실행된다.
+    implementation 'org.flywaydb:flyway-mysql'
     implementation 'org.springframework:spring-context'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'

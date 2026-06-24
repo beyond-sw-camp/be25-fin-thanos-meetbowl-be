@@ -20,8 +20,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.meetbowl.api.common.ApiHeaders;
 import com.meetbowl.application.auth.AccessTokenValidationService;
-import com.meetbowl.application.meeting.MeetingRealtimeSessionStarter;
-import com.meetbowl.application.meeting.MeetingRealtimeSessionStopper;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStarter;
+import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -54,7 +54,7 @@ class SecurityConfigTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("COMMON_UNAUTHORIZED"))
-                .andExpect(jsonPath("$.error.message").value("?몄쬆???꾩슂?⑸땲??"));
+                .andExpect(jsonPath("$.error.message").value("인증이 필요합니다."));
     }
 
     @Test
@@ -141,13 +141,11 @@ class SecurityConfigTest {
     }
 
     @Test
-    void internalTokenCanAccessSystemShareEndpoint() throws Exception {
+    void internalTokenCanAccessInternalEndpoint() throws Exception {
         mockMvc.perform(
-                        post("/api/v1/meetings/"
-                                        + UUID.randomUUID()
-                                        + "/minutes/share/participants")
+                        post("/api/v1/internal/mails/send")
                                 .header(ApiHeaders.INTERNAL_TOKEN, INTERNAL_TOKEN))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

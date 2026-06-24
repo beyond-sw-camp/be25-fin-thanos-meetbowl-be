@@ -12,5 +12,15 @@ import java.util.UUID;
 public record JoinMeetingCommand(
         UUID meetingId,
         UUID authenticatedUserId,
+        UUID organizationId,
         String displayName,
-        String requestedParticipantIdentity) {}
+        String requestedParticipantIdentity) {
+
+    public JoinMeetingCommand(
+            UUID meetingId,
+            UUID authenticatedUserId,
+            String displayName,
+            String requestedParticipantIdentity) {
+        this(meetingId, authenticatedUserId, null, displayName, requestedParticipantIdentity);
+    }
+}

@@ -2,6 +2,8 @@ package com.meetbowl.application.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -26,8 +28,22 @@ class MinutesFavoriteUseCaseTest {
         Fixture fixture = new Fixture();
         fixture.favoriteRepository.save(
                 MinutesFavorite.create(fixture.reviewerUserId, fixture.repository.minutes.id()));
+        MinutesMeetingMetadataAssembler metadataAssembler = mock(MinutesMeetingMetadataAssembler.class);
+        when(metadataAssembler.assemble(List.of(fixture.meetingId), fixture.organizationId))
+                .thenReturn(
+                        Map.of(
+                                fixture.meetingId,
+                                new MinutesMeetingMetadata(
+                                        "주간 회의",
+                                        null,
+                                        null,
+                                        3,
+                                        fixture.reviewerUserId,
+                                        "검토자",
+                                        "프로덕트팀")));
         GetMinutesListUseCase useCase =
-                new GetMinutesListUseCase(fixture.repository, fixture.favoriteRepository);
+                new GetMinutesListUseCase(
+                        fixture.repository, fixture.favoriteRepository, metadataAssembler);
 
         List<MinutesListItemResult> results =
                 useCase.execute(fixture.reviewerUserId, fixture.organizationId, null);
@@ -35,6 +51,8 @@ class MinutesFavoriteUseCaseTest {
         assertEquals(1, results.size());
         assertEquals(fixture.repository.minutes.id(), results.get(0).minutesId());
         assertEquals(true, results.get(0).favorite());
+        assertEquals("주간 회의", results.get(0).meetingTitle());
+        assertEquals("검토자", results.get(0).reviewerName());
     }
 
     @Test

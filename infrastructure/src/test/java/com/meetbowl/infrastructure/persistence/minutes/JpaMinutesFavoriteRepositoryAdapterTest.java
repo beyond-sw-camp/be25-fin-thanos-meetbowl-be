@@ -10,6 +10,7 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.domain.minutes.Minutes;
@@ -46,6 +47,7 @@ class JpaMinutesFavoriteRepositoryAdapterTest {
     }
 
     @Test
+    @Transactional
     void saveFindAndDeleteFavorite() {
         UUID userId = UUID.randomUUID();
         Minutes savedMinutes = minutesAdapter.save(minutes(UUID.randomUUID(), UUID.randomUUID()));
