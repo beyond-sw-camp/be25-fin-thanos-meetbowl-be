@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.mail;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,6 +23,8 @@ import com.meetbowl.domain.mail.MailboxType;
 public class JpaMailboxEntryRepositoryAdapter implements MailboxEntryRepositoryPort {
 
     private static final Sort LATEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt");
+    private static final Sort OLDEST_CREATED_FIRST = Sort.by(Sort.Direction.ASC, "createdAt");
+    private static final Sort OLDEST_TRASHED_FIRST = Sort.by(Sort.Direction.ASC, "trashedAt");
 
     private final SpringDataMailboxEntryRepository repository;
 
@@ -97,6 +100,27 @@ public class JpaMailboxEntryRepositoryAdapter implements MailboxEntryRepositoryP
     @Override
     public long countSearchByOwnerUserId(UUID ownerUserId, String keyword) {
         return repository.countSearchByOwnerUserId(ownerUserId, keyword);
+    }
+
+    @Override
+    public List<MailboxEntry> findActiveEntriesCreatedBefore(
+            MailboxType mailboxType, Instant cutoff, int limit) {
+        return repository
+                .findByMailboxTypeAndTrashedAtIsNullAndPermanentlyDeletedAtIsNullAndCreatedAtBefore(
+                        mailboxType, cutoff, PageRequest.of(0, limit, OLDEST_CREATED_FIRST))
+                .stream()
+                .map(MailboxEntryEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<MailboxEntry> findTrashEntriesTrashedBefore(Instant cutoff, int limit) {
+        return repository
+                .findByTrashedAtIsNotNullAndTrashedAtBeforeAndPermanentlyDeletedAtIsNull(
+                        cutoff, PageRequest.of(0, limit, OLDEST_TRASHED_FIRST))
+                .stream()
+                .map(MailboxEntryEntity::toDomain)
+                .toList();
     }
 
     private PageRequest page(int offset, int limit) {
