@@ -730,3 +730,18 @@
 - Verification:
   Passed targeted seven previously failing tests with `./gradlew :application:test ... --no-daemon`
   Passed full `./gradlew :application:test --no-daemon`
+
+2026-06-24 JPA user search query alignment for Hibernate 7
+
+- Purpose: fix `JpaUserRepositoryAdapterTest` failures caused by repository JPQL drift after search-condition changes and branch merge noise.
+- Changed files:
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/user/JpaUserRepositoryAdapter.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/user/SpringDataUserRepository.java`,
+  and this log.
+- Behavior:
+  Changed the repository adapter to pass the optional status filter to JPQL as a nullable enum name string instead of a nullable `UserStatus` enum object.
+  Updated the JPQL status branch conditions to compare against `'ACTIVE'`, `'INACTIVE'`, and `'LOCKED'`, which avoids the Hibernate 7 parameter conversion failure triggered by `:status is null` plus enum comparisons in the same query.
+  Restored the role-display keyword literals in the admin user search JPQL to proper Korean strings (`관리자`, `일반 사용자`) so partial search by displayed role text works again.
+- Verification:
+  Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest' --no-daemon`
+  Passed full `./gradlew :infrastructure:test --no-daemon`

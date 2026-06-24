@@ -66,8 +66,8 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                     like lower(concat('%', :keyword, '%'))
                 or lower(
                         case
-                            when u.role = com.meetbowl.domain.user.UserRole.ADMIN then '愿由ъ옄'
-                            when u.role = com.meetbowl.domain.user.UserRole.USER then '?쇰컲 ?ъ슜??'
+                            when u.role = com.meetbowl.domain.user.UserRole.ADMIN then '관리자'
+                            when u.role = com.meetbowl.domain.user.UserRole.USER then '일반 사용자'
                             else ''
                         end)
                     like lower(concat('%', :keyword, '%')))
@@ -98,12 +98,12 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
               and (:teamId is null or u.teamId = :teamId)
               and (:positionId is null or u.positionId = :positionId)
               and (
-                    :status is null
-                    or (:status = com.meetbowl.domain.user.UserStatus.ACTIVE
+                    :statusName is null
+                    or (:statusName = 'ACTIVE'
                         and u.status = com.meetbowl.domain.user.UserStatus.ACTIVE
                         and (u.activeFrom is null or u.activeFrom < :nextDayStart)
                         and (u.activeUntil is null or u.activeUntil >= :dayStart))
-                    or (:status = com.meetbowl.domain.user.UserStatus.INACTIVE
+                    or (:statusName = 'INACTIVE'
                         and (
                             u.status = com.meetbowl.domain.user.UserStatus.INACTIVE
                             or (u.status = com.meetbowl.domain.user.UserStatus.ACTIVE
@@ -112,7 +112,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
                                     or (u.activeUntil is not null and u.activeUntil < :dayStart)
                                 ))
                         ))
-                    or (:status = com.meetbowl.domain.user.UserStatus.LOCKED
+                    or (:statusName = 'LOCKED'
                         and u.status = com.meetbowl.domain.user.UserStatus.LOCKED)
                   )
             """)
@@ -122,7 +122,7 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
             @Param("departmentId") UUID departmentId,
             @Param("teamId") UUID teamId,
             @Param("positionId") UUID positionId,
-            @Param("status") UserStatus status,
+            @Param("statusName") String statusName,
             @Param("dayStart") Instant dayStart,
             @Param("nextDayStart") Instant nextDayStart,
             Pageable pageable);
