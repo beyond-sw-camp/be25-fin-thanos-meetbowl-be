@@ -445,6 +445,7 @@
   Passed `./gradlew.bat spotlessApply`
   Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `./gradlew.bat :app-api:test --tests "*AdminUser*" --tests "*Organization*" --tests "*Position*"`
+  
 2026-06-19 회의 팝업 라우팅 수정 및 입장 가능 시각 제한
 
 - 작업 목적: 회의 입장 팝업이 `/app/dashboard`로 잘못 이동하는 라우팅 문제를 수정하고, 예약 회의는 시작 15분 전부터만 입장 가능하도록 서버 규칙을 추가한다.
@@ -457,7 +458,36 @@
   통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.meeting.MeetingControllerTest"`
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
-- 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+- 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다
+
+2026-06-22 Organization code auto generation API
+
+- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
+- Changed files:
+  `application/admin/OrganizationCodeGenerator`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/dto/AdminDepartmentRequest`,
+  `app-api/admin/dto/AdminTeamRequest`,
+  `app-api/admin/dto/AdminPositionRequest`,
+  related admin organization / excel tests, and this log.
+- Behavior:
+  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
+  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
+  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
+  Code generation ignores client-sent `code` values for department/team/position create and update requests.
+  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
+  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
+- Notes:
+  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
+  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
+- Verification:
+  Passed `.\gradlew.bat spotlessApply`
+  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
+ `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+
 2026-06-22 BE local environment duplicate secret cleanup
 
 - Purpose: fix local login returning `COMMON_INTERNAL_ERROR` after the BE environment file was extended for LiveKit/STT configuration.
@@ -496,33 +526,6 @@
 - 제외 범위: 외부 SMTP 발송 어댑터, 메일함 UI 세부 화면, 참석자 자동 공유 실패 재시도 정책은 변경하지 않았다.
 - 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 실행되지 않아 권한 상승으로 재실행했다. 이후 `:application:test --tests MinutesUseCaseTest --tests ShareMinutesUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests SecurityConfigTest`, `:app-api:compileJava` 통과. FE 연동 변경은 `npm run build`, `npm test`, `git diff --check` 통과.
 
-2026-06-22 Organization code auto generation API
-
-- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
-- Changed files:
-  `application/admin/OrganizationCodeGenerator`,
-  `application/admin/AdminOrganizationMasterDataUseCase`,
-  `application/admin/AdminOrganizationMembersExcelApplyService`,
-  `app-api/admin/AdminOrganizationController`,
-  `app-api/admin/dto/AdminDepartmentRequest`,
-  `app-api/admin/dto/AdminTeamRequest`,
-  `app-api/admin/dto/AdminPositionRequest`,
-  related admin organization / excel tests, and this log.
-- Behavior:
-  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
-  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
-  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
-  Code generation ignores client-sent `code` values for department/team/position create and update requests.
-  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
-  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
-- Notes:
-  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
-  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
-- Verification:
-  Passed `.\gradlew.bat spotlessApply`
-  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
-  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
- `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
 2026-06-23 Admin user effective status / delete behavior fix
 
 - Purpose: fix QA issues where expired users still appeared active and admin user delete only downgraded status to `INACTIVE` instead of removing the member from admin/user listings.
@@ -635,6 +638,192 @@
 
 2026-06-23 Password reset request approval workflow
 
+- 작업 목적: 회의 예약 수정 흐름에서 주최자/검토자 역할 정합성을 맞추고, 초대 회의 목록/회의실 예약 조회에서 본인 주최 회의가 중복 노출되는 문제와 관리자 시간대별 회의실 사용 집계 왜곡을 함께 보정한다.
+- 변경 파일: `application/admin/AdminDashboardSummaryUseCase.java`, `application/admin/AdminDashboardSummaryUseCaseTest.java`, `application/meeting/GetMeetingUseCase.java`, `application/meeting/MeetingAttendeeWriter.java`, `application/meetingroom/GetRoomReservationsUseCase.java`, 이 작업 기록 파일.
+- 동작 변경:
+  회의 참석자 저장은 주최자를 한 번만 저장하고, 주최자 본인을 회의록 검토자로 지정한 경우 HOST 참석자 행에 `reviewer=true` 플래그를 함께 저장한다.
+  따라서 회의 생성/수정 시 host와 reviewer가 동일한 경우에도 `(meeting_id, user_id)` 중복 삽입으로 500 오류가 나지 않는다.
+  초대 회의 목록과 회의실 예약 현황 조회는 참석자 역할만 보지 않고 `meeting.isHostedBy(userId)` 기준으로 본인 주최 회의를 제외해 자기 회의가 초대 목록처럼 다시 섞여 보이지 않는다.
+  관리자 대시보드 시간대별 회의실 사용 집계는 화면에서 사용하는 영업 시간대 기준에 맞게 시간 버킷 계산을 보정해 왜곡된 막대값이 나오지 않도록 정리했다.
+- 검증 방법:
+  통과: `bash ./gradlew :application:compileJava`
+  통과: `bash ./gradlew bootJar`
+  실패(기존 브랜치 이슈): `bash ./gradlew :application:test`는 현재 브랜치 전반의 `GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest` 등 기존 `:application:compileTestJava` 오류 때문에 이번 변경과 무관하게 중단됐다.
+
+2026-06-22 Workspace file download and preview APIs
+
+- Purpose: 개인/공유 워크스페이스에 업로드된 S3 파일을 사용자가 다운로드하고 브라우저에서 미리볼 수 있도록 원본 파일 반환 경로를 추가한다.
+- Changed files:
+  `domain/storage/ObjectStoragePort`,
+  `domain/storage/StoredObject`,
+  `infrastructure/storage/S3ObjectStorageAdapter`,
+  `application/personalworkspace/drive/DownloadDriveFileUseCase`,
+  `application/personalworkspace/drive/DriveFileDownloadResult`,
+  `application/sharedworkspace/GetSharedWorkspaceFileUseCase`,
+  `application/sharedworkspace/DownloadSharedWorkspaceFileUseCase`,
+  `application/sharedworkspace/SharedWorkspaceFileDownloadResult`,
+  `app-api/personalworkspace/WorkspaceDriveController`,
+  `app-api/sharedworkspace/SharedWorkspaceFileController`,
+  related storage/drive tests, `docs/api-spec.md`, and this log.
+- Behavior:
+  Added Object Storage download support using `storageKey`, returning original bytes, content type, and length.
+  Personal drive download now verifies owner and deleted state before reading S3.
+  Shared workspace download now verifies active workspace membership and file workspace ownership before reading S3.
+  Existing metadata endpoints remain JSON responses, while `/download` returns `Content-Disposition: attachment` and `/preview` returns `Content-Disposition: inline`.
+  Korean filenames are encoded through Spring `ContentDisposition.filename(..., UTF_8)` so browser download names do not break.
+- Verification:
+  Passed `./gradlew :app-api:compileJava :application:compileJava :infrastructure:compileJava`
+  `./gradlew spotlessApply :application:test --tests '*DriveUseCaseTest' :infrastructure:test --tests '*S3ObjectStorageAdapterTest'` was blocked before executing the target tests because existing unrelated test sources in `meeting`, `minutes`, `transcript`, and messaging packages do not compile against the current domain/port contracts.
+
+2026-06-23 Mail retention auto deletion scheduler
+
+- Purpose: 메일 보관 정책의 `autoDeleteEnabled` 설정이 실제 메일함 상태에 반영되도록 서버 주기 작업을 추가한다.
+- Changed files:
+  `domain/mail/MailboxEntryRepositoryPort`,
+  `application/mail/ApplyMailRetentionPolicyUseCase`,
+  `application/mail/MailRetentionApplyResult`,
+  `infrastructure/persistence/mail/JpaMailboxEntryRepositoryAdapter`,
+  `infrastructure/persistence/mail/SpringDataMailboxEntryRepository`,
+  `app-api/mail/MailRetentionScheduler`,
+  `application` mail retention tests, `docs/api-spec.md`, and this log.
+- Behavior:
+  정책 row가 없거나 `autoDeleteEnabled=false`이면 자동 삭제 배치는 메일함 항목을 변경하지 않는다.
+  `autoDeleteEnabled=true`이면 받은/보낸 메일함 항목 중 보관 기간을 지난 항목을 휴지통으로 이동한다.
+  휴지통 항목은 휴지통 보관 기간을 지난 경우 영구 삭제 시각을 기록한다.
+  자동 정리는 공용 메일 본문을 삭제하지 않고 사용자별 `MailboxEntry` 상태만 변경해 다른 수신자에게 영향을 주지 않는다.
+  `MailRetentionScheduler`는 기본 cron `0 0 3 * * *`를 KST(`Asia/Seoul`) 기준으로 실행하며 `meetbowl.mail.retention.cron` 프로퍼티로 조정할 수 있다.
+- Verification:
+  Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `./gradlew spotlessApply`
+  `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'` was blocked before executing the target test because existing unrelated test sources in `meeting`, `minutes`, and `transcript` packages do not compile against the current domain/port contracts.
+
+2026-06-23 Document indexing queue topology hardening
+
+- Purpose: 워크스페이스 파일 업로드 후 AI 서버가 늦게 뜨거나 재시작 중이어도 `document.index.requested` 이벤트가 RabbitMQ에서 유실되지 않도록 색인 큐와 binding을 BE 기동 시점에도 보장한다.
+- Changed files:
+  `app-api/messaging/RabbitMqMessagingConfig` and this log.
+- Behavior:
+  BE now declares `ai.index.document` and `ai.index.document.removed` queues with their dead-letter routing before publishing document indexing/removal events.
+  BE also declares `document.index.requested` / `document.index.removed` bindings on `meetbowl.topic`, plus `dlq.ai.index.document` / `dlq.ai.index.document.removed` queues on `meetbowl.dlx`.
+  This preserves upload/delete events even when the AI consumer is not running yet; AI can consume the queued events after it starts.
+  Existing AI queue names and DLQ routing keys are kept compatible with the AI server topology.
+- Verification:
+  Passed `./gradlew :app-api:compileJava`
+
+2026-06-23 AI server client timeout adjustment
+
+- Purpose: 다중 문서 RAG 챗봇 질의가 20초를 넘길 때 BE가 먼저 read timeout으로 실패 처리해 화면에 "AI 서버를 사용할 수 없습니다"가 표시되는 문제를 줄인다.
+- Changed files:
+  `infrastructure/client/AiServerClientConfig` and this log.
+- Behavior:
+  AI 서버 RestClient의 connect timeout은 3초로 유지한다.
+  AI 서버 RestClient의 read timeout은 20초에서 45초로 늘려 검색·리랭크·생성을 포함한 multi-hop 질의를 기다릴 수 있게 했다.
+- Verification:
+  Passed `./gradlew :infrastructure:compileJava :app-api:compileJava`
+
+2026-06-23 회의록 검토자 부서 미배정 조회 오류 수정 및 user1 검증
+
+- 작업 목적: 더미 계정 `user1`을 회의록 검토자로 둔 실제 API 검증 중, 검토자 부서가 없는 경우 회의록 조회가 500으로 실패하는 문제를 수정한다.
+- 변경 내용: `MinutesMeetingMetadataAssembler`에서 검토자의 `departmentId`가 null이면 부서명 조회를 건너뛰도록 null 경계를 추가했다. `MinutesMeetingMetadataAssemblerTest`를 추가해 부서 미배정 검토자도 조회 메타데이터를 정상 조립하는지 검증했다.
+- 동작 변경: 검토자가 부서에 배정되지 않은 경우에도 회의록 목록/상세/수정/승인 응답은 성공하며 `reviewerDepartment`만 null로 내려간다.
+- 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 권한 상승 후 `:application:test --tests com.meetbowl.application.minutes.MinutesMeetingMetadataAssemblerTest` 통과. 로컬 BE를 18080 포트로 재기동해 user2 주최, user1 검토자 회의를 생성하고 RabbitMQ `minutes.generated`를 발행했다. user1 초안 조회(DRAFT), user1 수정(IN_REVIEW), user1 승인(SHARED), user2 자동 메일 수신(`MINUTES_SHARE`, `MEETING_MINUTES`, 수정 본문 포함)을 실제 API로 확인했다. 회의 참여자인 user2 대상 수동 공유는 `COMMON_INVALID_REQUEST`로 거절되는 것도 확인했다.
+
+2026-06-23 Mail retention batch size hardening
+
+- Purpose: 메일 보관 정책 스케줄러가 대규모 메일함을 한 번에 모두 조회/저장하지 않도록 처리 묶음 크기를 제한한다.
+- Changed files:
+  `domain/mail/MailboxEntryRepositoryPort`,
+  `application/mail/ApplyMailRetentionPolicyUseCase`,
+  `infrastructure/persistence/mail/JpaMailboxEntryRepositoryAdapter`,
+  `infrastructure/persistence/mail/SpringDataMailboxEntryRepository`,
+  `application` mail retention tests, `.env.example`, `docs/api-spec.md`, and this log.
+- Behavior:
+  `meetbowl.mail.retention.batch-size` 설정을 추가하고 기본값은 500으로 둔다.
+  받은/보낸/휴지통 만료 항목은 offset pagination을 쓰지 않고, 오래된 항목부터 첫 묶음만 반복 조회해 처리한다.
+  각 묶음 저장 후 같은 조건에서 다시 첫 묶음을 조회하므로 상태 변경으로 인한 offset skip을 만들지 않는다.
+  RabbitMQ AI 문서 색인 큐 옵션은 기존 큐 선언 충돌 위험을 피하기 위해 변경하지 않았다.
+- Verification:
+  Passed `./gradlew spotlessApply`
+  Passed `./gradlew :application:test --tests '*ApplyMailRetentionPolicyUseCaseTest'`
+  Passed `./gradlew :domain:compileJava :application:compileJava :infrastructure:compileJava`
+
+2026-06-23 Flyway 도입 및 baseline migration 준비
+
+- 작업 목적: AWS RDS 운영 배포 전에 `meetbowl-be` 스키마를 JPA `ddl-auto` 의존에서 Flyway migration 기준으로 전환하고, 현재 엔티티 기준 baseline SQL을 고정할 준비를 마친다.
+- 변경 내용: `infrastructure/build.gradle`에 Flyway 의존성을 추가했다. `application-local.properties`, `application-prod.properties`를 Flyway + `ddl-auto=validate` 기준으로 바꾸고 migration 위치를 고정했다. `application-schema-export.properties`를 추가해 H2 메모리 DB와 MariaDB dialect 조합으로 현재 JPA 매핑 SQL을 `build/generated-schema/meetbowl-baseline.sql`로 추출할 수 있게 했다. 추출 결과를 `app-api/src/main/resources/db/migration/V1__baseline.sql`에 baseline migration으로 반영했다. `README.md`에는 schema export 실행 경로와 migration 운영 방식을 정리했다.
+- 동작 변경: 로컬/운영 프로필은 Flyway migration을 먼저 적용한 뒤 JPA validate만 수행하는 구조가 됐다. 운영 baseline은 리포지토리의 `V1__baseline.sql`이 기준이 되며, 이후 스키마 변경은 새 migration 파일로만 누적해야 한다.
+- 제외 범위: 운영 마스터 데이터 seed, 최초 관리자 bootstrap, MariaDB Testcontainers 전환, 운영 compose와 CI/CD 반영은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootRun --args='--spring.profiles.active=schema-export'`를 실행해 baseline SQL 추출 파일 생성을 확인했다. 이어 테스트 프로필에 `spring.flyway.enabled=false`를 명시하고, 다운로드 UseCase mock 누락이 있던 `MailControllerTest`, `WorkspaceDriveControllerTest`, 컨텍스트 격리가 필요했던 `AuthTokenStatePrecisionTest`를 보정했다. 이후 `./gradlew :app-api:test --tests com.meetbowl.api.auth.AuthTokenStatePrecisionTest`는 통과했고, 전체 `./gradlew test`는 `app-api:test`가 통과한 뒤 `application:test`의 기존 `UserDirectoryUseCaseTest#searchByOrganizationFiltersSuccess` 단일 assertion 실패 1건만 남았다.
+
+2026-06-23 GitHub Actions 워크플로 재작성
+
+- 작업 목적: 기존 다른 프로젝트용 GHCR 배포 워크플로를 Meetbowl BE 기준 AWS/ECR 방향으로 교체하고, 아직 없는 Dockerfile/배포 스크립트 때문에 main 파이프라인이 즉시 깨지지 않게 안전장치를 둔다.
+- 변경 내용: `.github/workflows/backend-deploy.yml`을 전면 교체했다. PR/main push/workflow_dispatch 트리거, Java 25, MariaDB/Redis/RabbitMQ service 기반 테스트 job, AWS OIDC + ECR push job, EC2 SSH deploy job 구조로 재작성했다. 아직 `Dockerfile` 또는 `deploy-be.sh`가 없는 상태를 감지해 build/deploy를 skip하는 `detect-build-assets`와 `deploy-skip-notice` job도 추가했다.
+- 동작 변경: PR에서는 테스트만 수행한다. main push에서는 테스트 후 Dockerfile/배포 스크립트 유무를 확인하고, 둘 다 준비됐을 때만 ECR push와 EC2 배포를 진행한다. 준비 전에는 skip notice만 남기고 실패시키지 않는다.
+- 제외 범위: 실제 `Dockerfile`, `deploy-be.sh`, 운영 compose, smoke test 스크립트, GitHub secrets 등록, AWS IAM role 생성은 아직 하지 않았다.
+- 검증: 워크플로 YAML을 로컬 diff로 검토했다. 실제 GitHub Actions 실행 검증은 아직 하지 않았다.
+
+2026-06-23 meetbowl-be Dockerfile 추가
+
+- 작업 목적: GitHub Actions의 ECR build 단계와 운영 compose가 공통으로 사용할 `meetbowl-be` 런타임 이미지를 만든다.
+- 변경 내용: 루트 `Dockerfile`을 추가해 Temurin 25 JDK/JRE 기반 멀티스테이지 빌드로 `:app-api:bootJar` 결과만 런타임 이미지에 포함하도록 구성했다. `.dockerignore`를 추가해 `.git`, 각 모듈 `build`, 로컬 task 로그 등 불필요한 파일이 빌드 컨텍스트에 들어가지 않게 했다. `README.md`에는 로컬 이미지 빌드 명령을 추가했다.
+- 동작 변경: 컨테이너 빌드 시 Gradle wrapper로 `app-api` bootJar를 생성하고, 런타임 이미지는 `/app/app.jar`만 가진 `prod` 기본 프로필 컨테이너로 실행된다. `JAVA_OPTS`를 환경변수로 주입할 수 있고 기본 timezone은 UTC다.
+- 제외 범위: healthcheck, Actuator endpoint, 운영 compose, deploy script 연결은 아직 하지 않았다.
+- 검증: 권한 상승으로 `./gradlew :app-api:bootJar -x test`를 실행해 `app-api/build/libs/app-api-0.0.1-SNAPSHOT.jar` 생성과 Dockerfile의 jar copy 경로가 맞는 것을 확인했다. 실제 `docker build` 실행 검증은 아직 하지 않았다.
+- 2026-06-23: backend GitHub Actions 배포 워크플로를 운영 저장소 구조에 맞게 다시 단순화했다.
+  - 요청 목적: `meetbowl-infra`에 배포 스크립트를 두는 구조로 결정된 뒤, `meetbowl-be` 워크플로가 GitHub runner에서 다른 레포 파일을 찾으려는 잘못된 가정을 제거해야 했다.
+  - 변경 파일: `.github/workflows/backend-deploy.yml`
+  - 변경 내용: `detect-build-assets`와 배포 스킵 분기 로직을 제거하고, `main` push 시 테스트 후 이미지 빌드/푸시, 이후 EC2의 `DEPLOY_PATH/scripts/deploy-be.sh`를 직접 실행하도록 고정했다.
+  - 동작 변화: 배포 가능 여부를 runner 로컬 파일 존재 여부로 판단하지 않고, 운영 서버에 checkout 되어 있는 infra 레포 루트를 기준으로 배포를 수행한다.
+  - 검증: 워크플로 YAML diff를 확인했고, infra 쪽 실제 배포 스크립트 경로 규약과 맞춰 검토했다.
+  - 남은 작업: GitHub Secrets의 `MEETBOWL_DEPLOY_PATH`를 infra 레포 루트로 맞추고, EC2에 `meetbowl-infra`가 배포 경로에 clone 되어 있어야 한다.
+
+2026-06-23 PR Actions checkout SHA 명시화
+
+- 작업 목적: PR GitHub Actions가 merge commit을 테스트하면서 로컬 HEAD와 다른 코드 기준으로 실패하는 혼선을 줄이기 위해, 테스트 job의 checkout 대상을 PR head SHA로 고정한다.
+- 변경 파일: `.github/workflows/backend-deploy.yml`, `task/agent-work-log.md`
+- 변경 내용:
+  `test` job의 checkout step을 PR과 비PR 이벤트로 분리했다.
+  PR 이벤트에서는 `actions/checkout@v4`에 `ref: ${{ github.event.pull_request.head.sha }}`를 명시해 PR 브랜치 head commit을 직접 checkout하도록 바꿨다.
+  push/workflow_dispatch는 기존처럼 이벤트 기본 ref를 checkout하도록 유지했다.
+  추가로 `Show checked out revision` step을 넣어 `event_name`, `github.sha`, `pr_head_sha`, 실제 `git rev-parse HEAD`를 로그에 남기게 했다.
+- 동작 변경:
+  앞으로 PR test job은 GitHub가 만든 synthetic merge commit 대신 실제 PR head commit을 기준으로 `./gradlew test --no-daemon`를 실행한다.
+  실패 로그만 봐도 workflow가 어떤 SHA를 테스트했는지 바로 확인할 수 있다.
+- 제외 범위:
+  `build-and-push`와 `deploy` job의 checkout 동작은 그대로 유지했다. 이 job들은 PR에서는 실행되지 않는다.
+- 검증:
+  workflow YAML diff를 로컬에서 확인했다.
+  실제 실행 검증은 다음 PR run 또는 `workflow_dispatch` 로그에서 `Show checked out revision` step 출력으로 확인해야 한다.
+- 남은 작업:
+  필요하면 `build-and-push` job에도 동일한 SHA 출력 step을 추가해 이미지 빌드 기준 커밋 추적성을 맞출 수 있다.
+
+2026-06-24 테스트 기준선 안정화 1차 정리
+
+- 작업 목적: 새 브랜치에서 `./gradlew test` 기준선을 다시 세우고, flaky/fixture/test-wiring 성격의 실패를 먼저 제거해 실제 구조 문제만 남도록 정리한다.
+- 변경 파일:
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/messaging/RabbitEventPublisherTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/messaging/document/RabbitDocumentIndexRequestedEventPublisherTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/user/JpaUserRepositoryAdapterTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meeting/MeetingLifecycleTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomReservationsTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomStatusTest.java`
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/minutes/JpaMinutesFavoriteRepositoryAdapterTest.java`
+  `task/agent-work-log.md`
+- 변경 내용:
+  Admin dashboard summary 테스트는 구현이 KST 자정 경계로 바뀐 상태에 맞춰 repository verify 기대값을 UTC 자정 기준에서 KST 기준 Instant로 수정했다.
+  RabbitEventPublisherTest는 잘못된 `tools.jackson.*` import를 실제 `com.fasterxml.jackson.*`로 교체하고, 테스트용 ObjectMapper에도 `WRITE_DATES_AS_TIMESTAMPS=false`를 적용해 런타임과 같은 ISO-8601 직렬화 규칙을 맞췄다.
+  RabbitDocumentIndexRequestedEventPublisherTest는 `DocumentIndexRequestedEvent.Metadata` / `DocumentIndexRequestedMessage.metadata` 구조 변경에 맞춰 테스트 payload 생성을 최신 계약으로 보정했다.
+  JpaUserRepositoryAdapterTest는 Elasticsearch adapter가 필요한 `ObjectMapper` bean을 테스트 컨텍스트에 추가하고, 영문 fixture에 맞지 않던 한글 검색 기대값을 `service` / `assistant` 기준으로 수정했다.
+  MeetingLifecycle/MeetingRoomReservations/MeetingRoomStatus 테스트는 실제 UseCase constructor 요구사항에 맞춰 `MeetingAttendeeWriter`, `GetRoomReservationsUseCase`, building/site adapter, no-op `DispatchNotificationUseCase` bean을 TestApplication에 추가해 컨텍스트가 정상 기동되도록 보정했다.
+  JpaMinutesFavoriteRepositoryAdapterTest는 delete 쿼리 실행에 필요한 트랜잭션 경계를 테스트 메서드에 명시했다.
+- 기준선 결과:
+  `./gradlew :application:test` 통과
+  `./gradlew :infrastructure:test` 재검증 결과, 컨텍스트/트랜잭션/fixture 성격의 실패는 정리되었고 `InfrastructureArchitectureTest` 1건만 남았다.
+  남은 실패는 테스트 취약성이나 wiring 누락이 아니라 실제 `infrastructure -> application` 의존 위반을 잡는 ArchUnit rule이다.
+- 남은 작업:
+  `DefaultMeetingOrganizationResolver`, `HttpMeetingRealtimeSessionStarter/Stopper`, `JpaMinutesGenerationContextQueryAdapter`의 `application` 타입 의존을 제거하도록 포트/DTO/assembler 위치를 재설계해야 한다.
 - Purpose: implement the QA-requested admin approval flow for user password reset requests, including pending request storage, admin list/count APIs, approval/rejection processing, and audit logging.
 - Changed files:
   `domain/auth/PasswordResetRequest`,
