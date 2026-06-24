@@ -40,5 +40,17 @@ public interface MeetingRepositoryPort {
     /** 회의실이 있는 회의 중 CANCELLED를 제외하고 [{@code from}, {@code to})와 겹치는 회의를 조회한다. */
     List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to);
 
+    /**
+     * 주어진 사용자들이 [{@code from}, {@code to})와 겹치는 활성 회의(SCHEDULED/IN_PROGRESS)에 참석/주최로 잡혀 있는지 (사용자,
+     * 회의) 쌍으로 조회한다. 주최자도 meeting_attendee에 HOST로 저장되므로 참석자 조인 한 번으로 주최·참석을 모두 본다. 참석자 시간 중복 예약 방지에
+     * 사용한다.
+     *
+     * <p>겹침 판정은 회의실과 동일하게 {@code 기존.scheduledAt < to AND 기존.scheduledEndAt > from}이며, 경계가 맞닿는 경우(이전
+     * 종료 == 다음 시작)는 겹침으로 보지 않는다. {@code excludeMeetingId}가 주어지면(수정 시 자기 회의) 그 회의는 제외한다. 같은 사용자가 여러
+     * 회의와 겹치면 회의마다 한 건씩 반환하며, {@code userIds}가 비어 있으면 빈 목록을 반환한다.
+     */
+    List<AttendeeConflict> findActiveByAttendees(
+            Collection<UUID> userIds, Instant from, Instant to, UUID excludeMeetingId);
+
     void deleteById(UUID id);
 }
