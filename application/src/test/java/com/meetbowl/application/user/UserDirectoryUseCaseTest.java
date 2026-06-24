@@ -295,7 +295,7 @@ class UserDirectoryUseCaseTest {
                                 null, null, null, null, null, "INACTIVE", 1, 20));
 
         assertEquals(
-                List.of("emailuser", "hong", "today-active"),
+                List.of("hong", "emailuser", "today-active"),
                 activeResult.items().stream().map(UserDirectoryUseCase.UserDirectorySummary::loginId).toList());
         assertEquals(
                 List.of("expired", "future-user", "kim"),

@@ -687,3 +687,46 @@
   Passed `.\gradlew :app-api:compileJava`
   Attempted targeted audit-related Gradle tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
   Attempted targeted application tests, but `application:compileTestJava` is blocked by pre-existing unrelated compile failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.
+
+2026-06-24 PasswordResetRequestControllerTest missing bean fix
+
+- Purpose: fix `PasswordResetRequestControllerTest > createSuccess()` failing with `NoSuchBeanDefinitionException` on the current `main` branch.
+- Changed files:
+  `app-api/src/test/java/com/meetbowl/api/auth/PasswordResetRequestControllerTest.java`,
+  and this log.
+- Behavior:
+  The test now mocks `AccessTokenValidationService` in addition to `PasswordResetRequestUseCase`.
+  Current `@WebMvcTest` context loads `JwtAuthenticatedUserConverter`, and that bean requires `AccessTokenValidationService` via constructor injection. The password-reset request controller itself does not use that service directly, but the MVC/security slice now does, so the test must supply it.
+- Verification:
+  Passed `./gradlew :app-api:test --tests 'com.meetbowl.api.auth.PasswordResetRequestControllerTest' --no-daemon`
+
+2026-06-24 Align auth controller structure with dev
+
+- Purpose: remove the `main`-only password reset request controller split so auth API structure matches `dev` before merging back through `dev -> main`.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/auth/PasswordResetRequestController.java`,
+  `app-api/src/test/java/com/meetbowl/api/auth/PasswordResetRequestControllerTest.java`,
+  and this log.
+- Behavior:
+  Removed the separate `PasswordResetRequestController` and its dedicated WebMvc test.
+  Password reset request handling remains covered by `AuthController` and `AuthControllerTest`, which is the `dev` branch structure.
+  This also removes the duplicate test slice that had drifted from the shared MVC/security test setup.
+- Verification:
+  Passed `./gradlew :app-api:test --tests 'com.meetbowl.api.auth.AuthControllerTest' --tests 'com.meetbowl.api.auth.AuthTokenStatePrecisionTest' --no-daemon`
+
+2026-06-24 application test fixture alignment after status/delete rule changes
+
+- Purpose: fix `:application:test` failures caused by stale test fixtures after effective-status, soft-delete, and organization sort-order validation rules changed.
+- Changed files:
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMasterDataUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminUserManagementUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/user/UserDirectoryUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Updated organization master-data test inputs so auto-generated code checks are isolated from the newer sort-order uniqueness rule instead of failing early on duplicated sort orders.
+  Updated admin user management fixtures so default active users remain within the fixed test clock's active window, and delete tests stub `findByIdIncludingDeleted(...)` to match the current delete path.
+  Adjusted the already-inactive delete fixture to represent a true tombstone (`deletedAt != null`), which is the current semantic used by `delete(...)` for "already deleted" conflicts.
+  Updated user-directory expected ordering to match the current fake repository sort by user name.
+- Verification:
+  Passed targeted seven previously failing tests with `./gradlew :application:test ... --no-daemon`
+  Passed full `./gradlew :application:test --no-daemon`

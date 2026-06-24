@@ -236,15 +236,15 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.DepartmentResult createdDepartment =
                 useCase.createDepartment(
                         new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
-                                AFFILIATE_ID, "Engineering", "ACTIVE", 1));
+                                AFFILIATE_ID, "Engineering", "ACTIVE", 4));
         AdminOrganizationMasterDataUseCase.TeamResult createdTeam =
                 useCase.createTeam(
                         new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
-                                DEPARTMENT_ID, "Backend", "ACTIVE", 1));
+                                DEPARTMENT_ID, "Backend", "ACTIVE", 2));
         AdminOrganizationMasterDataUseCase.PositionResult createdPosition =
                 useCase.createPosition(
                         new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
-                                "Manager", "ACTIVE", 1));
+                                "Manager", "ACTIVE", 10));
 
         assertEquals("D004", createdDepartment.code());
         assertEquals("T003", createdTeam.code());

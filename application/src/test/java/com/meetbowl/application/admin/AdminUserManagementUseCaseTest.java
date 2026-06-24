@@ -53,7 +53,8 @@ import com.meetbowl.domain.user.UserStatus;
 class AdminUserManagementUseCaseTest {
 
     private static final Instant ACTIVE_FROM = Instant.parse("2026-06-11T00:00:00Z");
-    private static final Instant ACTIVE_UNTIL = Instant.parse("2026-06-12T00:00:00Z");
+    // 고정 clock(2026-06-23) 기준으로 기본 fixture 사용자는 현재 시점에 유효한 ACTIVE 상태여야 한다.
+    private static final Instant ACTIVE_UNTIL = Instant.parse("2026-06-30T00:00:00Z");
     private static final Clock FIXED_CLOCK =
             Clock.fixed(Instant.parse("2026-06-23T00:00:00Z"), ZoneOffset.UTC);
 
@@ -466,7 +467,7 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("delete-user", "delete@example.com", UserRole.USER);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.UserSummary result =
@@ -500,7 +501,7 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("self-admin", "self@example.com", UserRole.ADMIN);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
@@ -537,10 +538,11 @@ class AdminUserManagementUseCaseTest {
                         false,
                         ACTIVE_FROM,
                         ACTIVE_UNTIL,
+                        FIXED_CLOCK.instant(),
                         ACTIVE_FROM,
                         ACTIVE_FROM);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
