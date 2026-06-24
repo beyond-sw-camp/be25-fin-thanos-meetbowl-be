@@ -14,7 +14,16 @@ public record MinutesGenerationContextResult(
         Instant startedAt,
         Instant endedAt,
         List<Participant> participants,
+        List<TranscriptSegment> segments,
         String rawTranscript) {
 
     public record Participant(UUID userId, String name, String department) {}
+
+    public record TranscriptSegment(
+            String segmentId,
+            long sequence,
+            String language,
+            String sourceText,
+            Long startedAtMs,
+            Long endedAtMs) {}
 }

@@ -52,6 +52,17 @@ public class GetMinutesGenerationContextUseCase {
                                                 participant.name(),
                                                 participant.department()))
                         .toList(),
+                context.segments().stream()
+                        .map(
+                                segment ->
+                                        new MinutesGenerationContextResult.TranscriptSegment(
+                                                segment.segmentId(),
+                                                segment.sequence(),
+                                                segment.language(),
+                                                segment.sourceText(),
+                                                segment.startedAtMs(),
+                                                segment.endedAtMs()))
+                        .toList(),
                 context.rawTranscript());
     }
 }

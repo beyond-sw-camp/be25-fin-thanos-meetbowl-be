@@ -32,6 +32,8 @@ class GetMinutesGenerationContextUseCaseTest {
         assertEquals(expected.title(), result.title());
         assertEquals(expected.startedAt(), result.startedAt());
         assertEquals(expected.endedAt(), result.endedAt());
+        assertEquals(expected.segments().size(), result.segments().size());
+        assertEquals(expected.segments().getFirst().sourceText(), result.segments().getFirst().sourceText());
         assertEquals(expected.rawTranscript(), result.rawTranscript());
         assertEquals(expected.participants().size(), result.participants().size());
     }
@@ -59,6 +61,11 @@ class GetMinutesGenerationContextUseCaseTest {
                 Instant.parse("2026-06-23T01:00:00Z"),
                 Instant.parse("2026-06-23T02:00:00Z"),
                 List.of(new MinutesGenerationContext.Participant(hostId, "홍길동", null)),
+                List.of(
+                        new MinutesGenerationContext.TranscriptSegment(
+                                "segment-1", 1L, "KO", "첫 문장", 0L, 500L),
+                        new MinutesGenerationContext.TranscriptSegment(
+                                "segment-2", 2L, "KO", "둘째 문장", 600L, 1_000L)),
                 transcript);
     }
 }

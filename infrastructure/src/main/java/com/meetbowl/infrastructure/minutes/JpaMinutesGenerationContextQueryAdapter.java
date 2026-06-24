@@ -47,6 +47,8 @@ public class JpaMinutesGenerationContextQueryAdapter
 
     private MinutesGenerationContext toContext(Meeting meeting) {
         var attendees = attendeeRepositoryPort.findByMeetingId(meeting.id());
+        var transcriptSegments =
+                transcriptRepositoryPort.findAllByMeetingIdOrderBySequence(meeting.id());
         Map<UUID, User> users =
                 attendees.stream()
                         .map(attendee -> userRepositoryPort.findById(attendee.userId()).orElse(null))
@@ -70,8 +72,7 @@ public class JpaMinutesGenerationContextQueryAdapter
                                                 user.id(), user.name(), null))
                         .toList();
         String rawTranscript =
-                FinalTranscriptTextAssembler.assemble(
-                        transcriptRepositoryPort.findAllByMeetingIdOrderBySequence(meeting.id()));
+                FinalTranscriptTextAssembler.assemble(transcriptSegments);
         return new MinutesGenerationContext(
                 meeting.id(),
                 organizationId,
@@ -81,6 +82,17 @@ public class JpaMinutesGenerationContextQueryAdapter
                 meeting.startedAt(),
                 meeting.endedAt(),
                 participants,
+                transcriptSegments.stream()
+                        .map(
+                                segment ->
+                                        new MinutesGenerationContext.TranscriptSegment(
+                                                segment.segmentId(),
+                                                segment.sequence(),
+                                                segment.sourceLanguage().name(),
+                                                segment.sourceText(),
+                                                segment.startedAtMs(),
+                                                segment.endedAtMs()))
+                        .toList(),
                 rawTranscript);
     }
 }
