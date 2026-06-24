@@ -99,7 +99,8 @@ class StartMeetingUseCaseTest {
 
         StartMeetingUseCase useCase = new StartMeetingUseCase(meetingRepository, FIXED_CLOCK);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> useCase.execute(meetingId));
+        BusinessException exception =
+                assertThrows(BusinessException.class, () -> useCase.execute(meetingId));
 
         assertEquals(ErrorCode.MEETING_ALREADY_ENDED, exception.errorCode());
     }
@@ -145,6 +146,15 @@ class StartMeetingUseCaseTest {
 
         @Override
         public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<com.meetbowl.domain.meeting.AttendeeConflict> findActiveByAttendees(
+                java.util.Collection<UUID> userIds,
+                Instant from,
+                Instant to,
+                UUID excludeMeetingId) {
             return List.of();
         }
 

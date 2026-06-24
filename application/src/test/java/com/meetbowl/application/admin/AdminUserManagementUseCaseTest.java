@@ -467,7 +467,8 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("delete-user", "delete@example.com", UserRole.USER);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id()))
+                .willReturn(Optional.of(current));
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         AdminUserManagementUseCase.UserSummary result =
@@ -501,7 +502,8 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User current = createUser("self-admin", "self@example.com", UserRole.ADMIN);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id()))
+                .willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
@@ -542,7 +544,8 @@ class AdminUserManagementUseCaseTest {
                         ACTIVE_FROM,
                         ACTIVE_FROM);
         stubOrganizationReferencesForUser(current);
-        given(userRepositoryPort.findByIdIncludingDeleted(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByIdIncludingDeleted(current.id()))
+                .willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(

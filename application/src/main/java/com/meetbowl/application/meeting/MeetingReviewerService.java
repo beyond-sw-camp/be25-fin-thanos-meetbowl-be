@@ -12,7 +12,8 @@ import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
  * 회의록 도메인 연동(T4-002, FR-026/142)용 회의록 검토자 매핑 서비스다.
  *
  * <p>회의 생성·수정 시 지정된 회의록 검토자(reviewer 플래그가 붙은 참석자)를 회의 ID로 조회해, 회의록 생성 흐름이 참조할 수 있게 노출한다.
- * 회의록(Minutes)은 {@code reviewerUserId}가 필수이므로, 회의록 생성 측은 이 서비스로 검토자를 얻어 {@code Minutes.createDraft(...)}에 전달한다.
+ * 회의록(Minutes)은 {@code reviewerUserId}가 필수이므로, 회의록 생성 측은 이 서비스로 검토자를 얻어 {@code
+ * Minutes.createDraft(...)}에 전달한다.
  *
  * <p>경계: 검토자 지정/저장은 회의 생성·수정 UseCase가 담당하고(reviewer 플래그로 저장), 본 서비스는 그 검토자를 읽어 다른 도메인(회의록)에 넘기는 읽기
  * 전용 연동 지점이다. 검토자 사용자 자체의 유효성은 유저(조직) 도메인 책임이다.

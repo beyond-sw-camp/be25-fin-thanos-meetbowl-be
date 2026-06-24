@@ -520,13 +520,7 @@ class AdminOrganizationMasterDataUseCaseTest {
         positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
         positionRepository.save(
                 new Position(
-                        otherPositionId,
-                        "Director",
-                        "DIR",
-                        ReferenceStatus.ACTIVE,
-                        2,
-                        NOW,
-                        NOW));
+                        otherPositionId, "Director", "DIR", ReferenceStatus.ACTIVE, 2, NOW, NOW));
 
         BusinessException exception =
                 assertThrows(
@@ -921,7 +915,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                     .anyMatch(
                             item ->
                                     item.affiliateId().equals(affiliateId)
-                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+                                            && java.util.Objects.equals(
+                                                    item.sortOrder(), sortOrder));
         }
 
         @Override
@@ -932,7 +927,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                             item ->
                                     !item.id().equals(departmentId)
                                             && item.affiliateId().equals(affiliateId)
-                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+                                            && java.util.Objects.equals(
+                                                    item.sortOrder(), sortOrder));
         }
     }
 
@@ -1012,7 +1008,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                                                     .map(Department::affiliateId)
                                                     .orElseThrow()
                                                     .equals(affiliateId)
-                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+                                            && java.util.Objects.equals(
+                                                    item.sortOrder(), sortOrder));
         }
 
         @Override
@@ -1023,11 +1020,12 @@ class AdminOrganizationMasterDataUseCaseTest {
                             item ->
                                     !item.id().equals(teamId)
                                             && departmentRepository
-                                                            .findById(item.departmentId())
-                                                            .map(Department::affiliateId)
-                                                            .orElseThrow()
-                                                            .equals(affiliateId)
-                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+                                                    .findById(item.departmentId())
+                                                    .map(Department::affiliateId)
+                                                    .orElseThrow()
+                                                    .equals(affiliateId)
+                                            && java.util.Objects.equals(
+                                                    item.sortOrder(), sortOrder));
         }
     }
 
@@ -1108,7 +1106,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                     .anyMatch(
                             item ->
                                     !item.id().equals(positionId)
-                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+                                            && java.util.Objects.equals(
+                                                    item.sortOrder(), sortOrder));
         }
     }
 

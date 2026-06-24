@@ -70,7 +70,8 @@ class TransferMeetingHostUseCaseTest {
                 new TransferMeetingHostUseCase(meetingRepository, attendeeRepository);
 
         MeetingResult result =
-                useCase.execute(new TransferMeetingHostCommand(meetingId, hostUserId, newHostUserId));
+                useCase.execute(
+                        new TransferMeetingHostCommand(meetingId, hostUserId, newHostUserId));
 
         assertEquals(newHostUserId, result.hostUserId());
         assertEquals(newHostUserId, meetingRepository.savedMeeting.hostUserId());
@@ -164,6 +165,15 @@ class TransferMeetingHostUseCaseTest {
 
         @Override
         public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<com.meetbowl.domain.meeting.AttendeeConflict> findActiveByAttendees(
+                java.util.Collection<UUID> userIds,
+                Instant from,
+                Instant to,
+                UUID excludeMeetingId) {
             return List.of();
         }
 

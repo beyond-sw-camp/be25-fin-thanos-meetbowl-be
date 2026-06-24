@@ -70,7 +70,8 @@ public class AdminPasswordResetRequestUseCase {
                         status -> {
                             Instant now = Instant.now();
                             PasswordResetRequest request = getRequest(command.requestId());
-                            PasswordResetRequest approvedRequest = request.approve(command.adminId(), now);
+                            PasswordResetRequest approvedRequest =
+                                    request.approve(command.adminId(), now);
                             User user =
                                     userRepositoryPort
                                             .findById(request.userId())
@@ -82,7 +83,8 @@ public class AdminPasswordResetRequestUseCase {
 
                             User updatedUser =
                                     user.resetPasswordByAdmin(
-                                            passwordEncoder.encode(PasswordPolicy.INITIAL_PASSWORD));
+                                            passwordEncoder.encode(
+                                                    PasswordPolicy.INITIAL_PASSWORD));
                             userRepositoryPort.save(updatedUser);
                             passwordResetRequestRepositoryPort.save(approvedRequest);
                             logDecision(
@@ -96,8 +98,7 @@ public class AdminPasswordResetRequestUseCase {
 
         if (outcome == null) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INTERNAL_ERROR,
-                    "비밀번호 초기화 요청 승인 처리에 실패했습니다.");
+                    ErrorCode.COMMON_INTERNAL_ERROR, "비밀번호 초기화 요청 승인 처리에 실패했습니다.");
         }
 
         tokenStateRepositoryPort.revokeUserSessions(outcome.userId(), Instant.now());
@@ -123,8 +124,7 @@ public class AdminPasswordResetRequestUseCase {
                         });
         if (request == null) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INTERNAL_ERROR,
-                    "비밀번호 초기화 요청 거절 처리에 실패했습니다.");
+                    ErrorCode.COMMON_INTERNAL_ERROR, "비밀번호 초기화 요청 거절 처리에 실패했습니다.");
         }
         return PasswordResetRequestResult.from(request);
     }
@@ -132,7 +132,8 @@ public class AdminPasswordResetRequestUseCase {
     private PasswordResetRequest getRequest(UUID requestId) {
         return passwordResetRequestRepositoryPort
                 .findById(requestId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PASSWORD_RESET_REQUEST_NOT_FOUND));
+                .orElseThrow(
+                        () -> new BusinessException(ErrorCode.PASSWORD_RESET_REQUEST_NOT_FOUND));
     }
 
     private PasswordResetRequestStatus parseStatus(String status) {
@@ -143,16 +144,14 @@ public class AdminPasswordResetRequestUseCase {
             return PasswordResetRequestStatus.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException exception) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INVALID_REQUEST,
-                    "지원하지 않는 비밀번호 초기화 요청 상태입니다.");
+                    ErrorCode.COMMON_INVALID_REQUEST, "지원하지 않는 비밀번호 초기화 요청 상태입니다.");
         }
     }
 
     private void ensureManagedUser(User user) {
         if (user.role() != UserRole.USER) {
             throw new BusinessException(
-                    ErrorCode.COMMON_FORBIDDEN,
-                    "관리자 계정 비밀번호 초기화 요청은 승인할 수 없습니다.");
+                    ErrorCode.COMMON_FORBIDDEN, "관리자 계정 비밀번호 초기화 요청은 승인할 수 없습니다.");
         }
     }
 
@@ -188,8 +187,7 @@ public class AdminPasswordResetRequestUseCase {
                             request.status().name(), request.requestedAt(), request.processedAt()));
         } catch (JsonProcessingException exception) {
             throw new BusinessException(
-                    ErrorCode.COMMON_INTERNAL_ERROR,
-                    "비밀번호 초기화 요청 감사 로그 직렬화에 실패했습니다.");
+                    ErrorCode.COMMON_INTERNAL_ERROR, "비밀번호 초기화 요청 감사 로그 직렬화에 실패했습니다.");
         }
     }
 

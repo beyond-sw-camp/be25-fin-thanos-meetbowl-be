@@ -34,6 +34,8 @@ public class JoinMeetingUseCase {
     private static final Logger log = Logger.getLogger(JoinMeetingUseCase.class.getName());
     private static final String DEFAULT_GUEST_PARTICIPANT_NAME_PREFIX = "게스트";
     private static final String DEFAULT_GUEST_DISPLAY_NAME = "게스트";
+    private static final UUID STT_DEFAULT_ORGANIZATION_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000000");
     private static final Duration JOIN_AVAILABLE_BEFORE = Duration.ofMinutes(15);
 
     private final MeetingRepositoryPort meetingRepositoryPort;
@@ -66,11 +68,14 @@ public class JoinMeetingUseCase {
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
 
-        // STT가 최종 자막/피드백 이벤트에 조직 ID를 넣어야 하므로 인증 컨텍스트의 조직이 있을 때만 세션을 생성한다.
-        // 조직이 없는 로컬 fallback/비로그인 입장은 LiveKit 자체를 막지 않고, 인증 사용자의 입장 시 세션을 보장한다.
-        if (command.organizationId() != null) {
-            ensureRealtimeSessionStarted(command.meetingId(), command.organizationId(), roomName);
-        }
+        // 회의 입장은 조직 소속 여부와 분리하고, STT 세션만 조직 ID가 없으면 기본값으로 시작한다.
+        // 이렇게 하면 게스트/조직 미지정 계정도 회의 자막을 사용할 수 있다.
+        ensureRealtimeSessionStarted(
+                command.meetingId(),
+                command.organizationId() != null
+                        ? command.organizationId()
+                        : STT_DEFAULT_ORGANIZATION_ID,
+                roomName);
 
         LiveKitTokenIssueResult issuedToken =
                 liveKitTokenIssuer.issue(
@@ -79,6 +84,7 @@ public class JoinMeetingUseCase {
 
         return new JoinMeetingResult(
                 command.meetingId(),
+                meeting != null ? meeting.title() : "",
                 roomName,
                 issuedToken.livekitUrl(),
                 meeting != null ? meeting.hostUserId() : null,
@@ -146,7 +152,8 @@ public class JoinMeetingUseCase {
      * <p>STT 세션 준비가 실패하더라도 회의실 입장까지 막아버리면 사용자는 영상/음성 회의 자체를 시작할 수 없게 된다. 따라서 STT는 best-effort로
      * 준비하고, 실패하면 로그만 남긴 뒤 회의 입장은 계속 진행한다.
      */
-    private void ensureRealtimeSessionStarted(UUID meetingId, UUID organizationId, String roomName) {
+    private void ensureRealtimeSessionStarted(
+            UUID meetingId, UUID organizationId, String roomName) {
         try {
             meetingRealtimeSessionStarter.ensureStarted(meetingId, organizationId, roomName);
         } catch (BusinessException exception) {
@@ -192,6 +199,5 @@ public class JoinMeetingUseCase {
         if (Instant.now(clock).isBefore(joinAvailableAt)) {
             throw new BusinessException(ErrorCode.MEETING_JOIN_TOO_EARLY);
         }
-
     }
 }

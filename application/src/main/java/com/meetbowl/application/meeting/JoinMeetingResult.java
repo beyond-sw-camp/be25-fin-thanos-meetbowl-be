@@ -10,6 +10,7 @@ import java.util.UUID;
  */
 public record JoinMeetingResult(
         UUID meetingId,
+        String title,
         String roomName,
         String livekitUrl,
         UUID hostUserId,

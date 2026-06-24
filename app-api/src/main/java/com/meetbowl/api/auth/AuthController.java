@@ -80,6 +80,7 @@ public class AuthController extends BaseController {
                                 result.user().email(),
                                 result.user().role(),
                                 result.user().status(),
+                                result.user().affiliateId(),
                                 result.user().affiliate(),
                                 result.user().department(),
                                 result.user().team(),

@@ -2,6 +2,7 @@ package com.meetbowl.application.meeting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -17,6 +18,8 @@ import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingEndedEvent;
+import com.meetbowl.domain.meeting.MeetingEndedEventOutboxPort;
 import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
@@ -29,8 +32,7 @@ class EndMeetingUseCaseTest {
         UUID hostUserId = UUID.randomUUID();
         UUID reviewerUserId = UUID.randomUUID();
         UUID organizationId = UUID.randomUUID();
-        RecordingMeetingEndedEventPublisher eventPublisher =
-                new RecordingMeetingEndedEventPublisher();
+        RecordingMeetingEndedOutbox outbox = new RecordingMeetingEndedOutbox();
         StubMeetingRepository meetingRepository =
                 new StubMeetingRepository(
                         Meeting.of(
@@ -59,7 +61,7 @@ class EndMeetingUseCaseTest {
                                                 true,
                                                 AttendanceStatus.ACCEPTED))),
                         hostId -> organizationId,
-                        eventPublisher,
+                        outbox,
                         new MeetingGuestNameAllocator(),
                         new RecordingRealtimeSessionStopper());
 
@@ -73,17 +75,16 @@ class EndMeetingUseCaseTest {
                                 "stt-server"));
 
         assertEquals(MeetingStatus.ENDED.name(), result.status());
-        assertTrue(result.meetingEndedEventPublished());
-        assertEquals("주간 전략 회의", eventPublisher.title);
-        assertEquals(reviewerUserId, eventPublisher.reviewerUserId);
-        assertEquals(organizationId, eventPublisher.organizationId);
+        assertTrue(result.meetingEndedEventQueued());
+        assertEquals("주간 전략 회의", outbox.savedEvent.title());
+        assertEquals(reviewerUserId, outbox.savedEvent.reviewerUserId());
+        assertEquals(organizationId, outbox.savedEvent.organizationId());
     }
 
     @Test
     void 이미종료된회의는이벤트를다시발행하지않는다() {
         UUID meetingId = UUID.randomUUID();
-        RecordingMeetingEndedEventPublisher eventPublisher =
-                new RecordingMeetingEndedEventPublisher();
+        RecordingMeetingEndedOutbox outbox = new RecordingMeetingEndedOutbox();
         EndMeetingUseCase useCase =
                 new EndMeetingUseCase(
                         new StubMeetingRepository(
@@ -102,7 +103,7 @@ class EndMeetingUseCaseTest {
                                         null)),
                         new StubMeetingAttendeeRepository(List.of()),
                         hostId -> UUID.randomUUID(),
-                        eventPublisher,
+                        outbox,
                         new MeetingGuestNameAllocator(),
                         new RecordingRealtimeSessionStopper());
 
@@ -115,12 +116,12 @@ class EndMeetingUseCaseTest {
                                 "retry",
                                 "stt-server"));
 
-        assertFalse(result.meetingEndedEventPublished());
-        assertFalse(eventPublisher.called);
+        assertFalse(result.meetingEndedEventQueued());
+        assertFalse(outbox.called);
     }
 
     @Test
-    void 이벤트발행에실패해도회의상태는종료로저장된다() {
+    void Outbox저장실패를성공으로숨기지않는다() {
         UUID meetingId = UUID.randomUUID();
         UUID hostUserId = UUID.randomUUID();
         StubMeetingRepository meetingRepository =
@@ -152,23 +153,20 @@ class EndMeetingUseCaseTest {
                                                 true,
                                                 AttendanceStatus.ACCEPTED))),
                         hostId -> UUID.randomUUID(),
-                        (meetingId1, organizationId, hostUserId1, reviewerUserId, title, startedAt, endedAt, correlationId) -> {
-                            throw new IllegalStateException("rabbitmq unavailable");
-                        },
+                        new ThrowingMeetingEndedOutbox(),
                         new MeetingGuestNameAllocator(),
                         new RecordingRealtimeSessionStopper());
 
-        EndMeetingResult result =
-                useCase.execute(
-                        new EndMeetingCommand(
-                                meetingId,
-                                Instant.parse("2026-06-12T02:00:00Z"),
-                                UUID.randomUUID(),
-                                "meeting_ended",
-                                "stt-server"));
-
-        assertEquals(MeetingStatus.ENDED.name(), result.status());
-        assertFalse(result.meetingEndedEventPublished());
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        useCase.execute(
+                                new EndMeetingCommand(
+                                        meetingId,
+                                        Instant.parse("2026-06-12T02:00:00Z"),
+                                        UUID.randomUUID(),
+                                        "meeting_ended",
+                                        "stt-server")));
     }
 
     private static final class StubMeetingRepository implements MeetingRepositoryPort {
@@ -208,6 +206,15 @@ class EndMeetingUseCaseTest {
 
         @Override
         public List<Meeting> findNonCancelledRoomMeetingsOverlapping(Instant from, Instant to) {
+            return List.of();
+        }
+
+        @Override
+        public List<com.meetbowl.domain.meeting.AttendeeConflict> findActiveByAttendees(
+                java.util.Collection<UUID> userIds,
+                Instant from,
+                Instant to,
+                UUID excludeMeetingId) {
             return List.of();
         }
 
@@ -266,28 +273,45 @@ class EndMeetingUseCaseTest {
         public void deleteByMeetingId(UUID meetingId) {}
     }
 
-    private static final class RecordingMeetingEndedEventPublisher
-            implements MeetingEndedEventPublisher {
+    private static final class RecordingMeetingEndedOutbox implements MeetingEndedEventOutboxPort {
         private boolean called;
-        private UUID organizationId;
-        private UUID reviewerUserId;
-        private String title;
+        private MeetingEndedEvent savedEvent;
 
         @Override
-        public void publishMeetingEnded(
-                UUID meetingId,
-                UUID organizationId,
-                UUID hostUserId,
-                UUID reviewerUserId,
-                String title,
-                Instant startedAt,
-                Instant endedAt,
-                UUID correlationId) {
+        public void save(MeetingEndedEvent event) {
             this.called = true;
-            this.organizationId = organizationId;
-            this.reviewerUserId = reviewerUserId;
-            this.title = title;
+            this.savedEvent = event;
         }
+
+        @Override
+        public List<MeetingEndedEvent> findReadyToPublish(Instant now, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public void removePublished(UUID eventId) {}
+
+        @Override
+        public void markFailed(UUID eventId, Instant nextAttemptAt, String failureReason) {}
+    }
+
+    private static final class ThrowingMeetingEndedOutbox implements MeetingEndedEventOutboxPort {
+
+        @Override
+        public void save(MeetingEndedEvent event) {
+            throw new IllegalStateException("outbox unavailable");
+        }
+
+        @Override
+        public List<MeetingEndedEvent> findReadyToPublish(Instant now, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public void removePublished(UUID eventId) {}
+
+        @Override
+        public void markFailed(UUID eventId, Instant nextAttemptAt, String failureReason) {}
     }
 
     private static final class RecordingRealtimeSessionStopper

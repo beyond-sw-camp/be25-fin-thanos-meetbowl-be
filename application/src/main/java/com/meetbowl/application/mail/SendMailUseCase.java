@@ -122,9 +122,12 @@ public class SendMailUseCase {
             String originalFileName =
                     isBlank(upload.originalFileName()) ? "attachment" : upload.originalFileName();
             String contentType =
-                    isBlank(upload.contentType()) ? "application/octet-stream" : upload.contentType();
+                    isBlank(upload.contentType())
+                            ? "application/octet-stream"
+                            : upload.contentType();
             String storedFileName = UUID.randomUUID().toString();
-            String objectKey = ATTACHMENT_KEY_PREFIX + command.senderUserId() + "/" + storedFileName;
+            String objectKey =
+                    ATTACHMENT_KEY_PREFIX + command.senderUserId() + "/" + storedFileName;
             objectStoragePort.upload(objectKey, contentType, content);
             mail.addAttachment(
                     MailAttachment.create(
@@ -144,9 +147,6 @@ public class SendMailUseCase {
     private void validateParticipants(SendMailCommand command, Instant now) {
         if (command.organizationId() == null) {
             throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "조직에 소속된 사용자만 메일을 발송할 수 있습니다.");
-        }
-        if (command.recipientUserIds().contains(command.senderUserId())) {
-            throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "발신자를 수신자로 지정할 수 없습니다.");
         }
         validateParticipant(command.senderUserId(), command.organizationId(), now);
         command.recipientUserIds()

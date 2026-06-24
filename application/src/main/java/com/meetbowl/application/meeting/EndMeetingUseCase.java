@@ -12,6 +12,8 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
+import com.meetbowl.domain.meeting.MeetingEndedEvent;
+import com.meetbowl.domain.meeting.MeetingEndedEventOutboxPort;
 import com.meetbowl.domain.meeting.MeetingOrganizationResolver;
 import com.meetbowl.domain.meeting.MeetingRealtimeSessionStopper;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
@@ -30,7 +32,7 @@ public class EndMeetingUseCase {
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
     private final MeetingOrganizationResolver meetingOrganizationResolver;
-    private final MeetingEndedEventPublisher meetingEndedEventPublisher;
+    private final MeetingEndedEventOutboxPort meetingEndedEventOutboxPort;
     private final MeetingGuestNameAllocator meetingGuestNameAllocator;
     private final MeetingRealtimeSessionStopper meetingRealtimeSessionStopper;
 
@@ -38,13 +40,13 @@ public class EndMeetingUseCase {
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
             MeetingOrganizationResolver meetingOrganizationResolver,
-            MeetingEndedEventPublisher meetingEndedEventPublisher,
+            MeetingEndedEventOutboxPort meetingEndedEventOutboxPort,
             MeetingGuestNameAllocator meetingGuestNameAllocator,
             MeetingRealtimeSessionStopper meetingRealtimeSessionStopper) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.meetingOrganizationResolver = meetingOrganizationResolver;
-        this.meetingEndedEventPublisher = meetingEndedEventPublisher;
+        this.meetingEndedEventOutboxPort = meetingEndedEventOutboxPort;
         this.meetingGuestNameAllocator = meetingGuestNameAllocator;
         this.meetingRealtimeSessionStopper = meetingRealtimeSessionStopper;
     }
@@ -56,12 +58,10 @@ public class EndMeetingUseCase {
                         .orElseThrow(() -> new BusinessException(ErrorCode.MEETING_NOT_FOUND));
 
         /**
-         * 종료 요청은 여러 경로에서 다시 들어올 수 있다.
-         * - Host가 UI에서 "회의 종료" 버튼을 누른 경우
-         * - STT/시스템이 내부 API로 종료를 알린 경우
-         * - 장애 복구 중 같은 종료 요청이 재처리된 경우
+         * 종료 요청은 여러 경로에서 다시 들어올 수 있다. - Host가 UI에서 "회의 종료" 버튼을 누른 경우 - STT/시스템이 내부 API로 종료를 알린 경우 -
+         * 장애 복구 중 같은 종료 요청이 재처리된 경우
          *
-         * 이미 ENDED라면 상태 변경과 이벤트 재발행을 막고, 게스트 번호 카운터만 정리한다.
+         * <p>이미 ENDED라면 상태 변경과 이벤트 재발행을 막고, 게스트 번호 카운터만 정리한다.
          */
         if (meeting.status() == com.meetbowl.domain.meeting.MeetingStatus.ENDED) {
             meetingGuestNameAllocator.reset(meeting.id());
@@ -78,8 +78,7 @@ public class EndMeetingUseCase {
         Meeting savedMeeting = meetingRepositoryPort.save(endedMeeting);
 
         /**
-         * 회의 종료 이후 AI 회의록 초안 생성, 후속 알림 같은 비동기 작업은
-         * DB 상태가 ENDED로 확정된 뒤 `meeting.ended` 이벤트로만 시작한다.
+         * 회의 종료 이후 AI 회의록 초안 생성, 후속 알림 같은 비동기 작업은 DB 상태가 ENDED로 확정된 뒤 `meeting.ended` 이벤트로만 시작한다.
          */
         UUID reviewerUserId =
                 meetingAttendeeRepositoryPort.findByMeetingId(savedMeeting.id()).stream()
@@ -94,31 +93,30 @@ public class EndMeetingUseCase {
         UUID organizationId =
                 meetingOrganizationResolver.resolveByHostUserId(savedMeeting.hostUserId());
 
-        boolean meetingEndedEventPublished = false;
-        try {
-            meetingEndedEventPublisher.publishMeetingEnded(
-                    savedMeeting.id(),
-                    organizationId,
-                    savedMeeting.hostUserId(),
-                    reviewerUserId,
-                    savedMeeting.title(),
-                    savedMeeting.startedAt(),
-                    savedMeeting.endedAt(),
-                    resolveCorrelationId(command.correlationId()));
-            meetingEndedEventPublished = true;
-        } catch (RuntimeException exception) {
-            log.warning(
-                    "회의 종료 후 meeting.ended 이벤트 발행에 실패했습니다. DB 종료 상태는 유지합니다. meetingId="
-                            + savedMeeting.id()
-                            + ", message="
-                            + exception.getMessage());
-        }
+        /**
+         * 회의 종료 저장과 Outbox 저장을 같은 DB 트랜잭션에 포함한다. RabbitMQ 장애와 무관하게 발행 요청이 DB에 남고, 트랜잭션이 롤백되면 종료 상태와
+         * 이벤트가 함께 롤백된다.
+         */
+        UUID eventId = UUID.randomUUID();
+        meetingEndedEventOutboxPort.save(
+                new MeetingEndedEvent(
+                        eventId,
+                        resolveCorrelationId(command.correlationId()),
+                        savedMeeting.id(),
+                        organizationId,
+                        savedMeeting.hostUserId(),
+                        reviewerUserId,
+                        savedMeeting.title(),
+                        savedMeeting.startedAt(),
+                        savedMeeting.endedAt(),
+                        Instant.now(),
+                        0));
 
         /**
          * STT 세션 종료 실패가 authoritative 종료 자체를 되돌리면 안 된다.
          *
-         * 회의 DB 상태와 후속 RabbitMQ 이벤트는 이미 확정됐으므로,
-         * 여기서는 best-effort로 STT 세션 정리만 시도하고 실패 시 경고 로그로 남긴다.
+         * <p>회의 DB 상태와 후속 RabbitMQ 이벤트는 이미 확정됐으므로, 여기서는 best-effort로 STT 세션 정리만 시도하고 실패 시 경고 로그로
+         * 남긴다.
          */
         try {
             meetingRealtimeSessionStopper.stop(savedMeeting.id());
@@ -140,7 +138,7 @@ public class EndMeetingUseCase {
                 savedMeeting.status().name(),
                 savedMeeting.startedAt(),
                 savedMeeting.endedAt(),
-                meetingEndedEventPublished);
+                true);
     }
 
     private Instant resolveEndedAt(Instant endedAt) {

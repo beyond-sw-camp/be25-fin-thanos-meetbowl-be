@@ -1,14 +1,16 @@
 package com.meetbowl.application.minutes;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.application.mail.SendMailCommand;
+import com.meetbowl.application.mail.SendMailUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
@@ -16,8 +18,6 @@ import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
-import com.meetbowl.application.mail.SendMailCommand;
-import com.meetbowl.application.mail.SendMailUseCase;
 
 /** 지정 검토자가 회의록을 최종 승인하고 AI 검색용 문서 색인을 요청하는 UseCase다. */
 @Service

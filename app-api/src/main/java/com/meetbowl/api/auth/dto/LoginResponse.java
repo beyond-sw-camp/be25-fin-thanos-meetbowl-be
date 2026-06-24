@@ -17,6 +17,7 @@ public record LoginResponse(
             String email,
             String role,
             String status,
+            UUID affiliateId,
             String affiliate,
             String department,
             String team,

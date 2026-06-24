@@ -68,7 +68,8 @@ public class CancelMeetingUseCase {
     /**
      * 회의 취소를 참석자에게 알린다. 취소를 실행한 주최자 본인은 제외한다.
      *
-     * <p>알림은 {@link DispatchNotificationUseCase}가 현재 트랜잭션에 함께 저장하고 커밋 후 SSE로 전달한다(취소가 롤백되면 알림도 함께 롤백).
+     * <p>알림은 {@link DispatchNotificationUseCase}가 현재 트랜잭션에 함께 저장하고 커밋 후 SSE로 전달한다(취소가 롤백되면 알림도 함께
+     * 롤백).
      */
     private void notifyMeetingCancelled(
             Meeting meeting, List<MeetingAttendee> attendees, UUID actorUserId) {
