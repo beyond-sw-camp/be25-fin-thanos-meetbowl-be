@@ -581,6 +581,7 @@ DELETION_SCHEDULED
 | POST | `/workspace/calendar/subscriptions` | 동료 일정 구독 등록 | User/Admin |
 | DELETE | `/workspace/calendar/subscriptions/{subscriptionId}` | 동료 일정 구독 해제 | Owner |
 | GET | `/workspace/backups` | 백업 자료 조회 | User/Admin |
+| GET | `/workspace/backups/{backupId}` | 본인 백업 자료 상세·본문 조회 | User/Admin |
 | GET | `/workspace/backups/search` | 백업 자료 검색 | User/Admin |
 | POST | `/workspace/backups/{backupId}/bookmark` | 백업 자료 북마크 등록 | User/Admin |
 | DELETE | `/workspace/backups/{backupId}/bookmark` | 백업 자료 북마크 해제 | User/Admin |
