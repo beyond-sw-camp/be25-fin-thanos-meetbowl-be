@@ -1074,3 +1074,49 @@
 - Verification:
   Reviewed `UserEntity` and `User` to confirm `deletedAt` is a persisted field and not an in-memory-only property.
   Confirmed the current baseline `users` table definition does not include `deleted_at`.
+
+2026-06-24 meeting.ended RabbitMQ JSON serialization fix
+
+- Purpose: fix meeting termination succeeding in MariaDB while the `meeting.ended` event failed before RabbitMQ transmission because the default `SimpleMessageConverter` could not convert `EventEnvelope`.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/messaging/RabbitMqMeetingEndedEventPublisher.java`,
+  `app-api/src/test/java/com/meetbowl/api/messaging/RabbitMqMeetingEndedEventPublisherTest.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/messaging/RabbitEventPublisher.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/messaging/meeting/MeetingEndedMessage.java`,
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/messaging/RabbitEventPublisherTest.java`,
+  and this log.
+- Behavior:
+  Replaced the direct `RabbitTemplate.convertAndSend(EventEnvelope)` call with the shared `RabbitEventPublisher`, which serializes the envelope to JSON bytes before calling `RabbitTemplate.send`.
+  Added a dedicated `MeetingEndedMessage` contract DTO and reused `EventTypes.MEETING_ENDED`.
+  Added shared publisher support for preserving a caller-provided correlation ID in both the event envelope and RabbitMQ message header.
+  The existing meeting termination behavior remains unchanged: database termination state is retained if event publication fails.
+- Excluded scope:
+  Did not add an operational event replay endpoint or transactional outbox.
+  Meetings that already reached `ENDED` while publication failed still require a separate replay operation because the termination use case intentionally does not republish for an already-ended meeting.
+- Verification:
+  Passed `./gradlew :infrastructure:test --tests com.meetbowl.infrastructure.messaging.RabbitEventPublisherTest --tests com.meetbowl.infrastructure.architecture.InfrastructureArchitectureTest :app-api:compileJava --no-daemon`.
+  Confirmed JSON serialization of the `meeting.ended` payload, persistent delivery mode, message ID, and caller-provided correlation ID.
+  Full `:application:test` compilation remains blocked by pre-existing test stubs that do not implement `MeetingRepositoryPort.findActiveByAttendees`.
+  Full `:app-api:test` compilation remains blocked by the pre-existing `MeetingControllerTest` constructor argument mismatch.
+  Full `:infrastructure:test` remains blocked by pre-existing meeting context tests missing a `MeetingAttendeeOverlapGuard` bean.
+
+2026-06-24 meeting.ended Transactional Outbox delivery guarantee
+
+- Purpose: remove the remaining loss window and transaction-ordering problem between the meeting `ENDED` database update and the required `meeting.ended` RabbitMQ event.
+- Changed files:
+  Added the meeting-ended domain event/outbox/publisher ports, the application Outbox publisher use case, JPA Outbox entity/repository/adapter, RabbitMQ adapter, scheduler, and Flyway V6 migration.
+  Updated `EndMeetingUseCase`, the shared Rabbit publisher/configuration, end-meeting response naming, related tests, architecture/API/convention documents, and this log.
+- Behavior:
+  Meeting termination and `meeting_ended_outbox` insertion now commit in the same MariaDB transaction.
+  The API returns `meetingEndedEventQueued` to distinguish durable queueing from actual broker publication.
+  The scheduler locks ready Outbox rows, preserves the original `eventId`, and removes a row only after RabbitMQ publisher ACK with no returned-message routing failure.
+  Broker NACK, unroutable messages, timeouts, and connection failures remain in the Outbox and retry with exponential backoff capped at 300 seconds.
+  A crash after broker ACK but before the Outbox transaction commits can redeliver the same `eventId`; the AI consumer's eventId idempotency handles that at-least-once boundary.
+  The RabbitMQ adapter now lives in `infrastructure`, removing the previous `app-api -> infrastructure` source dependency.
+- Verification:
+  Passed application source compilation and targeted `EndMeetingUseCaseTest` / `PublishMeetingEndedOutboxUseCaseTest`.
+  Passed Rabbit publisher ACK/NACK/return tests and the meeting-ended adapter test.
+  Passed domain, application, infrastructure, and app-api ArchUnit tests.
+  Passed Spring application context startup with the new Outbox entity.
+  Full `./gradlew test` still has 36 pre-existing infrastructure meeting-context failures because those test slices do not provide `MeetingAttendeeOverlapGuard`; all app-api, application, common, and domain tests completed before that infrastructure failure group.
+  Spotless reports only unrelated existing violations after the changed files were aligned to its generated clean output.

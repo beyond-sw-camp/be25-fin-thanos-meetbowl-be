@@ -10,7 +10,7 @@ public record EndMeetingResponse(
         String status,
         Instant startedAt,
         Instant endedAt,
-        boolean meetingEndedEventPublished) {
+        boolean meetingEndedEventQueued) {
 
     public static EndMeetingResponse from(EndMeetingResult result) {
         return new EndMeetingResponse(
@@ -18,6 +18,6 @@ public record EndMeetingResponse(
                 result.status(),
                 result.startedAt(),
                 result.endedAt(),
-                result.meetingEndedEventPublished());
+                result.meetingEndedEventQueued());
     }
 }

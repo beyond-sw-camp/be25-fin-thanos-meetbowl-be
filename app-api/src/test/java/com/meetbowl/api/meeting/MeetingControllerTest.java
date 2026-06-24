@@ -41,7 +41,7 @@ class MeetingControllerTest {
 
         MeetingController controller =
                 new MeetingController(
-                        null, null, null, null, null, null, null, joinMeetingUseCase);
+                        null, null, null, null, null, null, null, joinMeetingUseCase, null);
 
         ApiResponse<JoinMeetingResponse> response =
                 controller.joinMeeting(

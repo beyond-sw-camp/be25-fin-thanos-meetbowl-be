@@ -186,13 +186,16 @@ infrastructure/messaging/RabbitMessagingProperties
   공통 Exchange, producer, event version 설정
 
 infrastructure/messaging/RabbitEventPublisher
-  EventEnvelope 생성, UTC ISO-8601 직렬화, Persistent 메시지 발행
+  EventEnvelope 생성, UTC ISO-8601 직렬화, Persistent 메시지 발행, broker confirm/return 검증
 
 infrastructure/messaging/{domain}
   도메인 이벤트를 개별 Message DTO로 변환
 ```
 
 개별 도메인 Publisher는 Exchange 이름, producer, version, Envelope 생성 및 JSON 직렬화를 직접 구현하지 않는다.
+
+DB 상태 변경과 함께 반드시 발행되어야 하는 이벤트는 Transactional Outbox에 저장한다. Scheduler는 같은
+`eventId`를 유지한 채 재발행하며 broker ACK를 확인한 뒤에만 Outbox를 완료 처리한다.
 
 Queue, Binding, DLQ는 `meetbowl-infra`가 관리하며 BE 코드에 Queue 이름을 작성하지 않는다.
 

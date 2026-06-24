@@ -310,7 +310,8 @@ application meeting usecase
 회의 종료
   ↓
 meetbowl-be
-  ↓ meeting.ended 이벤트 발행
+  ↓ Meeting 종료 상태 + meeting.ended Outbox를 동일 트랜잭션으로 저장
+  ↓ Outbox Scheduler가 publisher confirm을 확인하며 발행
 RabbitMQ
   ↓
 meetbowl-ai
