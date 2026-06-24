@@ -36,6 +36,7 @@ docker build -t meetbowl-be:local .
 local: flyway migrate + ddl-auto=validate
 test: ddl-auto=create-drop
 prod: flyway migrate + ddl-auto=validate
+prod: flyway migrate + ddl-auto=validate + 1회성 초기 계정(admin/user1/user2) 생성
 ```
 
 로컬 MariaDB 접속 정보는 환경 변수로 덮어쓸 수 있다.
@@ -107,6 +108,10 @@ Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`
 내부 서버 전용 API는 `X-Internal-Token` 헤더를 사용하며, 일반 로그인으로 `SYSTEM` JWT를
 발급하지 않는다. `prod` 프로필에서는 공개되지 않은 32 bytes 이상의
 `MEETBOWL_INTERNAL_TOKEN` 환경 변수가 필수다.
+
+운영 배포 직후 기본 계정이 필요하면 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
+`prod`는 운영 설정을 그대로 쓰면서 `admin`, `user1`, `user2`를 `1234` 비밀번호로 채우고,
+동일 계정이 있으면 다시 만들지 않는다.
 
 ## Architecture Checks
 

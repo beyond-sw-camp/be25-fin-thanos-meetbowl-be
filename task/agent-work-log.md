@@ -746,6 +746,39 @@
   Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest' --no-daemon`
   Passed full `./gradlew :infrastructure:test --no-daemon`
 
+2026-06-24 prod-seed profile for one-time bootstrap data
+
+- Purpose: add an explicit deployment profile for seeding initial admin/user accounts without enabling the seed path in normal `prod` boots.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Added `spring.profiles.group.prod-seed=prod` so activating `prod-seed` also loads the normal production settings.
+  Added a `prod-seed` `ApplicationRunner` that reuses the existing bootstrap account use case to create the initial `admin`, `user1`, and `user2` accounts with the same idempotent behavior as local startup.
+  Documented `SPRING_PROFILES_ACTIVE=prod-seed` as the one-time operational path for initial data seeding after deployment.
+- Verification:
+  Passed `./gradlew :app-api:compileJava`
+  Attempted `./gradlew test --no-daemon`, but it is blocked by a pre-existing unrelated `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java` constructor mismatch during `:app-api:compileTestJava`.
+
+2026-06-24 fold bootstrap seeding into prod profile
+
+- Purpose: make deployment use a single `SPRING_PROFILES_ACTIVE=prod` setting while still creating the initial bootstrap accounts on startup.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Removed the separate `prod-seed` profile group and switched the bootstrap initializer to `@Profile("prod")`.
+  The production boot path now both applies the normal prod datasource/Flyway settings and runs the idempotent account bootstrap that creates `admin`, `user1`, and `user2` if they do not already exist.
+  Documentation now tells operators to use `SPRING_PROFILES_ACTIVE=prod` only.
+- Verification:
+  Passed `./gradlew :app-api:compileJava --no-daemon`
+
 2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
 
 - Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.

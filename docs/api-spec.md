@@ -158,7 +158,7 @@ X-Internal-Token: {internalToken}
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
 - 관리자 비밀번호 초기화 응답에는 초기 비밀번호 원문 `1234`가 1회 포함되며, 이후에는 저장되지 않는다.
-- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, `prod` 배포 시 함께 생성한다. 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
 - 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
@@ -188,6 +188,7 @@ X-Internal-Token: {internalToken}
 - 관리자 회원 계정 생성 시 초기 비밀번호는 항상 `1234`이며, DB에는 PasswordEncoder로 암호화된 해시만 저장한다.
 - 관리자 회원 계정 생성 및 관리자 비밀번호 초기화 대상 사용자는 `initialPasswordChangeRequired: true`로 저장한다.
 - 로컬 seed 계정 `admin`, `user1`, `user2`는 모두 `1234`를 사용하지만 `initialPasswordChangeRequired`를 강제로 `true`로 만들지 않는다.
+- 운영 `prod` 배포에서도 같은 seed 계정 구성을 재사용한다.
 
 ### 조직 기준 정보
 
