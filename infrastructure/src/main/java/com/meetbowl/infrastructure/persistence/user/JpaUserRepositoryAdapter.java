@@ -141,7 +141,7 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
                                     departmentId,
                                     teamId,
                                     positionId,
-                                    status,
+                                    status == null ? null : status.name(),
                                     dayStart,
                                     nextDayStart,
                                     pageRequest);
