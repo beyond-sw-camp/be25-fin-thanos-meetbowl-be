@@ -1,5 +1,6 @@
 package com.meetbowl.infrastructure.persistence.user;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,32 +44,40 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
 
     @Override
     public Optional<User> findById(UUID userId) {
+        return springDataUserRepository.findByIdAndDeletedAtIsNull(userId).map(UserEntity::toDomain);
+    }
+
+    @Override
+    public Optional<User> findByIdIncludingDeleted(UUID userId) {
         return springDataUserRepository.findById(userId).map(UserEntity::toDomain);
     }
 
     @Override
     public List<User> findAll() {
-        return springDataUserRepository.findAll().stream().map(UserEntity::toDomain).toList();
+        return springDataUserRepository.findAll().stream()
+                .map(UserEntity::toDomain)
+                .filter(user -> !user.isDeleted())
+                .toList();
     }
 
     @Override
     public Optional<User> findByLoginId(String loginId) {
-        return springDataUserRepository.findByLoginId(loginId).map(UserEntity::toDomain);
+        return springDataUserRepository.findByLoginIdAndDeletedAtIsNull(loginId).map(UserEntity::toDomain);
     }
 
     @Override
     public Optional<User> findByEmail(String email) {
-        return springDataUserRepository.findByEmail(email).map(UserEntity::toDomain);
+        return springDataUserRepository.findByEmailAndDeletedAtIsNull(email).map(UserEntity::toDomain);
     }
 
     @Override
     public boolean existsByLoginId(String loginId) {
-        return springDataUserRepository.existsByLoginId(loginId);
+        return springDataUserRepository.existsByLoginIdAndDeletedAtIsNull(loginId);
     }
 
     @Override
     public boolean existsByEmail(String email) {
-        return springDataUserRepository.existsByEmail(email);
+        return springDataUserRepository.existsByEmailAndDeletedAtIsNull(email);
     }
 
     @Override
@@ -101,6 +110,8 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
             UUID teamId,
             UUID positionId,
             UserStatus status,
+            Instant dayStart,
+            Instant nextDayStart,
             int page,
             int size) {
         return searchWithFallback(
@@ -112,10 +123,12 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
                                 teamId,
                                 positionId,
                                 status == null ? null : status.name(),
+                                dayStart,
+                                nextDayStart,
                                 page,
                                 size),
                 () -> {
-                    // 검색 장애 시 기존 DB 정렬/필터 규칙을 그대로 유지해 호출자 계약을 지킨다.
+                    // 날짜 경계(activeFrom/activeUntil)와 삭제 제외 조건을 DB fallback에서도 동일하게 적용한다.
                     PageRequest pageRequest =
                             PageRequest.of(
                                     page - 1,
@@ -128,7 +141,9 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
                                     departmentId,
                                     teamId,
                                     positionId,
-                                    status,
+                                    status == null ? null : status.name(),
+                                    dayStart,
+                                    nextDayStart,
                                     pageRequest);
                     return new Paged<>(
                             result.getContent().stream().map(UserEntity::toDomain).toList(),
@@ -138,28 +153,28 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
 
     @Override
     public List<User> findAllByAffiliateId(UUID affiliateId) {
-        return springDataUserRepository.findByAffiliateId(affiliateId).stream()
+        return springDataUserRepository.findByAffiliateIdAndDeletedAtIsNull(affiliateId).stream()
                 .map(UserEntity::toDomain)
                 .toList();
     }
 
     @Override
     public List<User> findAllByDepartmentId(UUID departmentId) {
-        return springDataUserRepository.findByDepartmentId(departmentId).stream()
+        return springDataUserRepository.findByDepartmentIdAndDeletedAtIsNull(departmentId).stream()
                 .map(UserEntity::toDomain)
                 .toList();
     }
 
     @Override
     public List<User> findAllByTeamId(UUID teamId) {
-        return springDataUserRepository.findByTeamId(teamId).stream()
+        return springDataUserRepository.findByTeamIdAndDeletedAtIsNull(teamId).stream()
                 .map(UserEntity::toDomain)
                 .toList();
     }
 
     @Override
     public List<User> findAllByPositionId(UUID positionId) {
-        return springDataUserRepository.findByPositionId(positionId).stream()
+        return springDataUserRepository.findByPositionIdAndDeletedAtIsNull(positionId).stream()
                 .map(UserEntity::toDomain)
                 .toList();
     }
@@ -171,7 +186,7 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
             ElasticsearchUserSearchAdapter.SearchIdsPage result = elasticsearchSearch.get();
             return toPagedUsers(result);
         } catch (RuntimeException exception) {
-            // Elasticsearch 검색 실패 시 API 전체를 깨지 않기 위해 DB LIKE 검색으로 즉시 우회한다.
+            // Elasticsearch 寃???ㅽ뙣 ??API ?꾩껜瑜?源⑥? ?딄린 ?꾪빐 DB LIKE 寃?됱쑝濡?利됱떆 ?고쉶?쒕떎.
             log.warn(
                     "User search fallback to DB due to Elasticsearch failure: {}",
                     exception.getMessage());
@@ -184,10 +199,10 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
             return new Paged<>(List.of(), result.totalElements());
         }
 
-        // ES 점수순 결과를 유지한 채 기존 도메인 User 매핑을 재사용하기 위해 ID 기준으로 다시 조립한다.
         Map<UUID, User> usersById =
                 springDataUserRepository.findAllById(result.userIds()).stream()
                         .map(UserEntity::toDomain)
+                        .filter(user -> !user.isDeleted())
                         .collect(Collectors.toMap(User::id, user -> user));
 
         List<User> orderedUsers =

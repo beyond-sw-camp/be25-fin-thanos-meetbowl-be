@@ -21,4 +21,7 @@ public record UserSearchSourceRow(
         String teamName,
         UUID positionId,
         String positionName,
+        Instant activeFrom,
+        Instant activeUntil,
+        Instant deletedAt,
         Instant createdAt) {}

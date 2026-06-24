@@ -32,6 +32,8 @@ import com.meetbowl.api.common.auth.GlobalPermissionChecker;
 import com.meetbowl.api.config.WebMvcConfig;
 import com.meetbowl.application.admin.AdminOrganizationMasterDataUseCase;
 import com.meetbowl.application.auth.AccessTokenValidationService;
+import com.meetbowl.common.exception.BusinessException;
+import com.meetbowl.common.exception.ErrorCode;
 
 @WebMvcTest(AdminOrganizationController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -196,6 +198,39 @@ class AdminOrganizationControllerTest {
                                         """
                                                 .formatted(AFFILIATE_ID)))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void createDepartmentReturnsConflictWhenSortOrderDuplicated() throws Exception {
+        given(useCase.createDepartment(any()))
+                .willThrow(
+                        new BusinessException(
+                                ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED,
+                                "이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요."));
+
+        mockMvc.perform(
+                        post("/api/v1/admin/organizations/departments")
+                                .requestAttr(
+                                        AuthenticatedUserAttributes.CURRENT_USER,
+                                        authenticatedUser(AuthenticatedUserRole.ADMIN))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "affiliateId": "%s",
+                                          "name": "Engineering",
+                                          "status": "ACTIVE",
+                                          "sortOrder": 1
+                                        }
+                                        """
+                                                .formatted(AFFILIATE_ID)))
+                .andExpect(status().isConflict())
+                .andExpect(
+                        jsonPath("$.error.code")
+                                .value("ORGANIZATION_SORT_ORDER_DUPLICATED"))
+                .andExpect(
+                        jsonPath("$.error.message")
+                                .value("이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요."));
     }
 
     @Test

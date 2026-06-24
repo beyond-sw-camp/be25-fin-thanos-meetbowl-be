@@ -26,4 +26,8 @@ public interface SpringDataPositionRepository extends JpaRepository<PositionEnti
     boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
 
     boolean existsByCodeIgnoreCaseAndIdNot(String code, UUID id);
+
+    boolean existsBySortOrder(Integer sortOrder);
+
+    boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID id);
 }

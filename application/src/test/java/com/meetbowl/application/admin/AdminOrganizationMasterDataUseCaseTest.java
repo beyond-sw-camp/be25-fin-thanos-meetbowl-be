@@ -63,7 +63,7 @@ class AdminOrganizationMasterDataUseCaseTest {
     void setUp() {
         affiliateRepository = new FakeAffiliateRepository();
         departmentRepository = new FakeDepartmentRepository();
-        teamRepository = new FakeTeamRepository();
+        teamRepository = new FakeTeamRepository(departmentRepository);
         positionRepository = new FakePositionRepository();
         userRepositoryPort = mock(UserRepositoryPort.class);
         auditLogRepository = new FakeAdminAuditLogRepository();
@@ -236,15 +236,15 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.DepartmentResult createdDepartment =
                 useCase.createDepartment(
                         new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
-                                AFFILIATE_ID, "Engineering", "ACTIVE", 1));
+                                AFFILIATE_ID, "Engineering", "ACTIVE", 4));
         AdminOrganizationMasterDataUseCase.TeamResult createdTeam =
                 useCase.createTeam(
                         new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
-                                DEPARTMENT_ID, "Backend", "ACTIVE", 1));
+                                DEPARTMENT_ID, "Backend", "ACTIVE", 2));
         AdminOrganizationMasterDataUseCase.PositionResult createdPosition =
                 useCase.createPosition(
                         new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
-                                "Manager", "ACTIVE", 1));
+                                "Manager", "ACTIVE", 10));
 
         assertEquals("D004", createdDepartment.code());
         assertEquals("T003", createdTeam.code());
@@ -291,6 +291,291 @@ class AdminOrganizationMasterDataUseCaseTest {
                                                 .CreatePositionCommand("manager", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
+    }
+
+    @Test
+    void createDepartmentFailsWhenSortOrderDuplicatedInSameAffiliate() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .CreateDepartmentCommand(
+                                                AFFILIATE_ID, "Platform", "ACTIVE", 1)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+        assertEquals("이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.", exception.getMessage());
+    }
+
+    @Test
+    void updateDepartmentFailsWhenSortOrderDuplicatedInSameAffiliate() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        UUID otherDepartmentId = UUID.fromString("00000000-0000-0000-0000-000000000101");
+        departmentRepository.save(
+                new Department(
+                        otherDepartmentId,
+                        AFFILIATE_ID,
+                        null,
+                        "Platform",
+                        "PLT",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.updateDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .UpdateDepartmentCommand(
+                                                otherDepartmentId,
+                                                AFFILIATE_ID,
+                                                "Platform",
+                                                1,
+                                                UUID.randomUUID())));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void updateDepartmentSucceedsWhenKeepingOwnSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+
+        AdminOrganizationMasterDataUseCase.DepartmentResult result =
+                useCase.updateDepartment(
+                        new AdminOrganizationMasterDataUseCase.UpdateDepartmentCommand(
+                                DEPARTMENT_ID,
+                                AFFILIATE_ID,
+                                "Engineering Platform",
+                                1,
+                                UUID.randomUUID()));
+
+        assertEquals(1, result.sortOrder());
+    }
+
+    @Test
+    void createDepartmentFailsWhenInactiveDepartmentUsesSameSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(
+                new Department(
+                        DEPARTMENT_ID,
+                        AFFILIATE_ID,
+                        null,
+                        "Legacy",
+                        "LEG",
+                        ReferenceStatus.INACTIVE,
+                        3,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createDepartment(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .CreateDepartmentCommand(
+                                                AFFILIATE_ID, "Platform", "ACTIVE", 3)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void createDepartmentAllowsReusingSortOrderAfterDeletion() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        given(userRepositoryPort.findAllByDepartmentId(DEPARTMENT_ID)).willReturn(List.of());
+
+        useCase.deleteDepartment(
+                new AdminOrganizationMasterDataUseCase.DeleteDepartmentCommand(
+                        DEPARTMENT_ID, UUID.randomUUID(), "Admin", "127.0.0.1", "JUnit"));
+
+        AdminOrganizationMasterDataUseCase.DepartmentResult created =
+                useCase.createDepartment(
+                        new AdminOrganizationMasterDataUseCase.CreateDepartmentCommand(
+                                AFFILIATE_ID, "Platform", "ACTIVE", 1));
+
+        assertEquals(1, created.sortOrder());
+    }
+
+    @Test
+    void createTeamFailsWhenSortOrderDuplicatedInSameAffiliateEvenIfDepartmentDiffers() {
+        UUID otherDepartmentId = UUID.fromString("00000000-0000-0000-0000-000000000102");
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        departmentRepository.save(department(otherDepartmentId, AFFILIATE_ID, "Platform", "PLT"));
+        teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE"));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createTeam(
+                                        new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
+                                                otherDepartmentId, "Frontend", "ACTIVE", 1)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void updateTeamFailsWhenSortOrderDuplicatedInSameAffiliate() {
+        UUID otherDepartmentId = UUID.fromString("00000000-0000-0000-0000-000000000103");
+        UUID otherTeamId = UUID.fromString("00000000-0000-0000-0000-000000000104");
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        departmentRepository.save(department(otherDepartmentId, AFFILIATE_ID, "Platform", "PLT"));
+        teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE"));
+        teamRepository.save(
+                new Team(
+                        otherTeamId,
+                        otherDepartmentId,
+                        "Frontend",
+                        "FE",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.updateTeam(
+                                        new AdminOrganizationMasterDataUseCase.UpdateTeamCommand(
+                                                otherTeamId,
+                                                otherDepartmentId,
+                                                "Frontend",
+                                                1,
+                                                UUID.randomUUID())));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void updateTeamSucceedsWhenKeepingOwnSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "Backend", "BE"));
+
+        AdminOrganizationMasterDataUseCase.TeamResult result =
+                useCase.updateTeam(
+                        new AdminOrganizationMasterDataUseCase.UpdateTeamCommand(
+                                TEAM_ID, DEPARTMENT_ID, "Platform Backend", 1, UUID.randomUUID()));
+
+        assertEquals(1, result.sortOrder());
+    }
+
+    @Test
+    void createTeamFailsWhenInactiveTeamUsesSameSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
+        departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "Engineering", "ENG"));
+        teamRepository.save(
+                new Team(
+                        TEAM_ID,
+                        DEPARTMENT_ID,
+                        "Legacy Team",
+                        "LEG",
+                        ReferenceStatus.INACTIVE,
+                        4,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createTeam(
+                                        new AdminOrganizationMasterDataUseCase.CreateTeamCommand(
+                                                DEPARTMENT_ID, "Backend", "ACTIVE", 4)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void createPositionFailsWhenSortOrderDuplicated() {
+        positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createPosition(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .CreatePositionCommand("Director", "ACTIVE", 1)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void updatePositionFailsWhenSortOrderDuplicated() {
+        UUID otherPositionId = UUID.fromString("00000000-0000-0000-0000-000000000105");
+        positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
+        positionRepository.save(
+                new Position(
+                        otherPositionId,
+                        "Director",
+                        "DIR",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.updatePosition(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .UpdatePositionCommand(
+                                                otherPositionId,
+                                                "Director",
+                                                1,
+                                                UUID.randomUUID())));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
+    }
+
+    @Test
+    void updatePositionSucceedsWhenKeepingOwnSortOrder() {
+        positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
+
+        AdminOrganizationMasterDataUseCase.PositionResult result =
+                useCase.updatePosition(
+                        new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
+                                POSITION_ID, "Senior Manager", 1, UUID.randomUUID()));
+
+        assertEquals(1, result.sortOrder());
+    }
+
+    @Test
+    void createPositionFailsWhenInactivePositionUsesSameSortOrder() {
+        positionRepository.save(
+                new Position(
+                        POSITION_ID,
+                        "Legacy Manager",
+                        "LMG",
+                        ReferenceStatus.INACTIVE,
+                        5,
+                        NOW,
+                        NOW));
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.createPosition(
+                                        new AdminOrganizationMasterDataUseCase
+                                                .CreatePositionCommand("Manager", "ACTIVE", 5)));
+
+        assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
     }
 
     @Test
@@ -629,10 +914,35 @@ class AdminOrganizationMasterDataUseCaseTest {
                                             && item.affiliateId().equals(affiliateId)
                                             && item.name().equalsIgnoreCase(name));
         }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return departments.values().stream()
+                    .anyMatch(
+                            item ->
+                                    item.affiliateId().equals(affiliateId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID departmentId) {
+            return departments.values().stream()
+                    .anyMatch(
+                            item ->
+                                    !item.id().equals(departmentId)
+                                            && item.affiliateId().equals(affiliateId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+        }
     }
 
     private static final class FakeTeamRepository implements TeamRepositoryPort {
         private final Map<UUID, Team> teams = new ConcurrentHashMap<>();
+        private final DepartmentRepositoryPort departmentRepository;
+
+        private FakeTeamRepository(DepartmentRepositoryPort departmentRepository) {
+            this.departmentRepository = departmentRepository;
+        }
 
         @Override
         public Team save(Team team) {
@@ -690,6 +1000,34 @@ class AdminOrganizationMasterDataUseCaseTest {
                                     !item.id().equals(teamId)
                                             && item.departmentId().equals(departmentId)
                                             && item.name().equalsIgnoreCase(name));
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+            return teams.values().stream()
+                    .anyMatch(
+                            item ->
+                                    departmentRepository
+                                                    .findById(item.departmentId())
+                                                    .map(Department::affiliateId)
+                                                    .orElseThrow()
+                                                    .equals(affiliateId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID teamId) {
+            return teams.values().stream()
+                    .anyMatch(
+                            item ->
+                                    !item.id().equals(teamId)
+                                            && departmentRepository
+                                                            .findById(item.departmentId())
+                                                            .map(Department::affiliateId)
+                                                            .orElseThrow()
+                                                            .equals(affiliateId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
         }
     }
 
@@ -756,6 +1094,21 @@ class AdminOrganizationMasterDataUseCaseTest {
                             item ->
                                     !item.id().equals(positionId)
                                             && item.code().equalsIgnoreCase(code));
+        }
+
+        @Override
+        public boolean existsBySortOrder(Integer sortOrder) {
+            return positions.values().stream()
+                    .anyMatch(item -> java.util.Objects.equals(item.sortOrder(), sortOrder));
+        }
+
+        @Override
+        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+            return positions.values().stream()
+                    .anyMatch(
+                            item ->
+                                    !item.id().equals(positionId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
         }
     }
 

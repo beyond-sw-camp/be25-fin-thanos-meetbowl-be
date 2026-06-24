@@ -445,6 +445,7 @@
   Passed `./gradlew.bat spotlessApply`
   Passed `./gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
   Passed `./gradlew.bat :app-api:test --tests "*AdminUser*" --tests "*Organization*" --tests "*Position*"`
+  
 2026-06-19 회의 팝업 라우팅 수정 및 입장 가능 시각 제한
 
 - 작업 목적: 회의 입장 팝업이 `/app/dashboard`로 잘못 이동하는 라우팅 문제를 수정하고, 예약 회의는 시작 15분 전부터만 입장 가능하도록 서버 규칙을 추가한다.
@@ -457,7 +458,36 @@
   통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.meeting.MeetingControllerTest"`
   실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`
   실패 원인: 현재 브랜치의 다른 테스트 소스(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`, `EndMeetingUseCaseTest`)가 이미 최신 `Meeting.of(...)` 시그니처와 Repository Port 계약을 따라가지 못해 `:application:compileTestJava` 단계에서 막힌다. 이번 변경 파일과 직접 관련 없는 기존 컴파일 실패다.
-- 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다.
+- 후속 참고: 프론트엔드에서도 같은 에러 코드를 사용해 팝업 오픈 전 알림과 로비 안내 메시지를 표시하도록 함께 반영했다
+
+2026-06-22 Organization code auto generation API
+
+- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
+- Changed files:
+  `application/admin/OrganizationCodeGenerator`,
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `application/admin/AdminOrganizationMembersExcelApplyService`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/dto/AdminDepartmentRequest`,
+  `app-api/admin/dto/AdminTeamRequest`,
+  `app-api/admin/dto/AdminPositionRequest`,
+  related admin organization / excel tests, and this log.
+- Behavior:
+  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
+  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
+  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
+  Code generation ignores client-sent `code` values for department/team/position create and update requests.
+  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
+  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
+- Notes:
+  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
+  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
+- Verification:
+  Passed `.\gradlew.bat spotlessApply`
+  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
+ `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+
 2026-06-22 BE local environment duplicate secret cleanup
 
 - Purpose: fix local login returning `COMMON_INTERNAL_ERROR` after the BE environment file was extended for LiveKit/STT configuration.
@@ -496,74 +526,117 @@
 - 제외 범위: 외부 SMTP 발송 어댑터, 메일함 UI 세부 화면, 참석자 자동 공유 실패 재시도 정책은 변경하지 않았다.
 - 검증: 샌드박스에서는 Gradle native-platform dylib 로딩 실패로 실행되지 않아 권한 상승으로 재실행했다. 이후 `:application:test --tests MinutesUseCaseTest --tests ShareMinutesUseCaseTest`, `:app-api:test --tests MinutesControllerTest --tests SecurityConfigTest`, `:app-api:compileJava` 통과. FE 연동 변경은 `npm run build`, `npm test`, `git diff --check` 통과.
 
-2026-06-22 Organization code auto generation API
+2026-06-23 Admin user effective status / delete behavior fix
 
-- Purpose: move department/team/position code ownership fully into BE so create/update APIs and organization-member Excel import no longer depend on admin-entered codes.
+- Purpose: fix QA issues where expired users still appeared active and admin user delete only downgraded status to `INACTIVE` instead of removing the member from admin/user listings.
 - Changed files:
-  `application/admin/OrganizationCodeGenerator`,
+  `domain/user/User`,
+  `domain/user/UserRepositoryPort`,
+  `infrastructure/persistence/user/UserEntity`,
+  `infrastructure/persistence/user/SpringDataUserRepository`,
+  `infrastructure/persistence/user/JpaUserRepositoryAdapter`,
+  `infrastructure/persistence/user/UserSearchSourceRow`,
+  `infrastructure/search/user/ElasticsearchUserSearchAdapter`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/user/UserDirectoryUseCase`,
+  `application/user/MyProfileUseCase`,
+  related user/admin tests, and this log.
+- Behavior:
+  User status responses now use an effective-status rule instead of returning the raw DB `status` blindly.
+  Effective status is `ACTIVE` only when raw status is `ACTIVE` and the current UTC date is within the inclusive range `activeFrom <= today <= activeUntil`.
+  If raw status is `ACTIVE` but `activeUntil` is before today or `activeFrom` is after today, the exposed status becomes `INACTIVE`.
+  Deleted users are soft-deleted with `deletedAt`; they are excluded from repository lookups, admin list search, user directory search, and summary/detail reads.
+  Admin delete no longer converts a member to raw `INACTIVE`. It writes `deletedAt`, revokes sessions, and tombstones `loginId` / `email` so future unique-value reuse can proceed safely without leaving the deleted account visible.
+  Elasticsearch user-search documents now carry `activeFrom`, `activeUntil`, and `deleted` metadata so search filtering follows the same date and deletion policy as the DB fallback.
+- Notes:
+  Added concise comments around the date-boundary interpretation and soft-delete policy in the persistence/search path where the behavior is easiest to misunderstand during review.
+  Delete response still exposes `INACTIVE` as the final status string because the account is no longer active, but the deleted member is filtered out of every default listing/query path.
+- Verification:
+  Passed `.\gradlew.bat :domain:test --tests "com.meetbowl.domain.user.UserTest"`
+  Passed `.\gradlew.bat :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
+`:application:test` and `:infrastructure:test` targeted runs are still blocked by pre-existing unrelated test-compilation failures in modules outside this change set, including `meeting`, `minutes`, `transcript`, and `messaging` tests.
+2026-06-23 Admin organization/position sort order duplication fix
+
+- Purpose: fix QA issue where department, team, and position master data could save duplicated sort values and therefore rendered repeated order numbers in the admin organization/position management tabs.
+- Changed files:
+  `application/admin/AdminOrganizationMasterDataUseCase`,
+  `domain/organization/{DepartmentRepositoryPort,TeamRepositoryPort,PositionRepositoryPort}`,
+  `infrastructure/persistence/organization/{SpringDataDepartmentRepository,SpringDataTeamRepository,SpringDataPositionRepository,JpaDepartmentRepositoryAdapter,JpaTeamRepositoryAdapter,JpaPositionRepositoryAdapter}`,
+  `common/exception/ErrorCode`,
+  `application/admin/AdminOrganizationMasterDataUseCaseTest`,
+  `app-api/admin/AdminOrganizationControllerTest`,
+  repository fake implementations in related application tests,
+  and this log.
+- Behavior:
+  Department create/update now reject duplicated `sortOrder` within the same affiliate.
+  Team create/update now reject duplicated `sortOrder` within the same affiliate even when the parent department differs.
+  Position create/update now reject duplicated `sortOrder` across the current global position master scope.
+  Duplicate checks include inactive entries because they remain visible in the admin list.
+  Self-update keeps working because duplicate queries exclude the current entity ID on update.
+  Deleted entries are excluded from duplicate checks under the current hard-delete policy because the row is physically removed.
+  Duplicate sort saves return `ORGANIZATION_SORT_ORDER_DUPLICATED` with HTTP 409 and the message `이미 사용 중인 순서입니다. 다른 순서를 입력해 주세요.`
+- Notes:
+  Added concise Korean comments only where the validation scope is easy to misread, especially the rule that team order uniqueness is affiliate-wide rather than department-local.
+  No DB migration was added in this change set. Repository/Application-level validation is implemented, and the current repo does not expose a Flyway/Liquibase migration path for these tables here.
+- Verification:
+  Passed `.\gradlew.bat :application:compileJava :app-api:compileJava :infrastructure:compileJava`
+  Attempted `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest"` but it is blocked by pre-existing unrelated `application:compileTestJava` failures in `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
+  Attempted `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminOrganizationControllerTest"` but it is blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `MeetingControllerTest`.
+2026-06-23 Admin audit log display labels and summaries
+
+- Purpose: fix QA issue where the admin audit log list/detail exposed raw enum names and inconsistent JSON instead of user-friendly Korean labels and readable work summaries.
+- Changed files:
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  `app-api/admin/dto/AdminAuditLogDisplayFormatter`,
+  `app-api/admin/AdminAuditLogControllerTest`,
+  `app-api/admin/dto/AdminAuditLogResponseTest`,
+  and this log.
+- Behavior:
+  Audit log responses now keep raw `actionType`, `targetType`, `beforeSnapshot`, and `afterSnapshot` while adding display-only fields `actionLabel`, `targetTypeLabel`, `displayTitle`, and `displayChangeItems`.
+  Known admin action types and target types now resolve to Korean labels, while unmapped values safely fall back to the original raw code.
+  User update logs now summarize status and active-period changes with readable Korean labels and formatted dates instead of exposing epoch timestamps directly.
+  Organization/member Excel logs now expose compact summary items such as file name, success/failure result, failure reason, processed count, and error count rather than raw JSON in the primary display area.
+  When a snapshot cannot be mapped cleanly, the formatter falls back to compact key/value items or the message `작업 상세 정보를 확인할 수 없습니다.` instead of surfacing raw JSON as the main summary.
+- Notes:
+  Added concise Korean comments around the display-field normalization path and the mixed epoch-second/epoch-millisecond timestamp handling because those are the parts most likely to confuse reviewers later.
+  Existing raw audit fields remain in the response for backward compatibility and audit traceability; the new fields are additive only.
+- Verification:
+  Passed `.\gradlew.bat :app-api:compileJava`
+  Attempted `.\gradlew.bat :app-api:compileJava :app-api:compileTestJava` and `.\gradlew.bat :app-api:test --tests "com.meetbowl.api.admin.AdminAuditLogControllerTest" --tests "com.meetbowl.api.admin.dto.AdminAuditLogResponseTest"` but both are blocked by a pre-existing unrelated `app-api:compileTestJava` failure in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java` because its `MeetingController` constructor call is missing the `TransferMeetingHostUseCase` argument.
+
+2026-06-23 Admin audit log target info and display formatter hardening
+
+- Purpose: fix QA issues where member-targeted admin audit logs missed target login/name and detail views still surfaced raw/internal fields instead of operator-friendly Korean summaries.
+- Changed files:
+  `domain/admin/AdminAuditLog`,
+  `infrastructure/persistence/admin/AdminAuditLogEntity`,
+  `application/admin/AdminAuditLogResult`,
+  `application/admin/AdminUserManagementUseCase`,
+  `application/admin/ResetUserPasswordUseCase`,
+  `application/auth/PasswordResetRequestUseCase`,
+  `application/mail/MailRetentionPolicyUseCase`,
   `application/admin/AdminOrganizationMasterDataUseCase`,
   `application/admin/AdminOrganizationMembersExcelApplyService`,
-  `app-api/admin/AdminOrganizationController`,
-  `app-api/admin/dto/AdminDepartmentRequest`,
-  `app-api/admin/dto/AdminTeamRequest`,
-  `app-api/admin/dto/AdminPositionRequest`,
-  related admin organization / excel tests, and this log.
+  `application/admin/AdminOrganizationMembersExcelAuditService`,
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  `app-api/admin/dto/AdminAuditLogDisplayFormatter`,
+  related admin/auth/domain/JPA tests,
+  and this log.
 - Behavior:
-  Department create now generates `D001`, `D002`... from the largest existing department code suffix and keeps the existing code on update.
-  Team create now generates `T001`, `T002`... from the largest existing team code suffix and keeps the existing code on update.
-  Position create now generates `P001`, `P002`... from the largest existing position code suffix and keeps the existing code on update.
-  Code generation ignores client-sent `code` values for department/team/position create and update requests.
-  Admin organization request DTOs no longer require `code`, so FE can omit it without validation failure.
-  Excel import now allows blank `departmentCode` / `teamCode` / `positionCode` for new rows and still preserves/exports existing codes. Import also ignores manual code edits for existing rows and applies server-generated codes for new rows.
-- Notes:
-  Added concise Korean comments around D/T/P prefix sequencing, non-reuse intent for missing numbers, update-time code freeze, and Excel import auto-generation policy so PR reviewers can follow the policy quickly.
-  Duplicate prevention is currently best-effort at the application layer by reading the highest existing suffix and allocating the next value in the same transaction; this change did not introduce a new DB migration or hard unique constraint.
+  Admin audit log storage now keeps optional `targetLoginId` and `targetName` alongside the existing raw target metadata.
+  Member create/update/delete/status-change/password-reset audit writes now always persist target member ID, login ID, and display name; delete captures the original login/name before tombstone replacement.
+  Audit log API responses now return `targetLoginId` and `targetName` with `-` fallback for old rows that never stored them.
+  Display labels now map known action/target codes to Korean, including member status change/password reset, organization-member Excel upload/download, organization master data, meeting room, retention policy, and mail policy actions. Unmapped values still fall back to raw codes.
+  Display summaries now exclude internal fields such as `id`, `createdAt`, `updatedAt`, `deletedAt`, `modifiedAt`, `lastModifiedAt`, `version`, `createdBy`, and `updatedBy`.
+  Policy change summaries now render operator-friendly diffs like `365일 -> 372일` and `아니오 -> 예`, while Excel import logs render compact summary items instead of raw JSON.
+  Password-related audit payloads still avoid temporary passwords, password hashes, tokens, JWTs, refresh tokens, and similar sensitive values.
 - Verification:
-  Passed `.\gradlew.bat spotlessApply`
-  Passed `.\gradlew.bat :common:compileJava :domain:compileJava :application:compileJava :infrastructure:compileJava :app-api:compileJava`
-  Passed `.\gradlew.bat :app-api:test --tests "*Organization*" --tests "*Position*" --tests "*Excel*"`
-  `.\gradlew.bat :application:test --tests "com.meetbowl.application.admin.AdminOrganizationMasterDataUseCaseTest" --tests "com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest"` is still blocked by pre-existing unrelated `application:compileTestJava` failures in `meeting` tests such as `EndMeetingUseCaseTest` and `TransferMeetingHostUseCaseTest`.
-2026-06-22 회의 종료 시 STT 세션 강제 정리 연동
+  Passed `.\gradlew.bat :domain:test --tests "com.meetbowl.domain.admin.AdminAuditLogTest"`
+  Passed `.\gradlew.bat :app-api:compileJava :application:compileJava :infrastructure:compileJava :domain:compileJava`
+  Attempted targeted `:app-api:test` runs for audit-log controller/response tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted `:application:test` runs for admin/auth audit-log tests, but `application:compileTestJava` is blocked by pre-existing unrelated `meeting`, `minutes`, and `transcript` test compile failures on the current branch.
 
-- 작업 목적: 호스트가 회의를 종료하면 서버 기준으로 STT 세션도 함께 종료되어 다른 참석자 화면까지 일관되게 닫히도록 내부 연동 경로를 추가한다.
-- 변경 파일: `application/meeting/EndMeetingUseCase.java`, 새 `application/meeting/MeetingRealtimeSessionStopper.java`, `application` 회의 종료 테스트 `EndMeetingUseCaseTest.java`, 새 `infrastructure/stt/HttpMeetingRealtimeSessionStopper.java`, `app-api/config/SecurityConfigTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  `EndMeetingUseCase`는 회의 DB 상태와 `meeting.ended` RabbitMQ 이벤트를 확정한 뒤 STT 내부 API로 회의 기준 세션 종료를 best-effort 호출한다.
-  STT 종료 호출이 실패해도 회의 종료 authoritative state와 후속 이벤트 발행은 되돌리지 않고 경고 로그만 남긴다.
-  보안 컨텍스트 테스트는 새 stopper port를 MockitoBean으로 대체해 기존 테스트 부트스트랩을 유지한다.
-- 제외 범위:
-  STT 서버 내부의 DataChannel 브로드캐스트와 자막 세그먼트 조정 자체는 이 레포에서 구현하지 않았다.
-- 검증 방법:
-  통과: `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"` 실행 중 `:app-api:compileJava`, `:infrastructure:compileJava`, `:application:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.EndMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패(`GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest` 등) 때문에 막혔다.
-  실패(기존 테스트 기대값): `bash ./gradlew :app-api:test --tests "com.meetbowl.api.config.SecurityConfigTest"`는 `protectedEndpointWithoutTokenReturnsCommonUnauthorizedResponse` 1건이 기존 기대 문자열 문제로 실패했지만, 새 stopper 추가로 인한 컴파일/빈 주입 문제는 재현되지 않았다.
-
-2026-06-22 STT 장애 시 회의 입장 fallback 허용
-
-- 작업 목적: STT 내부 API가 일시적으로 실패할 때 `/meetings/{meetingId}/join`까지 503으로 막혀 메인 회의 화면에 아예 들어가지 못하는 문제를 줄인다.
-- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  회의 입장 직전 STT 세션 자동 시작은 그대로 시도하되, `STT_PROVIDER_UNAVAILABLE`가 발생하면 경고 로그만 남기고 LiveKit join token 발급은 계속 진행한다.
-  따라서 STT가 잠시 불안정한 상태에서도 영상/음성 회의 입장 자체는 가능하고, 자막만 지연되거나 비어 있을 수 있다.
-  로컬 프로필 기본값은 `server.address=0.0.0.0`, `meetbowl.livekit.server-url=127.0.0.1`, `meetbowl.stt.base-url=127.0.0.1`로 맞춰 `localhost`의 IPv4/IPv6 해석 차이 때문에 join/STT 내부 호출이 흔들리는 상황을 줄였다.
-- 제외 범위:
-  STT 서버 내부 연결 실패 원인 자체를 이 레포에서 제거하지는 않았다.
-- 검증 방법:
-  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 이번 변경 파일이 아니라 기존 `GetMeetingTranscriptUseCaseTest`, `MinutesUseCaseTest`, `TransferMeetingHostUseCaseTest`의 `:application:compileTestJava` 오류 때문에 중단됐다.
-
-2026-06-22 회의 입장 상태 차단 보강
-
-- 작업 목적: 예약 시작 15분 전보다 이른 회의와 취소된 회의가 입장 가능한 상태로 남아 있던 문제를 막는다.
-- 변경 파일: `application/meeting/JoinMeetingUseCase.java`, `application` 회의 입장 테스트 `JoinMeetingUseCaseTest.java`, 이 작업 기록 파일.
-- 동작 변경:
-  회의 입장 API는 `ENDED`뿐 아니라 `CANCELLED` 상태도 차단한다.
-  따라서 취소된 회의는 `/meetings/{meetingId}/join` 단계에서 다시 한 번 막힌다.
-- 검증 방법:
-  통과: `bash ./gradlew :application:compileJava :app-api:compileJava`
-  실패(기존 브랜치 이슈): `bash ./gradlew :application:test --tests "com.meetbowl.application.meeting.JoinMeetingUseCaseTest"`는 현재 브랜치 전반의 `:application:compileTestJava` 실패 때문에 실행되지 않았다.
-
-2026-06-23 회의 예약 참석자/조회 정합성 및 관리자 대시보드 집계 보정
+2026-06-23 Password reset request approval workflow
 
 - 작업 목적: 회의 예약 수정 흐름에서 주최자/검토자 역할 정합성을 맞추고, 초대 회의 목록/회의실 예약 조회에서 본인 주최 회의가 중복 노출되는 문제와 관리자 시간대별 회의실 사용 집계 왜곡을 함께 보정한다.
 - 변경 파일: `application/admin/AdminDashboardSummaryUseCase.java`, `application/admin/AdminDashboardSummaryUseCaseTest.java`, `application/meeting/GetMeetingUseCase.java`, `application/meeting/MeetingAttendeeWriter.java`, `application/meetingroom/GetRoomReservationsUseCase.java`, 이 작업 기록 파일.
@@ -751,62 +824,253 @@
   남은 실패는 테스트 취약성이나 wiring 누락이 아니라 실제 `infrastructure -> application` 의존 위반을 잡는 ArchUnit rule이다.
 - 남은 작업:
   `DefaultMeetingOrganizationResolver`, `HttpMeetingRealtimeSessionStarter/Stopper`, `JpaMinutesGenerationContextQueryAdapter`의 `application` 타입 의존을 제거하도록 포트/DTO/assembler 위치를 재설계해야 한다.
+- Purpose: implement the QA-requested admin approval flow for user password reset requests, including pending request storage, admin list/count APIs, approval/rejection processing, and audit logging.
+- Changed files:
+  `domain/auth/PasswordResetRequest`,
+  `domain/auth/PasswordResetRequestStatus`,
+  `domain/auth/PasswordResetRequestRepositoryPort`,
+  `application/auth/PasswordResetRequestUseCase`,
+  `application/admin/AdminPasswordResetRequestUseCase`,
+  `application/admin/PasswordResetRequestResult`,
+  `app-api/auth/PasswordResetRequestController`,
+  `app-api/admin/PasswordResetRequestAdminController`,
+  related admin/auth DTOs and tests,
+  `infrastructure/persistence/auth/*`,
+  `common/exception/ErrorCode`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Public password reset requests now create a persisted `PENDING` request row only when login ID and email match an existing `USER` account, while still returning the same generic accepted message.
+  Admin APIs can list requests by optional status, fetch the pending-count badge value, approve a request to reset the target password hash to the initial password `1234`, or reject a request.
+  Approved/rejected requests cannot be processed again; repeated approval/rejection attempts now fail with a conflict error.
+  Approval revokes the target user's active sessions after the password reset and marks the request `APPROVED`; rejection marks the request `REJECTED`.
+  Admin audit logs now capture request approval/rejection actions without storing plain passwords, hashes, JWTs, or refresh tokens.
+- Verification:
+  Passed `.\gradlew.bat :domain:compileJava :application:compileJava :app-api:compileJava :infrastructure:compileJava`
+  Attempted targeted `:application:test` runs for the new auth/admin use cases, but `application:compileTestJava` is blocked by pre-existing unrelated failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.
+  Attempted `:app-api:compileTestJava`, but it is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted `:infrastructure:test` for the new password-reset-request adapter test, but `infrastructure:compileTestJava` is blocked by pre-existing unrelated messaging test failures in `RabbitEventPublisherTest` and `RabbitDocumentIndexRequestedEventPublisherTest`.
 
-2026-06-23 Admin dashboard summary test stubbing 안정화
+2026-06-24 Admin audit log client IP capture
 
-- 작업 목적: `AdminDashboardSummaryUseCaseTest > getBuildsDashboardSummaryFromExistingQueries()`에서 간헐적으로 보고된 Mockito `PotentialStubbingProblem` 가능성을 줄이고, 날짜 경계 검증은 유지한다.
-- 변경 파일: `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`, `task/agent-work-log.md`
-- 변경 내용:
-  `meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(...)` stub을 exact argument 매칭에서 `any(), any()` 기반 반환값 제공으로 완화했다.
-  대신 테스트 마지막에 `verify(meetingRepositoryPort).findNonCancelledRoomMeetingsOverlapping(eq(todayStart), eq(tomorrowStart))`를 추가해 실제 호출 인자는 그대로 검증하게 바꿨다.
-  관련 의도를 설명하는 한글 주석도 함께 추가했다.
-- 동작 변경:
-  프로덕션 코드는 변경하지 않았다.
-  테스트는 repository stub argument mismatch에 덜 취약해졌고, 날짜 경계 계산 검증 책임은 verify로 더 명확해졌다.
-- 검증:
-  실행 예정: `./gradlew :application:test --tests 'com.meetbowl.application.admin.AdminDashboardSummaryUseCaseTest' --tests 'com.meetbowl.application.user.UserDirectoryUseCaseTest'`
-- 남은 작업:
-  다음 CI run에서 동일한 admin 테스트 failure가 사라졌는지 확인해야 한다.
+- Purpose: fix QA issue where new admin audit logs showed worker IP as `-` by resolving and persisting the requester client IP for all admin log-producing APIs.
+- Changed files:
+  `app-api/common/ApiHeaders`,
+  `app-api/common/ClientIpResolver`,
+  `app-api/admin/AdminUserController`,
+  `app-api/admin/AdminOrganizationController`,
+  `app-api/admin/AdminOrganizationMembersExcelController`,
+  `app-api/admin/PasswordResetRequestAdminController`,
+  `app-api/admin/MailRetentionPolicyController`,
+  `application/admin/AdminAuditLogResult`,
+  `app-api/admin/dto/AdminAuditLogResponse`,
+  related admin/api tests,
+  and this log.
+- Behavior:
+  New admin audit logs now resolve client IP in the order `X-Forwarded-For` first IP, then `X-Real-IP`, then `request.getRemoteAddr()`.
+  Local development addresses such as `127.0.0.1` and `::1` are preserved instead of being dropped, so new rows store a non-blank IP whenever the servlet request provides one.
+  The same resolver is applied across admin member create/update/delete/password reset, organization delete flows, password reset request approval/rejection, mail retention policy update, and organization-member Excel import.
+  Audit log query results now expose `ipAddress`; old rows that never stored an IP still fall back to `-` at response mapping time.
+  Sensitive fields such as passwords, JWTs, refresh tokens, and similar secrets remain excluded from audit payload handling.
+- Verification:
+  Passed `.\gradlew :app-api:compileJava`
+  Attempted targeted audit-related Gradle tests, but `app-api:compileTestJava` is blocked by a pre-existing unrelated constructor mismatch in `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java`.
+  Attempted targeted application tests, but `application:compileTestJava` is blocked by pre-existing unrelated compile failures in `EndMeetingUseCaseTest`, `TransferMeetingHostUseCaseTest`, `MinutesUseCaseTest`, and `GetMeetingTranscriptUseCaseTest`.
 
-2026-06-24 infrastructure 계층 위반 정리
+2026-06-24 PasswordResetRequestControllerTest missing bean fix
 
-- 작업 목적: 새 브랜치 기준 `./gradlew test`에서 마지막까지 남아 있던 `InfrastructureArchitectureTest` 실패를 실제 계층 구조 기준에 맞게 정리한다.
-- 변경 파일:
-  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingOrganizationResolver.java`
-  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingRealtimeSessionStarter.java`
-  `domain/src/main/java/com/meetbowl/domain/meeting/MeetingRealtimeSessionStopper.java`
-  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesGenerationContext.java`
-  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesGenerationContextQueryPort.java`
-  `domain/src/main/java/com/meetbowl/domain/transcript/FinalTranscriptTextAssembler.java`
-  `domain/src/test/java/com/meetbowl/domain/transcript/FinalTranscriptTextAssemblerTest.java`
-  `application/src/main/java/com/meetbowl/application/meeting/JoinMeetingUseCase.java`
-  `application/src/main/java/com/meetbowl/application/meeting/EndMeetingUseCase.java`
-  `application/src/main/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCase.java`
-  `application/src/main/java/com/meetbowl/application/transcript/GetMeetingTranscriptUseCase.java`
-  `application/src/test/java/com/meetbowl/application/meeting/JoinMeetingUseCaseTest.java`
-  `application/src/test/java/com/meetbowl/application/meeting/EndMeetingUseCaseTest.java`
-  `application/src/test/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCaseTest.java`
-  `application/src/test/java/com/meetbowl/application/transcript/GetMeetingTranscriptUseCaseTest.java`
-  `app-api/src/test/java/com/meetbowl/api/config/SecurityConfigTest.java`
-  `app-api/build.gradle`
-  `infrastructure/src/main/java/com/meetbowl/infrastructure/meeting/DefaultMeetingOrganizationResolver.java`
-  `infrastructure/src/main/java/com/meetbowl/infrastructure/minutes/JpaMinutesGenerationContextQueryAdapter.java`
-  `infrastructure/src/main/java/com/meetbowl/infrastructure/stt/HttpMeetingRealtimeSessionStarter.java`
-  `infrastructure/src/main/java/com/meetbowl/infrastructure/stt/HttpMeetingRealtimeSessionStopper.java`
-  `application/src/main/java/com/meetbowl/application/minutes/MinutesGenerationContextResult.java`
-  `task/agent-work-log.md`
-- 변경 내용:
-  `infrastructure`가 구현하던 회의 조직 조회/STT 세션 시작·종료 계약을 `application`에서 `domain.meeting`으로 이동했다. 이 계약들은 UseCase가 호출하고 infrastructure adapter가 구현하는 포트이므로 application에 두면 계층 방향이 뒤집힌다.
-  AI 회의록 생성용 조회 계약도 `domain.minutes`로 분리하고, `GetMinutesGenerationContextUseCase`는 domain context를 받아 application 응답 모델(`MinutesGenerationContextResult`)로 매핑만 수행하도록 조정했다. 이렇게 해서 API 계층은 여전히 application 결과 타입만 보게 유지했다.
-  Final transcript 조립기는 Spring bean이 아니라 순수 조립 규칙이므로 `domain.transcript.FinalTranscriptTextAssembler`의 static 유틸로 옮겼다. `GetMeetingTranscriptUseCase`와 `JpaMinutesGenerationContextQueryAdapter`는 이 공용 조립 규칙을 직접 호출하도록 바꿨다.
-  관련 테스트는 새 포트/조립기 위치에 맞춰 import와 fixture를 정리했고, app-api 테스트에서 domain 포트를 mock으로 주입할 수 있도록 `app-api/build.gradle`에 `testImplementation project(':domain')`를 추가했다.
-- 동작 변경:
-  프로덕션 기능 동작은 유지된다.
-  다만 계약 배치가 `Controller -> UseCase -> Domain Port -> Infrastructure Adapter` 흐름에 맞게 바로잡혀, `infrastructure`가 더 이상 `application` 구현 세부 타입을 참조하지 않는다.
-- 제외 범위:
-  API 스펙, 엔드포인트, 메시지 계약, 비즈니스 규칙은 변경하지 않았다.
-- 검증:
-  `./gradlew :domain:test :application:test :app-api:test :infrastructure:test --no-daemon` 통과
-  `./gradlew test --no-daemon` 통과
-- 남은 작업:
-  현재 로컬 기준 남은 테스트 실패는 없다. 이후 PR Actions에서도 동일한 checkout SHA 기준으로 재확인하면 된다.
+- Purpose: fix `PasswordResetRequestControllerTest > createSuccess()` failing with `NoSuchBeanDefinitionException` on the current `main` branch.
+- Changed files:
+  `app-api/src/test/java/com/meetbowl/api/auth/PasswordResetRequestControllerTest.java`,
+  and this log.
+- Behavior:
+  The test now mocks `AccessTokenValidationService` in addition to `PasswordResetRequestUseCase`.
+  Current `@WebMvcTest` context loads `JwtAuthenticatedUserConverter`, and that bean requires `AccessTokenValidationService` via constructor injection. The password-reset request controller itself does not use that service directly, but the MVC/security slice now does, so the test must supply it.
+- Verification:
+  Passed `./gradlew :app-api:test --tests 'com.meetbowl.api.auth.PasswordResetRequestControllerTest' --no-daemon`
+
+2026-06-24 Align auth controller structure with dev
+
+- Purpose: remove the `main`-only password reset request controller split so auth API structure matches `dev` before merging back through `dev -> main`.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/auth/PasswordResetRequestController.java`,
+  `app-api/src/test/java/com/meetbowl/api/auth/PasswordResetRequestControllerTest.java`,
+  and this log.
+- Behavior:
+  Removed the separate `PasswordResetRequestController` and its dedicated WebMvc test.
+  Password reset request handling remains covered by `AuthController` and `AuthControllerTest`, which is the `dev` branch structure.
+  This also removes the duplicate test slice that had drifted from the shared MVC/security test setup.
+- Verification:
+  Passed `./gradlew :app-api:test --tests 'com.meetbowl.api.auth.AuthControllerTest' --tests 'com.meetbowl.api.auth.AuthTokenStatePrecisionTest' --no-daemon`
+
+2026-06-24 application test fixture alignment after status/delete rule changes
+
+- Purpose: fix `:application:test` failures caused by stale test fixtures after effective-status, soft-delete, and organization sort-order validation rules changed.
+- Changed files:
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMasterDataUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminUserManagementUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/user/UserDirectoryUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Updated organization master-data test inputs so auto-generated code checks are isolated from the newer sort-order uniqueness rule instead of failing early on duplicated sort orders.
+  Updated admin user management fixtures so default active users remain within the fixed test clock's active window, and delete tests stub `findByIdIncludingDeleted(...)` to match the current delete path.
+  Adjusted the already-inactive delete fixture to represent a true tombstone (`deletedAt != null`), which is the current semantic used by `delete(...)` for "already deleted" conflicts.
+  Updated user-directory expected ordering to match the current fake repository sort by user name.
+- Verification:
+  Passed targeted seven previously failing tests with `./gradlew :application:test ... --no-daemon`
+  Passed full `./gradlew :application:test --no-daemon`
+
+2026-06-24 JPA user search query alignment for Hibernate 7
+
+- Purpose: fix `JpaUserRepositoryAdapterTest` failures caused by repository JPQL drift after search-condition changes and branch merge noise.
+- Changed files:
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/user/JpaUserRepositoryAdapter.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/user/SpringDataUserRepository.java`,
+  and this log.
+- Behavior:
+  Changed the repository adapter to pass the optional status filter to JPQL as a nullable enum name string instead of a nullable `UserStatus` enum object.
+  Updated the JPQL status branch conditions to compare against `'ACTIVE'`, `'INACTIVE'`, and `'LOCKED'`, which avoids the Hibernate 7 parameter conversion failure triggered by `:status is null` plus enum comparisons in the same query.
+  Restored the role-display keyword literals in the admin user search JPQL to proper Korean strings (`관리자`, `일반 사용자`) so partial search by displayed role text works again.
+- Verification:
+  Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest' --no-daemon`
+  Passed full `./gradlew :infrastructure:test --no-daemon`
+
+2026-06-24 prod-seed profile for one-time bootstrap data
+
+- Purpose: add an explicit deployment profile for seeding initial admin/user accounts without enabling the seed path in normal `prod` boots.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Added `spring.profiles.group.prod-seed=prod` so activating `prod-seed` also loads the normal production settings.
+  Added a `prod-seed` `ApplicationRunner` that reuses the existing bootstrap account use case to create the initial `admin`, `user1`, and `user2` accounts with the same idempotent behavior as local startup.
+  Documented `SPRING_PROFILES_ACTIVE=prod-seed` as the one-time operational path for initial data seeding after deployment.
+- Verification:
+  Passed `./gradlew :app-api:compileJava`
+  Attempted `./gradlew test --no-daemon`, but it is blocked by a pre-existing unrelated `app-api/src/test/java/com/meetbowl/api/meeting/MeetingControllerTest.java` constructor mismatch during `:app-api:compileTestJava`.
+
+2026-06-24 fold bootstrap seeding into prod profile
+
+- Purpose: make deployment use a single `SPRING_PROFILES_ACTIVE=prod` setting while still creating the initial bootstrap accounts on startup.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Removed the separate `prod-seed` profile group and switched the bootstrap initializer to `@Profile("prod")`.
+  The production boot path now both applies the normal prod datasource/Flyway settings and runs the idempotent account bootstrap that creates `admin`, `user1`, and `user2` if they do not already exist.
+  Documentation now tells operators to use `SPRING_PROFILES_ACTIVE=prod` only.
+- Verification:
+  Passed `./gradlew :app-api:compileJava --no-daemon`
+
+2026-06-24 production CORS origin configuration
+
+- Purpose: allow browser calls from a changing deployed frontend URL without hardcoding a single origin in code.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/SecurityConfig.java`,
+  `app-api/src/main/resources/application-prod.properties`,
+  `README.md`,
+  and this log.
+- Behavior:
+  CORS now reads allowed origin patterns from `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`, parsed as a comma-separated list.
+  When the variable is unset, the server falls back to local development origins (`http://localhost:*`, `http://127.0.0.1:*`).
+  Production deploys should set the environment variable to the frontend origin(s), for example `https://app.meetbowl.com,https://*.vercel.app`.
+- Verification:
+  Passed `./gradlew :app-api:compileJava --no-daemon`
+
+2026-06-24 GitHub Actions SSM fetch for production CORS
+
+- Purpose: make the deployment pipeline actually load the CORS origin patterns from AWS Systems Manager before starting the deployed app.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  `README.md`,
+  and this log.
+- Behavior:
+  The deploy job now reads the SSM parameter name from the `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME` GitHub secret, fetches the decrypted value with `aws ssm get-parameter`, masks it in the job log, and passes it through to the EC2 deploy command as `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`.
+  This keeps the runtime CORS allowlist in SSM while ensuring the EC2 deployment path actually receives it.
+- Verification:
+  Ran `git diff --check` successfully to confirm the workflow and documentation edits are clean.
+
+2026-06-24 bind CORS SSM path directly in deploy workflow
+
+- Purpose: remove the unnecessary GitHub secret hop and read the production CORS allowlist from a fixed SSM parameter path.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  `README.md`,
+  and this log.
+- Behavior:
+  The deploy job now reads `/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS` directly from SSM instead of requiring `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME` in GitHub secrets.
+  This matches the current operational setup where the parameter already exists in Parameter Store and no extra repo secret should be needed.
+- Verification:
+  Pending re-run of the GitHub Actions deploy workflow.
+
+2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
+
+- Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.
+- Changed files:
+  `infrastructure/build.gradle`,
+  and this log.
+- Behavior:
+  Replaced the direct `flyway-core` dependency with `spring-boot-starter-flyway` so the application runtime includes Spring Boot's `spring-boot-flyway` module and `FlywayAutoConfiguration`.
+  Kept `flyway-mysql` explicitly because Flyway 11 requires the separate MariaDB/MySQL database plugin.
+- Verification:
+  Confirmed `spring-boot-flyway:4.0.6` on `:app-api:runtimeClasspath` with Gradle dependency insight.
+  Confirmed `flyway-mysql:11.14.1` remains on `:app-api:runtimeClasspath`.
+  Passed `./gradlew :app-api:compileJava --no-daemon`.
+
+2026-06-24 Admin audit log schema alignment
+
+- Purpose: fix application startup failure caused by Hibernate schema validation detecting that `admin_audit_logs.target_login_id` exists in the entity mapping but not in the Flyway-managed database schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V2__add_target_login_id_to_admin_audit_logs.sql`,
+  and this log.
+- Behavior:
+  Added a Flyway migration that introduces the missing `target_login_id` column to `admin_audit_logs`.
+  The change keeps the existing baseline migration intact and lets Flyway upgrade both fresh and already-provisioned databases without breaking schema validation.
+ - Verification:
+  Reviewed the `AdminAuditLogEntity` mapping and confirmed `targetLoginId` is a mapped column.
+  Confirmed `app-api/src/main/resources/db/migration/V1__baseline.sql` did not contain the column.
+
+2026-06-24 Admin audit log target name schema alignment
+
+- Purpose: fix the next Hibernate schema validation failure after `target_login_id` was added, where `admin_audit_logs.target_name` was still missing from the Flyway-managed schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V3__add_target_name_to_admin_audit_logs.sql`,
+  and this log.
+- Behavior:
+  Added a second Flyway migration that introduces the missing `target_name` column to `admin_audit_logs`.
+  This keeps the schema repair incremental and safe for databases that have already applied `V2`.
+ - Verification:
+  Rechecked `AdminAuditLogEntity` and confirmed `targetName` is also a mapped column.
+  Confirmed the baseline migration still does not contain the column, so a forward migration is required rather than a baseline rewrite.
+
+2026-06-24 Password reset request table schema alignment
+
+- Purpose: fix application startup failure caused by Hibernate schema validation detecting that the `password_reset_requests` table was missing entirely from the Flyway-managed schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V4__create_password_reset_requests.sql`,
+  and this log.
+- Behavior:
+  Added the missing `password_reset_requests` table with the columns and nullability required by `PasswordResetRequestEntity` and the domain model.
+  Added a supporting index on `(status, requested_at)` to match the repository access pattern for status-filtered listing ordered by most recent request first.
+ - Verification:
+  Reviewed `PasswordResetRequestEntity` and `PasswordResetRequest` to align the table definition with the persisted fields.
+  Kept the existing migrations intact so already-applied environments can upgrade forward without rebuilding the baseline.
+
+2026-06-24 User soft-delete schema alignment
+
+- Purpose: fix Hibernate schema validation failure caused by the `users` table missing the `deleted_at` column used by the current `UserEntity` and `User` domain model.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V5__add_deleted_at_to_users.sql`,
+  and this log.
+- Behavior:
+  Added the missing soft-delete timestamp column to `users` without changing the original baseline migration.
+  This preserves existing upgrade history while bringing the schema in line with the entity mapping that already treats deleted users as tombstoned records.
+- Verification:
+  Reviewed `UserEntity` and `User` to confirm `deletedAt` is a persisted field and not an in-memory-only property.
+  Confirmed the current baseline `users` table definition does not include `deleted_at`.

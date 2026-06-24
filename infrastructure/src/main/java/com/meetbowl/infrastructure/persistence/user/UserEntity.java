@@ -14,62 +14,65 @@ import com.meetbowl.domain.user.UserRole;
 import com.meetbowl.domain.user.UserStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 
-/** 사용자 계정 정보를 저장하는 엔티티다. 인증/권한(Role), 상태, 조직 소속(소속/부서/팀) 및 직급(Position)을 ID로 참조한다. */
+/** ?ъ슜??怨꾩젙 ?뺣낫瑜???ν븯???뷀떚?곕떎. ?몄쬆/沅뚰븳(Role), ?곹깭, 議곗쭅 ?뚯냽(?뚯냽/遺???) 諛?吏곴툒(Position)??ID濡?李몄“?쒕떎. */
 @Entity
 @Table(name = "users")
 public class UserEntity extends BaseEntity {
 
-    /** 로그인에 사용하는 고유 아이디. */
+    /** 濡쒓렇?몄뿉 ?ъ슜?섎뒗 怨좎쑀 ?꾩씠?? */
     @Column(nullable = false, unique = true, length = 100)
     private String loginId;
 
-    /** 비밀번호 해시(평문 저장 금지). */
+    /** 鍮꾨?踰덊샇 ?댁떆(?됰Ц ???湲덉?). */
     @Column(nullable = false, length = 255)
     private String passwordHash;
 
-    /** 사용자 실명. */
+    /** ?ъ슜???ㅻ챸. */
     @Column(nullable = false, length = 100)
     private String name;
 
-    /** 사용자 이메일(고유). */
+    /** ?ъ슜???대찓??怨좎쑀). */
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    /** 사용자 역할(권한 그룹). */
+    /** ?ъ슜????븷(沅뚰븳 洹몃９). */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserRole role;
 
-    /** 사용자 상태(활성/잠금/탈퇴 등). */
+    /** ?ъ슜???곹깭(?쒖꽦/?좉툑/?덊눜 ??. */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private UserStatus status;
 
-    /** 소속(Affiliate) ID(UUID). 조직 최상위 단위. */
+    /** ?뚯냽(Affiliate) ID(UUID). 議곗쭅 理쒖긽???⑥쐞. */
     @Column(columnDefinition = "BINARY(16)")
     private UUID affiliateId;
 
-    /** 부서(Department) ID(UUID). 소속 하위 조직. */
+    /** 遺??Department) ID(UUID). ?뚯냽 ?섏쐞 議곗쭅. */
     @Column(columnDefinition = "BINARY(16)")
     private UUID departmentId;
 
-    /** 직급/직위(Position) ID(UUID). 사용자의 직급을 나타냄. */
+    /** 吏곴툒/吏곸쐞(Position) ID(UUID). ?ъ슜?먯쓽 吏곴툒???섑??? */
     @Column(columnDefinition = "BINARY(16)")
     private UUID positionId;
 
-    /** 팀(Team) ID(UUID). 부서 하위 조직 단위. */
+    /** ?(Team) ID(UUID). 遺???섏쐞 議곗쭅 ?⑥쐞. */
     @Column(columnDefinition = "BINARY(16)")
     private UUID teamId;
 
-    /** 최초 로그인 시 비밀번호 변경 필요 여부. */
+    /** 理쒖큹 濡쒓렇????鍮꾨?踰덊샇 蹂寃??꾩슂 ?щ?. */
     @Column(nullable = false)
     private boolean initialPasswordChangeRequired;
 
-    /** 계정 활성 시작 시각(UTC). null이면 제한 없음. */
+    /** 怨꾩젙 ?쒖꽦 ?쒖옉 ?쒓컖(UTC). null?대㈃ ?쒗븳 ?놁쓬. */
     private Instant activeFrom;
 
-    /** 계정 활성 종료 시각(UTC). null이면 제한 없음. */
+    /** 怨꾩젙 ?쒖꽦 醫낅즺 ?쒓컖(UTC). null?대㈃ ?쒗븳 ?놁쓬. */
     private Instant activeUntil;
+
+    /** 삭제된 회원은 연관 데이터 보존을 위해 물리 삭제하지 않고 deletedAt만 기록한다. */
+    private Instant deletedAt;
 
     protected UserEntity() {}
 
@@ -87,6 +90,7 @@ public class UserEntity extends BaseEntity {
         this.initialPasswordChangeRequired = user.initialPasswordChangeRequired();
         this.activeFrom = user.activeFrom();
         this.activeUntil = user.activeUntil();
+        this.deletedAt = user.deletedAt();
     }
 
     static UserEntity from(User user) {
@@ -111,6 +115,7 @@ public class UserEntity extends BaseEntity {
                 initialPasswordChangeRequired,
                 activeFrom,
                 activeUntil,
+                deletedAt,
                 getCreatedAt(),
                 getUpdatedAt());
     }

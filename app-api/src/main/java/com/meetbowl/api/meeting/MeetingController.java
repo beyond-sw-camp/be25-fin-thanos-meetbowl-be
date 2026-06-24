@@ -27,6 +27,7 @@ import com.meetbowl.api.meeting.dto.JoinMeetingRequest;
 import com.meetbowl.api.meeting.dto.JoinMeetingResponse;
 import com.meetbowl.api.meeting.dto.TransferMeetingHostRequest;
 import com.meetbowl.application.meeting.CancelMeetingUseCase;
+import com.meetbowl.application.meeting.CheckAttendeeAvailabilityUseCase;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.EndMeetingCommand;
@@ -60,6 +61,7 @@ public class MeetingController extends BaseController {
     private final StartMeetingUseCase startMeetingUseCase;
     private final TransferMeetingHostUseCase transferMeetingHostUseCase;
     private final JoinMeetingUseCase joinMeetingUseCase;
+    private final CheckAttendeeAvailabilityUseCase checkAttendeeAvailabilityUseCase;
 
     public MeetingController(
             CreateMeetingUseCase createMeetingUseCase,
@@ -69,7 +71,8 @@ public class MeetingController extends BaseController {
             EndMeetingUseCase endMeetingUseCase,
             StartMeetingUseCase startMeetingUseCase,
             TransferMeetingHostUseCase transferMeetingHostUseCase,
-            JoinMeetingUseCase joinMeetingUseCase) {
+            JoinMeetingUseCase joinMeetingUseCase,
+            CheckAttendeeAvailabilityUseCase checkAttendeeAvailabilityUseCase) {
         this.createMeetingUseCase = createMeetingUseCase;
         this.getMeetingUseCase = getMeetingUseCase;
         this.updateMeetingUseCase = updateMeetingUseCase;
@@ -78,6 +81,7 @@ public class MeetingController extends BaseController {
         this.startMeetingUseCase = startMeetingUseCase;
         this.transferMeetingHostUseCase = transferMeetingHostUseCase;
         this.joinMeetingUseCase = joinMeetingUseCase;
+        this.checkAttendeeAvailabilityUseCase = checkAttendeeAvailabilityUseCase;
     }
 
     /** 회의 생성. 회의실 시간이 겹치면 409(MEETING_ROOM_ALREADY_RESERVED)를 반환한다. */
@@ -156,6 +160,25 @@ public class MeetingController extends BaseController {
         return ok(MeetingResponse.from(updateMeetingUseCase.execute(command)));
     }
 
+    /**
+     * 참석자 시간 겹침 실시간 검사.
+     *
+     * <p>회의 생성/수정 폼에서 참석자 추가·시간 변경 시 호출해, 선택한 사용자들이 해당 시간대에 이미 다른 활성 회의에 참석/주최로 잡혀 있으면 겹친 (사용자, 회의)
+     * 목록을 돌려준다. 겹침이 없으면 빈 목록을 반환한다. 저장을 막는 최종 방어는 생성/수정 시 별도 가드(409 ATTENDEE_TIME_CONFLICT)가 한다.
+     */
+    @PostMapping("/attendee-availability")
+    @RequireUserOrAdmin
+    public ApiResponse<AttendeeAvailabilityResponse> checkAttendeeAvailability(
+            @Valid @RequestBody AttendeeAvailabilityRequest request) {
+        return ok(
+                AttendeeAvailabilityResponse.from(
+                        checkAttendeeAvailabilityUseCase.execute(
+                                request.userIds(),
+                                request.scheduledAt(),
+                                request.scheduledEndAt(),
+                                request.excludeMeetingId())));
+    }
+
     /** 회의 취소. */
     @PostMapping("/{meetingId}/cancel")
     @RequireUserOrAdmin
@@ -219,8 +242,8 @@ public class MeetingController extends BaseController {
     /**
      * LiveKit 채널이 열려 실제 회의가 시작됐음을 기록한다.
      *
-     * <p>프론트엔드는 room.connect() 성공 직후 이 API를 best-effort로 호출한다. 이미 진행 중이면 멱등적으로 무시하고, 종료/취소된 회의만
-     * 예외로 막는다.
+     * <p>프론트엔드는 room.connect() 성공 직후 이 API를 best-effort로 호출한다. 이미 진행 중이면 멱등적으로 무시하고, 종료/취소된 회의만 예외로
+     * 막는다.
      */
     @PostMapping("/{meetingId}/start")
     public ApiResponse<Void> startMeeting(@PathVariable UUID meetingId) {
