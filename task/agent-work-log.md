@@ -713,3 +713,20 @@
   This also removes the duplicate test slice that had drifted from the shared MVC/security test setup.
 - Verification:
   Passed `./gradlew :app-api:test --tests 'com.meetbowl.api.auth.AuthControllerTest' --tests 'com.meetbowl.api.auth.AuthTokenStatePrecisionTest' --no-daemon`
+
+2026-06-24 application test fixture alignment after status/delete rule changes
+
+- Purpose: fix `:application:test` failures caused by stale test fixtures after effective-status, soft-delete, and organization sort-order validation rules changed.
+- Changed files:
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMasterDataUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminUserManagementUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/user/UserDirectoryUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Updated organization master-data test inputs so auto-generated code checks are isolated from the newer sort-order uniqueness rule instead of failing early on duplicated sort orders.
+  Updated admin user management fixtures so default active users remain within the fixed test clock's active window, and delete tests stub `findByIdIncludingDeleted(...)` to match the current delete path.
+  Adjusted the already-inactive delete fixture to represent a true tombstone (`deletedAt != null`), which is the current semantic used by `delete(...)` for "already deleted" conflicts.
+  Updated user-directory expected ordering to match the current fake repository sort by user name.
+- Verification:
+  Passed targeted seven previously failing tests with `./gradlew :application:test ... --no-daemon`
+  Passed full `./gradlew :application:test --no-daemon`
