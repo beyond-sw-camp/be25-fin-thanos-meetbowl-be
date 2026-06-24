@@ -807,6 +807,19 @@
 - Verification:
   Ran `git diff --check` successfully to confirm the workflow and documentation edits are clean.
 
+2026-06-24 bind CORS SSM path directly in deploy workflow
+
+- Purpose: remove the unnecessary GitHub secret hop and read the production CORS allowlist from a fixed SSM parameter path.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  `README.md`,
+  and this log.
+- Behavior:
+  The deploy job now reads `/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS` directly from SSM instead of requiring `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME` in GitHub secrets.
+  This matches the current operational setup where the parameter already exists in Parameter Store and no extra repo secret should be needed.
+- Verification:
+  Pending re-run of the GitHub Actions deploy workflow.
+
 2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
 
 - Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.

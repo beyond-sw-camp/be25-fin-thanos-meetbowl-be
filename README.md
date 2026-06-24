@@ -117,8 +117,8 @@ MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS=https://app.meetbowl.com,https://*.vercel.
 ```
 
 설정하지 않으면 `localhost`와 `127.0.0.1`만 허용한다.
-GitHub Actions 배포 파이프라인은 `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME`
-비밀값에 들어 있는 SSM 파라미터 이름을 읽어 이 값을 주입한다.
+GitHub Actions 배포 파이프라인은 `/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`
+SSM 파라미터를 읽어 이 값을 주입한다.
 
 운영 배포 직후 기본 계정이 필요하면 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
 `prod`는 운영 설정을 그대로 쓰면서 `admin`, `user1`, `user2`를 `1234` 비밀번호로 채우고,
