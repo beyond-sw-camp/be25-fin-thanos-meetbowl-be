@@ -24,7 +24,11 @@ class UserTest {
 
     @Test
     void isExpired_success_when_active_until_passed() {
-        User user = user(UserStatus.ACTIVE, NOW.minusSeconds(120), NOW.minusSeconds(60));
+        User user =
+                user(
+                        UserStatus.ACTIVE,
+                        Instant.parse("2026-06-06T00:00:00Z"),
+                        Instant.parse("2026-06-07T00:00:00Z"));
 
         assertTrue(user.isExpired(NOW));
         assertFalse(user.canLoginAt(NOW));
@@ -34,6 +38,31 @@ class UserTest {
     void status_check_success_when_locked_or_inactive() {
         assertTrue(user(UserStatus.LOCKED, null, null).isLocked());
         assertTrue(user(UserStatus.INACTIVE, null, null).isInactive());
+    }
+
+    @Test
+    void effectiveStatus_usesInclusiveDateBoundaries() {
+        Instant today = Instant.parse("2026-06-23T12:00:00Z");
+
+        User expired =
+                user(
+                        UserStatus.ACTIVE,
+                        Instant.parse("2026-06-19T00:00:00Z"),
+                        Instant.parse("2026-06-21T00:00:00Z"));
+        User activeToday =
+                user(
+                        UserStatus.ACTIVE,
+                        Instant.parse("2026-06-19T00:00:00Z"),
+                        Instant.parse("2026-06-23T00:00:00Z"));
+        User future =
+                user(
+                        UserStatus.ACTIVE,
+                        Instant.parse("2026-06-24T00:00:00Z"),
+                        null);
+
+        assertEquals(UserStatus.INACTIVE, expired.effectiveStatusAt(today));
+        assertEquals(UserStatus.ACTIVE, activeToday.effectiveStatusAt(today));
+        assertEquals(UserStatus.INACTIVE, future.effectiveStatusAt(today));
     }
 
     @Test

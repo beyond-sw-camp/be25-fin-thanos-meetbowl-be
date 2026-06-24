@@ -67,7 +67,12 @@ public class ResetUserPasswordUseCase {
                                                             PasswordPolicy.INITIAL_PASSWORD));
                                     userRepositoryPort.save(updatedUser);
 
-                                    logAudit(command, AuditResult.SUCCESS, null);
+                                    logAudit(
+                                            command,
+                                            updatedUser.loginId(),
+                                            updatedUser.name(),
+                                            AuditResult.SUCCESS,
+                                            null);
                                     return new ResetUserPasswordResult(
                                             PasswordPolicy.INITIAL_PASSWORD);
                                 }));
@@ -85,7 +90,11 @@ public class ResetUserPasswordUseCase {
     }
 
     private void logAudit(
-            ResetUserPasswordCommand command, AuditResult result, String failureReason) {
+            ResetUserPasswordCommand command,
+            String targetLoginId,
+            String targetName,
+            AuditResult result,
+            String failureReason) {
         // 감사 로그에는 관리자 작업 흔적만 남기고 원문 비밀번호는 남기지 않는다.
         AdminAuditLog log =
                 new AdminAuditLog(
@@ -94,6 +103,8 @@ public class ResetUserPasswordUseCase {
                         command.adminName(),
                         "USER",
                         command.userId(),
+                        targetLoginId,
+                        targetName,
                         "USER_MANAGEMENT",
                         "PASSWORD_RESET",
                         result,

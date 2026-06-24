@@ -69,6 +69,8 @@ class ResetUserPasswordUseCaseTest {
                         result.temporaryPassword(), savedUser.getValue().passwordHash()));
         ArgumentCaptor<AdminAuditLog> auditLogCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
         verify(adminAuditLogRepositoryPort).save(auditLogCaptor.capture());
+        assertEquals("user1", auditLogCaptor.getValue().targetLoginId());
+        assertEquals("name", auditLogCaptor.getValue().targetName());
         JsonNode afterSnapshot = objectMapper.readTree(auditLogCaptor.getValue().afterValue());
         assertTrue(afterSnapshot.get("initialPasswordChangeRequired").asBoolean());
         assertFalse(auditLogCaptor.getValue().afterValue().contains(result.temporaryPassword()));

@@ -120,6 +120,8 @@ class AdminAuditLogQueryUseCaseTest {
                 "admin01",
                 "USER",
                 TARGET_ID,
+                "user01",
+                "User One",
                 "USER_MANAGEMENT",
                 "UPDATE",
                 AuditResult.SUCCESS,

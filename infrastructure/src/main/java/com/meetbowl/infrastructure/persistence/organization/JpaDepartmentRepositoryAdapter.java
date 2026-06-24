@@ -61,4 +61,16 @@ public class JpaDepartmentRepositoryAdapter implements DepartmentRepositoryPort 
         return repository.existsByAffiliateIdAndNameIgnoreCaseAndIdNot(
                 affiliateId, name, departmentId);
     }
+
+    @Override
+    public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+        return repository.existsByAffiliateIdAndSortOrder(affiliateId, sortOrder);
+    }
+
+    @Override
+    public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            UUID affiliateId, Integer sortOrder, UUID departmentId) {
+        return repository.existsByAffiliateIdAndSortOrderAndIdNot(
+                affiliateId, sortOrder, departmentId);
+    }
 }

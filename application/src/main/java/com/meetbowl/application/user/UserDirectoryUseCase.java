@@ -1,5 +1,8 @@
 package com.meetbowl.application.user;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -35,18 +38,21 @@ public class UserDirectoryUseCase {
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
+    private final Clock clock;
 
     public UserDirectoryUseCase(
             UserRepositoryPort userRepositoryPort,
             AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
-            PositionRepositoryPort positionRepositoryPort) {
+            PositionRepositoryPort positionRepositoryPort,
+            Clock clock) {
         this.userRepositoryPort = userRepositoryPort;
         this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +62,8 @@ public class UserDirectoryUseCase {
         // 검색 API는 별도 status를 주지 않으면 화면 기본값과 동일하게 활성 사용자만 보여준다.
         UserStatus status =
                 command.status() == null ? UserStatus.ACTIVE : parseStatus(command.status());
+        Instant dayStart = todayStart();
+        Instant nextDayStart = dayStart.plusSeconds(24 * 60 * 60);
 
         Paged<User> result =
                 userRepositoryPort.search(
@@ -65,6 +73,8 @@ public class UserDirectoryUseCase {
                         command.teamId(),
                         command.positionId(),
                         status,
+                        dayStart,
+                        nextDayStart,
                         page,
                         size);
 
@@ -98,11 +108,15 @@ public class UserDirectoryUseCase {
                 user.name(),
                 user.email(),
                 user.role().name(),
-                user.status().name(),
+                user.effectiveStatusAt(Instant.now(clock)).name(),
                 lookups.affiliateNames().get(user.affiliateId()),
                 lookups.departmentNames().get(user.departmentId()),
                 lookups.teamNames().get(user.teamId()),
                 lookups.positionNames().get(user.positionId()));
+    }
+
+    private Instant todayStart() {
+        return Instant.now(clock).atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC);
     }
 
     // 검색 결과 전체에서 조직 ID를 모아 한 번씩만 조회해 조직명 매핑 시 N+1을 피한다.

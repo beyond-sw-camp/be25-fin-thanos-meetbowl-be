@@ -75,6 +75,8 @@ class JpaAdminAuditLogRepositoryAdapterTest {
                 "Admin",
                 targetType,
                 targetId,
+                null,
+                null,
                 actionArea,
                 actionName,
                 AuditResult.SUCCESS,

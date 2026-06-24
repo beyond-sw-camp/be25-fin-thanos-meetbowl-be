@@ -26,4 +26,8 @@ public interface SpringDataDepartmentRepository extends JpaRepository<Department
     boolean existsByAffiliateIdAndNameIgnoreCase(UUID affiliateId, String name);
 
     boolean existsByAffiliateIdAndNameIgnoreCaseAndIdNot(UUID affiliateId, String name, UUID id);
+
+    boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder);
+
+    boolean existsByAffiliateIdAndSortOrderAndIdNot(UUID affiliateId, Integer sortOrder, UUID id);
 }

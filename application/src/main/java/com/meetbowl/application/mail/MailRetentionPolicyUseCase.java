@@ -81,6 +81,8 @@ public class MailRetentionPolicyUseCase {
                         command.adminName(),
                         "MAIL_RETENTION_POLICY",
                         SYSTEM_POLICY_ID,
+                        null,
+                        null,
                         "MAIL_RETENTION_POLICY",
                         "UPDATE",
                         AuditResult.SUCCESS,
