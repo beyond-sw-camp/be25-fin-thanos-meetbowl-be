@@ -1,6 +1,9 @@
 package com.meetbowl.application.meeting;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -19,8 +22,9 @@ import com.meetbowl.domain.meeting.MeetingRepositoryPort;
  * ErrorCode#MEETING_ROOM_ALREADY_RESERVED}로 실패한다. 화상회의만 진행하는 회의(회의실 없음)는 잠금/검사 없이 저장한다.
  *
  * <p>참석자: 주최자는 HOST 신분으로 자동 포함하고, {@code attendeeUserIds}는 PARTICIPANT 신분으로 저장하며, 검토자로 지정된 사용자에게는
- * reviewer 플래그를 단다(주최자도 검토자가 될 수 있다). 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인 소유이며, 참석자 검색은
- * ElasticSearch 기반 조직 도메인(F5)에서 처리한다 — 이 UseCase는 확정된 userId만 받고, 사용자 존재/유효성 검증은 조직 도메인 책임이다.
+ * reviewer 플래그를 단다(주최자도 검토자가 될 수 있다). 회의와 참석자는 동일 트랜잭션에서 저장한다. 참석자/검토자 사용자 정보(계열사·부서·팀)는 유저(조직) 도메인
+ * 소유이며, 참석자 검색은 ElasticSearch 기반 조직 도메인(F5)에서 처리한다 — 이 UseCase는 확정된 userId만 받고, 사용자 존재/유효성 검증은 조직
+ * 도메인 책임이다.
  */
 @Service
 public class CreateMeetingUseCase {
@@ -28,16 +32,19 @@ public class CreateMeetingUseCase {
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeWriter meetingAttendeeWriter;
     private final MeetingRoomReservationGuard reservationGuard;
+    private final MeetingAttendeeOverlapGuard attendeeOverlapGuard;
     private final ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider;
 
     public CreateMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeWriter meetingAttendeeWriter,
             MeetingRoomReservationGuard reservationGuard,
+            MeetingAttendeeOverlapGuard attendeeOverlapGuard,
             ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeWriter = meetingAttendeeWriter;
         this.reservationGuard = reservationGuard;
+        this.attendeeOverlapGuard = attendeeOverlapGuard;
         this.meetingCalendarSyncPortProvider = meetingCalendarSyncPortProvider;
     }
 
@@ -61,6 +68,13 @@ public class CreateMeetingUseCase {
                     meeting.meetingRoomId(), meeting.scheduledAt(), meeting.scheduledEndAt(), null);
         }
 
+        // 참석자 시간 겹침 검증(주최자 포함). 생성이므로 제외할 회의는 없다(null).
+        attendeeOverlapGuard.verifyNoOverlap(
+                attendeesToCheck(command.hostUserId(), command.attendeeUserIds()),
+                meeting.scheduledAt(),
+                meeting.scheduledEndAt(),
+                null);
+
         Meeting saved = meetingRepositoryPort.save(meeting);
         List<MeetingAttendee> attendees =
                 meetingAttendeeWriter.save(
@@ -70,6 +84,16 @@ public class CreateMeetingUseCase {
                         command.reviewerUserId());
         syncCalendar(saved, attendees);
         return MeetingResult.of(saved, attendees);
+    }
+
+    /** 겹침 검사 대상 = 주최자 ∪ 초대 참석자. 주최자도 그 시간에 바쁘면 안 되므로 함께 본다. */
+    private Set<UUID> attendeesToCheck(UUID hostUserId, List<UUID> attendeeUserIds) {
+        Set<UUID> userIds = new LinkedHashSet<>();
+        userIds.add(hostUserId);
+        if (attendeeUserIds != null) {
+            userIds.addAll(attendeeUserIds);
+        }
+        return userIds;
     }
 
     private void syncCalendar(Meeting meeting, List<MeetingAttendee> attendees) {
