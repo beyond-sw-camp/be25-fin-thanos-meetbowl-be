@@ -16,6 +16,7 @@ public record MinutesGenerationContextResponse(
         Instant startedAt,
         Instant endedAt,
         List<ParticipantResponse> participants,
+        List<TranscriptSegmentResponse> segments,
         String rawTranscript) {
 
     public static MinutesGenerationContextResponse from(MinutesGenerationContextResult result) {
@@ -28,6 +29,7 @@ public record MinutesGenerationContextResponse(
                 result.startedAt(),
                 result.endedAt(),
                 result.participants().stream().map(ParticipantResponse::from).toList(),
+                result.segments().stream().map(TranscriptSegmentResponse::from).toList(),
                 result.rawTranscript());
     }
 
@@ -35,6 +37,24 @@ public record MinutesGenerationContextResponse(
         static ParticipantResponse from(MinutesGenerationContextResult.Participant participant) {
             return new ParticipantResponse(
                     participant.userId(), participant.name(), participant.department());
+        }
+    }
+
+    public record TranscriptSegmentResponse(
+            String segmentId,
+            long sequence,
+            String language,
+            String sourceText,
+            Long startedAtMs,
+            Long endedAtMs) {
+        static TranscriptSegmentResponse from(MinutesGenerationContextResult.TranscriptSegment segment) {
+            return new TranscriptSegmentResponse(
+                    segment.segmentId(),
+                    segment.sequence(),
+                    segment.language(),
+                    segment.sourceText(),
+                    segment.startedAtMs(),
+                    segment.endedAtMs());
         }
     }
 }

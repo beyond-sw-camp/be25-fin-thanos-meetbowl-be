@@ -406,7 +406,7 @@ AI 서버는 RabbitMQ `meeting.ended`를 받은 뒤 시스템 전용
 
 - `X-Internal-Token` SYSTEM 인증이 필요하다.
 - 회의 제목, 조직, Host, Reviewer, 참석자, 실제 시작·종료 시각을 반환한다.
-- MariaDB의 Final Transcript segment를 sequence 순으로 정렬해 `rawTranscript`로 결합한다.
+- MariaDB의 Final Transcript segment를 sequence 순으로 정렬한 `segments`와, 이를 줄바꿈으로 결합한 `rawTranscript`를 함께 반환한다.
 - Final Transcript가 없거나 Reviewer·조직 정보가 없으면 Context를 반환하지 않는다.
 - 원문은 AI 입력으로만 사용하며 `minutes.content`에는 AI가 생성한 Tiptap 초안만 저장한다.
 - `minutes.generated`는 `eventId` inbox로 멱등 처리하며 `DRAFT`만 재생성 결과로 교체할 수 있다.

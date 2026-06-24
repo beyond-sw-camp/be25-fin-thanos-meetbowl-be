@@ -1120,3 +1120,23 @@
   Passed Spring application context startup with the new Outbox entity.
   Full `./gradlew test` still has 36 pre-existing infrastructure meeting-context failures because those test slices do not provide `MeetingAttendeeOverlapGuard`; all app-api, application, common, and domain tests completed before that infrastructure failure group.
   Spotless reports only unrelated existing violations after the changed files were aligned to its generated clean output.
+
+2026-06-24 minutes-generation-context transcript segments expansion
+
+- Purpose: let the AI minutes workflow consume the authoritative Final Transcript as a structured segment list instead of re-splitting only the flattened `rawTranscript` string.
+- Changed files:
+  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesGenerationContext.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/MinutesGenerationContextResult.java`,
+  `application/src/test/java/com/meetbowl/application/minutes/GetMinutesGenerationContextUseCaseTest.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/minutes/JpaMinutesGenerationContextQueryAdapter.java`,
+  `app-api/src/main/java/com/meetbowl/api/minutes/MinutesGenerationContextResponse.java`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Expanded the internal `minutes-generation-context` contract to include transcript segment metadata (`segmentId`, `sequence`, `language`, `sourceText`, `startedAtMs`, `endedAtMs`) alongside the existing flattened `rawTranscript`.
+  Reused the already loaded transcript repository rows in the JPA adapter so the API returns the same sequence-ordered Final Transcript evidence and the assembled string in one response.
+  Kept `rawTranscript` in the contract for backward compatibility while enabling the AI server to switch to segment-based evidence extraction without a second BE API call.
+- Verification:
+  Passed `./gradlew :application:test --tests com.meetbowl.application.minutes.GetMinutesGenerationContextUseCaseTest :app-api:compileJava --no-daemon`.
+  Confirmed the new context result preserves participant metadata, raw transcript text, and transcript segment payloads together.
