@@ -451,6 +451,15 @@ class JoinMeetingUseCaseTest {
         }
 
         @Override
+        public List<com.meetbowl.domain.meeting.AttendeeConflict> findActiveByAttendees(
+                java.util.Collection<UUID> userIds,
+                Instant from,
+                Instant to,
+                UUID excludeMeetingId) {
+            return List.of();
+        }
+
+        @Override
         public void deleteById(UUID id) {}
     }
 }

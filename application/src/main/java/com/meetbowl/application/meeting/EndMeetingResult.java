@@ -8,4 +8,4 @@ public record EndMeetingResult(
         String status,
         Instant startedAt,
         Instant endedAt,
-        boolean meetingEndedEventPublished) {}
+        boolean meetingEndedEventQueued) {}

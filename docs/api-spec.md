@@ -380,7 +380,8 @@ STT 서버나 내부 시스템이 세션 종료를 기준으로 회의를 종료
 
 - 내부 토큰 인증이 필요하다.
 - 회의 상태를 먼저 `ENDED`로 정리한다.
-- 이후 `meeting.ended`를 RabbitMQ로 발행해 AI 회의록 생성 같은 후속 처리를 시작한다.
+- 같은 DB 트랜잭션에 `meeting.ended` Outbox를 저장하고 `meetingEndedEventQueued=true`를 반환한다.
+- Outbox Scheduler가 RabbitMQ publisher confirm을 확인하며 발행하고, 실패하면 지수 backoff로 재시도한다.
 - 이미 종료된 회의는 멱등하게 처리하고 이벤트를 다시 발행하지 않는다.
 
 ---
