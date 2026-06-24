@@ -180,15 +180,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Load CORS origin patterns from SSM
-        env:
-          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME: ${{ secrets.MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME }}
         run: |
           set -euo pipefail
 
-          if [ -z "${MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME:-}" ]; then
-            echo "missing secret: MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME"
-            exit 1
-          fi
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME="/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
 
           MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS="$(
             aws ssm get-parameter \
