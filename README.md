@@ -109,6 +109,17 @@ Controller는 JWT를 직접 파싱하지 않고 `@CurrentUser AuthenticatedUser`
 발급하지 않는다. `prod` 프로필에서는 공개되지 않은 32 bytes 이상의
 `MEETBOWL_INTERNAL_TOKEN` 환경 변수가 필수다.
 
+브라우저 CORS 허용 origin은 `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`로 제어한다.
+값은 쉼표로 구분한 `allowedOriginPatterns` 목록이며, 예시는 다음과 같다.
+
+```bash
+MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS=https://app.meetbowl.com,https://*.vercel.app
+```
+
+설정하지 않으면 `localhost`와 `127.0.0.1`만 허용한다.
+GitHub Actions 배포 파이프라인은 `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME`
+비밀값에 들어 있는 SSM 파라미터 이름을 읽어 이 값을 주입한다.
+
 운영 배포 직후 기본 계정이 필요하면 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
 `prod`는 운영 설정을 그대로 쓰면서 `admin`, `user1`, `user2`를 `1234` 비밀번호로 채우고,
 동일 계정이 있으면 다시 만들지 않는다.

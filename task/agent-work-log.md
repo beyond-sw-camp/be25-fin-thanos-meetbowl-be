@@ -779,6 +779,34 @@
 - Verification:
   Passed `./gradlew :app-api:compileJava --no-daemon`
 
+2026-06-24 production CORS origin configuration
+
+- Purpose: allow browser calls from a changing deployed frontend URL without hardcoding a single origin in code.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/SecurityConfig.java`,
+  `app-api/src/main/resources/application-prod.properties`,
+  `README.md`,
+  and this log.
+- Behavior:
+  CORS now reads allowed origin patterns from `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`, parsed as a comma-separated list.
+  When the variable is unset, the server falls back to local development origins (`http://localhost:*`, `http://127.0.0.1:*`).
+  Production deploys should set the environment variable to the frontend origin(s), for example `https://app.meetbowl.com,https://*.vercel.app`.
+- Verification:
+  Passed `./gradlew :app-api:compileJava --no-daemon`
+
+2026-06-24 GitHub Actions SSM fetch for production CORS
+
+- Purpose: make the deployment pipeline actually load the CORS origin patterns from AWS Systems Manager before starting the deployed app.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  `README.md`,
+  and this log.
+- Behavior:
+  The deploy job now reads the SSM parameter name from the `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME` GitHub secret, fetches the decrypted value with `aws ssm get-parameter`, masks it in the job log, and passes it through to the EC2 deploy command as `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`.
+  This keeps the runtime CORS allowlist in SSM while ensuring the EC2 deployment path actually receives it.
+- Verification:
+  Ran `git diff --check` successfully to confirm the workflow and documentation edits are clean.
+
 2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
 
 - Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.
