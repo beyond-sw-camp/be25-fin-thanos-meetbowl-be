@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
-import com.meetbowl.domain.meeting.AttendeeRole;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
 import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
@@ -178,7 +177,8 @@ public class GetRoomReservationsUseCase {
                 .distinct()
                 .forEach(
                         meetingId ->
-                                meetingRepositoryPort.findById(meetingId)
+                                meetingRepositoryPort
+                                        .findById(meetingId)
                                         .filter(meeting -> !meeting.isHostedBy(userId))
                                         .ifPresent(meetings::add));
         return meetings;

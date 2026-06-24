@@ -296,10 +296,14 @@ class UserDirectoryUseCaseTest {
 
         assertEquals(
                 List.of("hong", "emailuser", "today-active"),
-                activeResult.items().stream().map(UserDirectoryUseCase.UserDirectorySummary::loginId).toList());
+                activeResult.items().stream()
+                        .map(UserDirectoryUseCase.UserDirectorySummary::loginId)
+                        .toList());
         assertEquals(
                 List.of("expired", "future-user", "kim"),
-                inactiveResult.items().stream().map(UserDirectoryUseCase.UserDirectorySummary::loginId).toList());
+                inactiveResult.items().stream()
+                        .map(UserDirectoryUseCase.UserDirectorySummary::loginId)
+                        .toList());
     }
 
     @Test
@@ -459,7 +463,8 @@ class UserDirectoryUseCaseTest {
                             .filter(
                                     user ->
                                             status == null
-                                                    || user.effectiveStatusAt(dayStart).equals(status))
+                                                    || user.effectiveStatusAt(dayStart)
+                                                            .equals(status))
                             .filter(user -> !user.isDeleted())
                             .sorted(java.util.Comparator.comparing(User::name))
                             .toList();

@@ -146,7 +146,8 @@ public class JoinMeetingUseCase {
      * <p>STT 세션 준비가 실패하더라도 회의실 입장까지 막아버리면 사용자는 영상/음성 회의 자체를 시작할 수 없게 된다. 따라서 STT는 best-effort로
      * 준비하고, 실패하면 로그만 남긴 뒤 회의 입장은 계속 진행한다.
      */
-    private void ensureRealtimeSessionStarted(UUID meetingId, UUID organizationId, String roomName) {
+    private void ensureRealtimeSessionStarted(
+            UUID meetingId, UUID organizationId, String roomName) {
         try {
             meetingRealtimeSessionStarter.ensureStarted(meetingId, organizationId, roomName);
         } catch (BusinessException exception) {
@@ -192,6 +193,5 @@ public class JoinMeetingUseCase {
         if (Instant.now(clock).isBefore(joinAvailableAt)) {
             throw new BusinessException(ErrorCode.MEETING_JOIN_TOO_EARLY);
         }
-
     }
 }

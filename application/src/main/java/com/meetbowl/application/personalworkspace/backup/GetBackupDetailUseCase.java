@@ -28,11 +28,9 @@ public class GetBackupDetailUseCase {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                ErrorCode.COMMON_NOT_FOUND,
-                                                "백업 자료를 찾을 수 없습니다."));
+                                                ErrorCode.COMMON_NOT_FOUND, "백업 자료를 찾을 수 없습니다."));
         if (!backup.isOwnedBy(userId)) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_FORBIDDEN, "본인 백업 자료만 조회할 수 있습니다.");
+            throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "본인 백업 자료만 조회할 수 있습니다.");
         }
         return BackupDetailResult.from(backup);
     }

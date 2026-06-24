@@ -28,7 +28,8 @@ class MinutesFavoriteUseCaseTest {
         Fixture fixture = new Fixture();
         fixture.favoriteRepository.save(
                 MinutesFavorite.create(fixture.reviewerUserId, fixture.repository.minutes.id()));
-        MinutesMeetingMetadataAssembler metadataAssembler = mock(MinutesMeetingMetadataAssembler.class);
+        MinutesMeetingMetadataAssembler metadataAssembler =
+                mock(MinutesMeetingMetadataAssembler.class);
         when(metadataAssembler.assemble(List.of(fixture.meetingId), fixture.organizationId))
                 .thenReturn(
                         Map.of(

@@ -16,7 +16,8 @@ import com.meetbowl.domain.storage.StoredObject;
 /**
  * 메일 첨부 원본을 다운로드한다.
  *
- * <p>본문(Mail)에 묶인 첨부지만 열람은 발신자 또는 수신자만 허용한다. 권한 검증 후에만 Object Storage를 조회해, 첨부 저장 경로로 우회 접근하지 못하게 한다.
+ * <p>본문(Mail)에 묶인 첨부지만 열람은 발신자 또는 수신자만 허용한다. 권한 검증 후에만 Object Storage를 조회해, 첨부 저장 경로로 우회 접근하지 못하게
+ * 한다.
  */
 @Service
 public class DownloadMailAttachmentUseCase {
@@ -38,8 +39,7 @@ public class DownloadMailAttachmentUseCase {
                 mail.senderUserId().equals(requesterUserId)
                         || mail.recipientUserIds().contains(requesterUserId);
         if (!allowed) {
-            throw new BusinessException(
-                    ErrorCode.MAIL_FORBIDDEN_ACCESS, "이 메일의 첨부에 접근할 수 없습니다.");
+            throw new BusinessException(ErrorCode.MAIL_FORBIDDEN_ACCESS, "이 메일의 첨부에 접근할 수 없습니다.");
         }
         MailAttachment attachment =
                 mail.attachments().stream()

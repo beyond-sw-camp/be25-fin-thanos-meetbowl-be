@@ -152,7 +152,14 @@ class EndMeetingUseCaseTest {
                                                 true,
                                                 AttendanceStatus.ACCEPTED))),
                         hostId -> UUID.randomUUID(),
-                        (meetingId1, organizationId, hostUserId1, reviewerUserId, title, startedAt, endedAt, correlationId) -> {
+                        (meetingId1,
+                                organizationId,
+                                hostUserId1,
+                                reviewerUserId,
+                                title,
+                                startedAt,
+                                endedAt,
+                                correlationId) -> {
                             throw new IllegalStateException("rabbitmq unavailable");
                         },
                         new MeetingGuestNameAllocator(),

@@ -42,9 +42,7 @@ class GetBackupDetailUseCaseTest {
         when(repository.findById(backupId))
                 .thenReturn(Optional.of(backup(backupId, UUID.randomUUID())));
 
-        assertThrows(
-                BusinessException.class,
-                () -> useCase.execute(UUID.randomUUID(), backupId));
+        assertThrows(BusinessException.class, () -> useCase.execute(UUID.randomUUID(), backupId));
     }
 
     private PersonalWorkspaceBackup backup(UUID backupId, UUID ownerUserId) {

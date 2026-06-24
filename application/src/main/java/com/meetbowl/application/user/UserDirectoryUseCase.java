@@ -116,7 +116,11 @@ public class UserDirectoryUseCase {
     }
 
     private Instant todayStart() {
-        return Instant.now(clock).atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay().toInstant(ZoneOffset.UTC);
+        return Instant.now(clock)
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate()
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC);
     }
 
     // 검색 결과 전체에서 조직 ID를 모아 한 번씩만 조회해 조직명 매핑 시 N+1을 피한다.

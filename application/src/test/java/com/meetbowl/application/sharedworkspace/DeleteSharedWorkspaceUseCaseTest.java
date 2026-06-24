@@ -37,8 +37,7 @@ class DeleteSharedWorkspaceUseCaseTest {
 
         ownerUserId = UUID.randomUUID();
         workspaceId =
-                new CreateSharedWorkspaceUseCase(
-                                workspaceRepository, memberRepository, FIXED_CLOCK)
+                new CreateSharedWorkspaceUseCase(workspaceRepository, memberRepository, FIXED_CLOCK)
                         .execute(
                                 new CreateSharedWorkspaceCommand(
                                         UUID.randomUUID(), ownerUserId, "생성자 프로젝트", null))

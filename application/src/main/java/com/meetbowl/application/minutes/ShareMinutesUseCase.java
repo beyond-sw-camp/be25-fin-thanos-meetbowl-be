@@ -52,7 +52,8 @@ public class ShareMinutesUseCase {
                                         new BusinessException(
                                                 ErrorCode.MINUTES_NOT_FOUND, "회의록을 찾을 수 없습니다."));
         MinutesAccessValidator.ensureSameOrganization(minutes, command.actorOrganizationId());
-        if (minutes.status() != MinutesStatus.APPROVED && minutes.status() != MinutesStatus.SHARED) {
+        if (minutes.status() != MinutesStatus.APPROVED
+                && minutes.status() != MinutesStatus.SHARED) {
             throw new BusinessException(ErrorCode.MINUTES_REVIEW_REQUIRED, "승인 전 회의록은 공유할 수 없습니다.");
         }
         ensureRecipientsAreNotAttendees(minutes.meetingId(), command.recipientUserIds());
@@ -77,10 +78,11 @@ public class ShareMinutesUseCase {
     }
 
     private void ensureRecipientsAreNotAttendees(UUID meetingId, List<UUID> recipientUserIds) {
-        var attendeeUserIds = new HashSet<>(
-                attendeeRepositoryPort.findByMeetingId(meetingId).stream()
-                        .map(MeetingAttendee::userId)
-                        .toList());
+        var attendeeUserIds =
+                new HashSet<>(
+                        attendeeRepositoryPort.findByMeetingId(meetingId).stream()
+                                .map(MeetingAttendee::userId)
+                                .toList());
         boolean hasAttendee = recipientUserIds.stream().anyMatch(attendeeUserIds::contains);
         if (hasAttendee) {
             throw new BusinessException(

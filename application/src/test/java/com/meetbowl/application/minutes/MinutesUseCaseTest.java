@@ -16,14 +16,14 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import com.meetbowl.application.mail.SendMailCommand;
+import com.meetbowl.application.mail.SendMailUseCase;
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
-import com.meetbowl.application.mail.SendMailCommand;
-import com.meetbowl.application.mail.SendMailUseCase;
-import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -138,7 +138,9 @@ class MinutesUseCaseTest {
         var mailCaptor = org.mockito.ArgumentCaptor.forClass(SendMailCommand.class);
         verify(fixture.sendMailUseCase).execute(mailCaptor.capture());
         assertEquals(fixture.reviewerUserId, mailCaptor.getValue().senderUserId());
-        assertEquals(List.of(fixture.hostUserId, fixture.participantUserId), mailCaptor.getValue().recipientUserIds());
+        assertEquals(
+                List.of(fixture.hostUserId, fixture.participantUserId),
+                mailCaptor.getValue().recipientUserIds());
         assertEquals("MINUTES_SHARE", mailCaptor.getValue().bodyType());
         assertEquals("MEETING_MINUTES", mailCaptor.getValue().relatedResourceType());
         assertEquals(result.minutesId(), mailCaptor.getValue().relatedResourceId());
@@ -192,7 +194,8 @@ class MinutesUseCaseTest {
     @Test
     void getMinutesReturnsStoredDraft() {
         Fixture fixture = new Fixture();
-        MinutesMeetingMetadataAssembler metadataAssembler = mock(MinutesMeetingMetadataAssembler.class);
+        MinutesMeetingMetadataAssembler metadataAssembler =
+                mock(MinutesMeetingMetadataAssembler.class);
         when(metadataAssembler.assemble(
                         fixture.meetingId, fixture.organizationId, fixture.reviewerUserId))
                 .thenReturn(
@@ -221,7 +224,9 @@ class MinutesUseCaseTest {
         fixture.repository.minutes = null;
         SyncGeneratedMinutesUseCase useCase =
                 new SyncGeneratedMinutesUseCase(
-                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
+                        fixture.repository,
+                        fixture.dispatchNotificationUseCase,
+                        fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
@@ -245,7 +250,9 @@ class MinutesUseCaseTest {
         Fixture fixture = new Fixture();
         SyncGeneratedMinutesUseCase useCase =
                 new SyncGeneratedMinutesUseCase(
-                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
+                        fixture.repository,
+                        fixture.dispatchNotificationUseCase,
+                        fixture.eventRepository);
 
         MinutesResult result =
                 useCase.execute(
@@ -271,7 +278,9 @@ class MinutesUseCaseTest {
                 fixture.repository.minutes.approve(fixture.reviewerUserId, fixture.now);
         SyncGeneratedMinutesUseCase useCase =
                 new SyncGeneratedMinutesUseCase(
-                        fixture.repository, fixture.dispatchNotificationUseCase, fixture.eventRepository);
+                        fixture.repository,
+                        fixture.dispatchNotificationUseCase,
+                        fixture.eventRepository);
 
         BusinessException exception =
                 assertThrows(
