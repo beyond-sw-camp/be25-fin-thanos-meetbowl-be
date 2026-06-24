@@ -745,3 +745,69 @@
 - Verification:
   Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.persistence.user.JpaUserRepositoryAdapterTest' --no-daemon`
   Passed full `./gradlew :infrastructure:test --no-daemon`
+
+2026-06-24 Spring Boot 4 Flyway auto-configuration dependency fix
+
+- Purpose: restore Flyway migration auto-configuration after upgrading to Spring Boot 4, where Flyway auto-configuration is no longer bundled in the general `spring-boot-autoconfigure` module.
+- Changed files:
+  `infrastructure/build.gradle`,
+  and this log.
+- Behavior:
+  Replaced the direct `flyway-core` dependency with `spring-boot-starter-flyway` so the application runtime includes Spring Boot's `spring-boot-flyway` module and `FlywayAutoConfiguration`.
+  Kept `flyway-mysql` explicitly because Flyway 11 requires the separate MariaDB/MySQL database plugin.
+- Verification:
+  Confirmed `spring-boot-flyway:4.0.6` on `:app-api:runtimeClasspath` with Gradle dependency insight.
+  Confirmed `flyway-mysql:11.14.1` remains on `:app-api:runtimeClasspath`.
+  Passed `./gradlew :app-api:compileJava --no-daemon`.
+
+2026-06-24 Admin audit log schema alignment
+
+- Purpose: fix application startup failure caused by Hibernate schema validation detecting that `admin_audit_logs.target_login_id` exists in the entity mapping but not in the Flyway-managed database schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V2__add_target_login_id_to_admin_audit_logs.sql`,
+  and this log.
+- Behavior:
+  Added a Flyway migration that introduces the missing `target_login_id` column to `admin_audit_logs`.
+  The change keeps the existing baseline migration intact and lets Flyway upgrade both fresh and already-provisioned databases without breaking schema validation.
+ - Verification:
+  Reviewed the `AdminAuditLogEntity` mapping and confirmed `targetLoginId` is a mapped column.
+  Confirmed `app-api/src/main/resources/db/migration/V1__baseline.sql` did not contain the column.
+
+2026-06-24 Admin audit log target name schema alignment
+
+- Purpose: fix the next Hibernate schema validation failure after `target_login_id` was added, where `admin_audit_logs.target_name` was still missing from the Flyway-managed schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V3__add_target_name_to_admin_audit_logs.sql`,
+  and this log.
+- Behavior:
+  Added a second Flyway migration that introduces the missing `target_name` column to `admin_audit_logs`.
+  This keeps the schema repair incremental and safe for databases that have already applied `V2`.
+ - Verification:
+  Rechecked `AdminAuditLogEntity` and confirmed `targetName` is also a mapped column.
+  Confirmed the baseline migration still does not contain the column, so a forward migration is required rather than a baseline rewrite.
+
+2026-06-24 Password reset request table schema alignment
+
+- Purpose: fix application startup failure caused by Hibernate schema validation detecting that the `password_reset_requests` table was missing entirely from the Flyway-managed schema.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V4__create_password_reset_requests.sql`,
+  and this log.
+- Behavior:
+  Added the missing `password_reset_requests` table with the columns and nullability required by `PasswordResetRequestEntity` and the domain model.
+  Added a supporting index on `(status, requested_at)` to match the repository access pattern for status-filtered listing ordered by most recent request first.
+ - Verification:
+  Reviewed `PasswordResetRequestEntity` and `PasswordResetRequest` to align the table definition with the persisted fields.
+  Kept the existing migrations intact so already-applied environments can upgrade forward without rebuilding the baseline.
+
+2026-06-24 User soft-delete schema alignment
+
+- Purpose: fix Hibernate schema validation failure caused by the `users` table missing the `deleted_at` column used by the current `UserEntity` and `User` domain model.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V5__add_deleted_at_to_users.sql`,
+  and this log.
+- Behavior:
+  Added the missing soft-delete timestamp column to `users` without changing the original baseline migration.
+  This preserves existing upgrade history while bringing the schema in line with the entity mapping that already treats deleted users as tombstoned records.
+- Verification:
+  Reviewed `UserEntity` and `User` to confirm `deletedAt` is a persisted field and not an in-memory-only property.
+  Confirmed the current baseline `users` table definition does not include `deleted_at`.
