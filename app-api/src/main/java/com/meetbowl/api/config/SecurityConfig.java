@@ -1,12 +1,16 @@
 package com.meetbowl.api.config;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,6 +46,11 @@ public class SecurityConfig {
     private static final String JWT_ISSUER = "meetbowl";
     private static final String SSE_SUBSCRIBE_PATH = "/api/v1/notifications/subscribe";
     private static final String SSE_TOKEN_PARAM = "token";
+    private static final List<String> DEFAULT_ALLOWED_ORIGIN_PATTERNS =
+            List.of("http://localhost:*", "http://127.0.0.1:*");
+
+    @Value("${meetbowl.cors.allowed-origin-patterns:}")
+    private String corsAllowedOriginPatterns;
 
     private static final String[] PUBLIC_ENDPOINTS = {
         "/error",
@@ -190,8 +199,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(
-                java.util.List.of("http://localhost:*", "http://127.0.0.1:*"));
+        configuration.setAllowedOriginPatterns(parseAllowedOriginPatterns(corsAllowedOriginPatterns));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
         configuration.setAllowCredentials(true);
@@ -200,5 +208,17 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
         return source;
+    }
+
+    private static List<String> parseAllowedOriginPatterns(String rawPatterns) {
+        if (rawPatterns == null || rawPatterns.isBlank()) {
+            return DEFAULT_ALLOWED_ORIGIN_PATTERNS;
+        }
+        List<String> patterns =
+                Arrays.stream(rawPatterns.split(","))
+                        .map(String::trim)
+                        .filter(pattern -> !pattern.isEmpty())
+                        .collect(Collectors.toList());
+        return patterns.isEmpty() ? DEFAULT_ALLOWED_ORIGIN_PATTERNS : patterns;
     }
 }

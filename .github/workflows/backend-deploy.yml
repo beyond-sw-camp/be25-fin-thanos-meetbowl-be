@@ -179,6 +179,28 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Load CORS origin patterns from SSM
+        env:
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME: ${{ secrets.MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME:-}" ]; then
+            echo "missing secret: MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME"
+            exit 1
+          fi
+
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS="$(
+            aws ssm get-parameter \
+              --name "$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME" \
+              --with-decryption \
+              --query 'Parameter.Value' \
+              --output text
+          )"
+
+          echo "::add-mask::$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
+          echo "MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS=$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS" >> "$GITHUB_ENV"
+
       - name: Deploy on EC2
         env:
           SSH_HOST: ${{ secrets.MEETBOWL_EC2_HOST }}
@@ -188,6 +210,7 @@ jobs:
           AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS: ${{ env.MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS }}
         run: |
           set -euo pipefail
 
@@ -197,7 +220,7 @@ jobs:
           ssh-keyscan "$SSH_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' bash -s" <<'EOF'
+            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS='$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS' bash -s" <<'EOF'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"
