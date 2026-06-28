@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireUserOrAdmin;
 import com.meetbowl.application.meetingroom.GetMeetingRoomStatusUseCase;
 import com.meetbowl.application.meetingroom.GetMeetingRoomsQuery;
@@ -51,6 +53,7 @@ public class MeetingRoomController extends BaseController {
     /** 회의실 목록 조회(사이트/건물/수용인원 필터, page는 1부터). */
     @GetMapping
     public ApiResponse<PageResponse<MeetingRoomListItemResponse>> getMeetingRooms(
+            @CurrentUser AuthenticatedUser currentUser,
             @RequestParam(required = false) UUID siteId,
             @RequestParam(required = false) UUID buildingId,
             @RequestParam(required = false) Integer minCapacity,
@@ -58,7 +61,8 @@ public class MeetingRoomController extends BaseController {
             @RequestParam(defaultValue = "20") int size) {
         PageResponse<MeetingRoomListItemResult> result =
                 getMeetingRoomsUseCase.execute(
-                        new GetMeetingRoomsQuery(siteId, buildingId, minCapacity, page, size));
+                        new GetMeetingRoomsQuery(siteId, buildingId, minCapacity, page, size),
+                        currentUser.organizationId());
         PageResponse<MeetingRoomListItemResponse> response =
                 PageResponse.of(
                         result.items().stream().map(MeetingRoomListItemResponse::from).toList(),
@@ -74,13 +78,16 @@ public class MeetingRoomController extends BaseController {
      */
     @GetMapping("/status")
     public ApiResponse<List<RoomStatusResponse>> getMeetingRoomStatuses(
+            @CurrentUser AuthenticatedUser currentUser,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) UUID siteId,
             @RequestParam(required = false) UUID buildingId) {
         List<RoomStatusResponse> responses =
                 getMeetingRoomStatusUseCase
-                        .execute(new RoomStatusQuery(from, to, siteId, buildingId))
+                        .execute(
+                                new RoomStatusQuery(from, to, siteId, buildingId),
+                                currentUser.organizationId())
                         .stream()
                         .map(RoomStatusResponse::from)
                         .toList();
