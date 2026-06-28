@@ -234,16 +234,18 @@ public class AdminUserManagementUseCase {
     public UserSummary update(UpdateCommand command, UUID adminAffiliateId) {
         validateEmail(command.email());
         UserRole role = parseRole(command.role());
+        User current = getUserOrThrow(command.userId());
+        ensureManagedUser(current);
+        ensureAccessibleToAdmin(current, adminAffiliateId);
+        UUID targetAffiliateId =
+                command.affiliateId() != null ? command.affiliateId() : current.affiliateId();
         validateOrganizationReferences(
-                command.affiliateId(),
+                targetAffiliateId,
                 command.departmentId(),
                 command.teamId(),
                 command.positionId());
 
-        User current = getUserOrThrow(command.userId());
-        ensureManagedUser(current);
-        ensureAccessibleToAdmin(current, adminAffiliateId);
-        ensureTargetAffiliateMatchesAdminScope(command.affiliateId(), adminAffiliateId);
+        ensureTargetAffiliateMatchesAdminScope(targetAffiliateId, adminAffiliateId);
         ensureEmailIsUnique(command.email(), current.id());
 
         User saved =
@@ -251,7 +253,7 @@ public class AdminUserManagementUseCase {
                         current.updateAdminProfile(
                                 command.name(),
                                 command.email(),
-                                command.affiliateId(),
+                                targetAffiliateId,
                                 command.departmentId(),
                                 command.positionId(),
                                 command.teamId(),
