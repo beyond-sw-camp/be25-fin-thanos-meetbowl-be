@@ -18,6 +18,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
@@ -50,6 +51,7 @@ import com.meetbowl.infrastructure.persistence.meeting.MeetingJpaConfig;
         })
 class MeetingRoomReservationsTest {
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final Instant DAY_START = Instant.parse("2099-06-01T00:00:00Z");
     private static final Instant DAY_END = Instant.parse("2099-06-02T00:00:00Z");
     private static final Instant SLOT_START = Instant.parse("2099-06-01T01:00:00Z");
@@ -68,7 +70,10 @@ class MeetingRoomReservationsTest {
         meetingRoomRepositoryPort
                 .findAll()
                 .forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
-        UUID siteId = siteRepositoryPort.save(Site.of(null, "테헤란로", "서울")).id();
+        UUID siteId =
+                siteRepositoryPort
+                        .save(Site.of(null, UUID.randomUUID(), "테헤란로", "서울"))
+                        .id();
         buildingId = buildingRepositoryPort.save(Building.of(null, siteId, "본관")).id();
     }
 
@@ -81,7 +86,7 @@ class MeetingRoomReservationsTest {
     private void reserve(UUID roomId, UUID host, Instant start, Instant end, List<UUID> attendees) {
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "회의", start, end, host, roomId, null, null, attendees, null, null));
+                        "회의", start, end, host, ORGANIZATION_ID, roomId, null, null, attendees, null, null, null));
     }
 
     // ─── ③ 타임라인 (전체 예약) ───
@@ -176,9 +181,11 @@ class MeetingRoomReservationsTest {
                         SLOT_START,
                         SLOT_END,
                         host,
+                        ORGANIZATION_ID,
                         null,
                         "LIVEKIT",
                         "room-1",
+                        null,
                         null,
                         null,
                         null));
@@ -199,6 +206,7 @@ class MeetingRoomReservationsTest {
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeOverlapGuard.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetRoomReservationsUseCase.class

@@ -85,7 +85,6 @@ class AdminUserControllerTest {
                                           "email": "user01@example.com",
                                           "role": "ADMIN",
                                           "status": "ACTIVE",
-                                          "affiliateId": "%s",
                                           "departmentId": "%s",
                                           "teamId": "%s",
                                           "positionId": "%s",
@@ -94,7 +93,6 @@ class AdminUserControllerTest {
                                         }
                                         """
                                                 .formatted(
-                                                        AFFILIATE_ID,
                                                         DEPARTMENT_ID,
                                                         TEAM_ID,
                                                         POSITION_ID)))
@@ -112,11 +110,12 @@ class AdminUserControllerTest {
         verify(adminUserManagementUseCase).create(commandCaptor.capture());
         assertEquals("ADMIN", commandCaptor.getValue().role());
         assertEquals(ADMIN_ID, commandCaptor.getValue().adminId());
+        assertEquals(ORGANIZATION_ID, commandCaptor.getValue().adminAffiliateId());
     }
 
     @Test
     void listUsersSuccessIncludesTotalPages() throws Exception {
-        given(adminUserManagementUseCase.search(any()))
+        given(adminUserManagementUseCase.search(any(), any()))
                 .willReturn(
                         new AdminUserManagementUseCase.PageResult(
                                 List.of(userSummary("USER")), 3, 1, 2, 2));
@@ -135,7 +134,7 @@ class AdminUserControllerTest {
 
         ArgumentCaptor<AdminUserManagementUseCase.SearchCommand> commandCaptor =
                 ArgumentCaptor.forClass(AdminUserManagementUseCase.SearchCommand.class);
-        verify(adminUserManagementUseCase).search(commandCaptor.capture());
+        verify(adminUserManagementUseCase).search(commandCaptor.capture(), any());
         assertEquals(1, commandCaptor.getValue().page());
         assertEquals(20, commandCaptor.getValue().size());
         assertEquals(" admin ", commandCaptor.getValue().keyword());
@@ -143,7 +142,8 @@ class AdminUserControllerTest {
 
     @Test
     void getUserSuccess() throws Exception {
-        given(adminUserManagementUseCase.get(USER_ID)).willReturn(userSummary("ADMIN"));
+        given(adminUserManagementUseCase.get(USER_ID, ORGANIZATION_ID))
+                .willReturn(userSummary("ADMIN"));
 
         mockMvc.perform(
                         get("/api/v1/admin/users/{userId}", USER_ID)
@@ -172,7 +172,7 @@ class AdminUserControllerTest {
 
     @Test
     void updateUserSuccess() throws Exception {
-        given(adminUserManagementUseCase.update(any())).willReturn(userSummary("ADMIN"));
+        given(adminUserManagementUseCase.update(any(), any())).willReturn(userSummary("ADMIN"));
 
         mockMvc.perform(
                         patch("/api/v1/admin/users/{userId}", USER_ID)
@@ -205,14 +205,14 @@ class AdminUserControllerTest {
 
         ArgumentCaptor<AdminUserManagementUseCase.UpdateCommand> commandCaptor =
                 ArgumentCaptor.forClass(AdminUserManagementUseCase.UpdateCommand.class);
-        verify(adminUserManagementUseCase).update(commandCaptor.capture());
+        verify(adminUserManagementUseCase).update(commandCaptor.capture(), any());
         assertEquals("ADMIN", commandCaptor.getValue().role());
         assertEquals(USER_ID, commandCaptor.getValue().userId());
     }
 
     @Test
     void updateStatusActiveSuccess() throws Exception {
-        given(adminUserManagementUseCase.updateStatus(any()))
+        given(adminUserManagementUseCase.updateStatus(any(), any()))
                 .willReturn(userSummary("USER", "ACTIVE"));
 
         mockMvc.perform(
@@ -229,7 +229,7 @@ class AdminUserControllerTest {
 
     @Test
     void updateStatusInactiveSuccess() throws Exception {
-        given(adminUserManagementUseCase.updateStatus(any()))
+        given(adminUserManagementUseCase.updateStatus(any(), any()))
                 .willReturn(userSummary("USER", "INACTIVE"));
 
         mockMvc.perform(
@@ -246,7 +246,8 @@ class AdminUserControllerTest {
 
     @Test
     void deleteUserSuccess() throws Exception {
-        given(adminUserManagementUseCase.delete(any())).willReturn(userSummary("USER", "INACTIVE"));
+        given(adminUserManagementUseCase.delete(any(), any()))
+                .willReturn(userSummary("USER", "INACTIVE"));
 
         mockMvc.perform(
                         delete("/api/v1/admin/users/{userId}", USER_ID)
@@ -260,7 +261,7 @@ class AdminUserControllerTest {
 
         ArgumentCaptor<AdminUserManagementUseCase.DeleteCommand> commandCaptor =
                 ArgumentCaptor.forClass(AdminUserManagementUseCase.DeleteCommand.class);
-        verify(adminUserManagementUseCase).delete(commandCaptor.capture());
+        verify(adminUserManagementUseCase).delete(commandCaptor.capture(), any());
         assertEquals(USER_ID, commandCaptor.getValue().userId());
         assertEquals(ADMIN_ID, commandCaptor.getValue().adminId());
     }

@@ -23,7 +23,8 @@ public record MeetingDetailResponse(
         String status,
         Instant startedAt,
         Instant endedAt,
-        List<AttendeeResponse> attendees) {
+        List<AttendeeResponse> attendees,
+        List<ExternalInviteeResponse> externalInvitees) {
 
     public static MeetingDetailResponse from(MeetingResult result) {
         return new MeetingDetailResponse(
@@ -39,6 +40,7 @@ public record MeetingDetailResponse(
                 result.status(),
                 result.startedAt(),
                 result.endedAt(),
-                result.attendees().stream().map(AttendeeResponse::from).toList());
+                result.attendees().stream().map(AttendeeResponse::from).toList(),
+                result.externalInvitees().stream().map(ExternalInviteeResponse::from).toList());
     }
 }

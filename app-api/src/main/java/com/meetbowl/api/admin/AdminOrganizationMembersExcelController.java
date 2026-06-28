@@ -47,8 +47,8 @@ public class AdminOrganizationMembersExcelController extends BaseController {
     @GetMapping
     public ResponseEntity<byte[]> download(@CurrentUser AuthenticatedUser admin) {
         requireAdmin(admin);
-        // 응답 바디는 현재 DB 상태를 v2 템플릿 구조로 채운 .xlsx 바이너리다.
-        AdminOrganizationMembersExcelUseCase.ExportResult result = useCase.export();
+        // 응답 바디는 현재 DB 상태를 계열사 단위 v3 템플릿 구조로 채운 .xlsx 바이너리다.
+        AdminOrganizationMembersExcelUseCase.ExportResult result = useCase.export(admin.organizationId());
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(XLSX_MEDIA_TYPE))
                 .header(
@@ -72,10 +72,11 @@ public class AdminOrganizationMembersExcelController extends BaseController {
 
         return ok(
                 AdminOrganizationMembersExcelImportResponse.from(
-                        useCase.importExcel(
+                                useCase.importExcel(
                                 new AdminOrganizationMembersExcelUseCase.ImportCommand(
                                         file.getBytes(),
                                         file.getOriginalFilename(),
+                                        admin.organizationId(),
                                         admin.userId(),
                                         admin.displayName(),
                                         ClientIpResolver.resolve(request),

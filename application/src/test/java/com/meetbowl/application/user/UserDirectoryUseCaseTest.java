@@ -90,7 +90,8 @@ class UserDirectoryUseCaseTest {
                         NOW,
                         NOW));
         positionRepository.save(
-                new Position(POSITION_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
+                new Position(
+                        POSITION_ID, AFFILIATE_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
         affiliateRepository.save(
                 new Affiliate(
                         AFFILIATE2_ID,
@@ -124,6 +125,7 @@ class UserDirectoryUseCaseTest {
         positionRepository.save(
                 new Position(
                         POSITION2_ID,
+                        AFFILIATE2_ID,
                         "Assistant Manager",
                         "AM",
                         ReferenceStatus.ACTIVE,
@@ -752,7 +754,14 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
-        public boolean existsByName(String name) {
+        public List<Position> findAllByAffiliateId(UUID affiliateId) {
+            return positions.values().stream()
+                    .filter(position -> java.util.Objects.equals(position.affiliateId(), affiliateId))
+                    .toList();
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return false;
         }
 
@@ -762,7 +771,8 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
-        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID positionId) {
             return false;
         }
 
@@ -772,12 +782,13 @@ class UserDirectoryUseCaseTest {
         }
 
         @Override
-        public boolean existsBySortOrder(Integer sortOrder) {
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
             return false;
         }
 
         @Override
-        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID positionId) {
             return false;
         }
     }

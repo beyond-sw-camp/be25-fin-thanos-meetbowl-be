@@ -96,7 +96,7 @@ class SiteBuildingRegisterUseCaseTest {
         @Override
         public Site save(Site site) {
             UUID id = site.id() == null ? UUID.randomUUID() : site.id();
-            Site stored = Site.of(id, site.name(), site.address());
+            Site stored = Site.of(id, site.affiliateId(), site.name(), site.address());
             sites.put(id, stored);
             return stored;
         }

@@ -2,6 +2,7 @@ package com.meetbowl.application.auth;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Objects;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,12 @@ import com.meetbowl.domain.user.UserStatus;
 public class InitializeLocalAccountsUseCase {
 
     private static final String LOCAL_PASSWORD = "1234";
+    private static final String PRIMARY_AFFILIATE_NAME = "기본 계열사 1";
+    private static final String PRIMARY_AFFILIATE_CODE = "LOCAL-1";
+    private static final int PRIMARY_AFFILIATE_SORT_ORDER = 1;
+    private static final String SECONDARY_AFFILIATE_NAME = "기본 계열사 2";
+    private static final String SECONDARY_AFFILIATE_CODE = "LOCAL-2";
+    private static final int SECONDARY_AFFILIATE_SORT_ORDER = 2;
 
     private final AffiliateRepositoryPort affiliateRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
@@ -36,39 +43,49 @@ public class InitializeLocalAccountsUseCase {
 
     @Transactional
     public void execute() {
-        var admin = userRepositoryPort.findByLoginId("admin");
+        var admin1 = userRepositoryPort.findByLoginId("admin1");
+        var admin2 = userRepositoryPort.findByLoginId("admin2");
         var user1 = userRepositoryPort.findByLoginId("user1");
         var user2 = userRepositoryPort.findByLoginId("user2");
-        if (admin.isPresent() && user1.isPresent() && user2.isPresent()) {
+        if (admin1.isPresent() && admin2.isPresent() && user1.isPresent() && user2.isPresent()) {
             return;
         }
 
-        UUID affiliateId =
-                admin.map(User::affiliateId)
-                        .or(() -> user1.map(User::affiliateId))
-                        .or(() -> user2.map(User::affiliateId))
-                        .filter(java.util.Objects::nonNull)
-                        .orElseGet(this::createLocalAffiliate);
+        UUID admin1AffiliateId =
+                resolveAffiliateId(
+                        admin1, PRIMARY_AFFILIATE_NAME, PRIMARY_AFFILIATE_CODE, PRIMARY_AFFILIATE_SORT_ORDER);
+        UUID admin2AffiliateId =
+                resolveAffiliateId(
+                        admin2,
+                        SECONDARY_AFFILIATE_NAME,
+                        SECONDARY_AFFILIATE_CODE,
+                        SECONDARY_AFFILIATE_SORT_ORDER);
         String passwordHash = passwordEncoder.encode(LOCAL_PASSWORD);
-        if (admin.isEmpty()) {
+        if (admin1.isEmpty()) {
             userRepositoryPort.save(
-                    localUser("admin", "로컬 관리자", UserRole.ADMIN, affiliateId, passwordHash));
+                    localUser("admin1", "로컬 관리자 1", UserRole.ADMIN, admin1AffiliateId, passwordHash));
+        }
+        if (admin2.isEmpty()) {
+            userRepositoryPort.save(
+                    localUser("admin2", "로컬 관리자 2", UserRole.ADMIN, admin2AffiliateId, passwordHash));
         }
         if (user1.isEmpty()) {
-            userRepositoryPort.save(
-                    localUser("user1", "로컬 사용자 1", UserRole.USER, affiliateId, passwordHash));
+            userRepositoryPort.save(localUser("user1", "로컬 사용자 1", UserRole.USER, admin1AffiliateId, passwordHash));
         }
         if (user2.isEmpty()) {
-            userRepositoryPort.save(
-                    localUser("user2", "로컬 사용자 2", UserRole.USER, affiliateId, passwordHash));
+            userRepositoryPort.save(localUser("user2", "로컬 사용자 2", UserRole.USER, admin2AffiliateId, passwordHash));
         }
     }
 
-    private UUID createLocalAffiliate() {
+    private UUID resolveAffiliateId(
+            java.util.Optional<User> existingUser, String name, String code, int sortOrder) {
+        return existingUser.map(User::affiliateId).filter(Objects::nonNull).orElseGet(() -> createLocalAffiliate(name, code, sortOrder));
+    }
+
+    private UUID createLocalAffiliate(String name, String code, int sortOrder) {
         Affiliate affiliate =
                 affiliateRepositoryPort.save(
-                        new Affiliate(
-                                null, "로컬 테스트 조직", "LOCAL", ReferenceStatus.ACTIVE, 1, null, null));
+                        new Affiliate(null, name, code, ReferenceStatus.ACTIVE, sortOrder, null, null));
         return affiliate.id();
     }
 

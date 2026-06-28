@@ -26,6 +26,7 @@ public class Mail {
     private final UUID organizationId;
     private final UUID senderUserId;
     private final List<UUID> recipientUserIds;
+    private final List<ExternalMailRecipient> externalRecipients;
     private final String subject;
     private final String body;
     private final MailType mailType;
@@ -46,6 +47,7 @@ public class Mail {
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalMailRecipient> externalRecipients,
             String subject,
             String body,
             MailType mailType,
@@ -64,6 +66,7 @@ public class Mail {
         this.organizationId = requireNonNull(organizationId, "조직 ID는 필수입니다.");
         this.senderUserId = requireNonNull(senderUserId, "발신자 ID는 필수입니다.");
         this.recipientUserIds = new ArrayList<>(validateRecipients(recipientUserIds));
+        this.externalRecipients = new ArrayList<>(validateExternalRecipients(externalRecipients));
         this.subject = validateSubject(subject);
         this.body = validateBody(body);
         this.mailType = requireNonNull(mailType, "메일 유형은 필수입니다.");
@@ -88,6 +91,7 @@ public class Mail {
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalMailRecipient> externalRecipients,
             String subject,
             String body,
             MailType mailType,
@@ -100,6 +104,7 @@ public class Mail {
                 organizationId,
                 senderUserId,
                 recipientUserIds,
+                externalRecipients,
                 subject,
                 body,
                 mailType,
@@ -128,6 +133,7 @@ public class Mail {
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalMailRecipient> externalRecipients,
             String subject,
             String body,
             MailBodyType bodyType,
@@ -139,6 +145,7 @@ public class Mail {
                 organizationId,
                 senderUserId,
                 recipientUserIds,
+                externalRecipients,
                 subject,
                 body,
                 MailType.SYSTEM,
@@ -160,6 +167,7 @@ public class Mail {
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalMailRecipient> externalRecipients,
             String subject,
             String body,
             MailType mailType,
@@ -179,6 +187,7 @@ public class Mail {
                 organizationId,
                 senderUserId,
                 recipientUserIds,
+                externalRecipients,
                 subject,
                 body,
                 mailType,
@@ -270,6 +279,10 @@ public class Mail {
         return List.copyOf(recipientUserIds);
     }
 
+    public List<ExternalMailRecipient> externalRecipients() {
+        return List.copyOf(externalRecipients);
+    }
+
     public String subject() {
         return subject;
     }
@@ -350,6 +363,20 @@ public class Mail {
             throw invalid("메일 수신자를 중복 지정할 수 없습니다.");
         }
         return List.copyOf(recipientUserIds);
+    }
+
+    private static List<ExternalMailRecipient> validateExternalRecipients(
+            List<ExternalMailRecipient> externalRecipients) {
+        if (externalRecipients == null || externalRecipients.isEmpty()) {
+            return List.of();
+        }
+        if (externalRecipients.stream().anyMatch(Objects::isNull)) {
+            throw invalid("외부 수신자 정보는 필수입니다.");
+        }
+        if (new HashSet<>(externalRecipients).size() != externalRecipients.size()) {
+            throw invalid("외부 수신자를 중복 지정할 수 없습니다.");
+        }
+        return List.copyOf(externalRecipients);
     }
 
     private static String validateSubject(String subject) {

@@ -161,6 +161,7 @@ class DispatchInternalMailUseCaseTest {
                         organizationId,
                         senderId,
                         List.of(recipientId),
+                        List.of(),
                         "회의록 공유",
                         "회의록을 공유합니다.",
                         MailType.SYSTEM,

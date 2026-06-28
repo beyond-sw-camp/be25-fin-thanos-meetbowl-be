@@ -34,6 +34,8 @@ public class UpdateMeetingUseCase {
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
+    private final MeetingExternalInviteeSyncService meetingExternalInviteeSyncService;
+    private final SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase;
     private final MeetingRoomReservationGuard reservationGuard;
     private final MeetingAttendeeOverlapGuard attendeeOverlapGuard;
     private final MeetingAttendeeWriter meetingAttendeeWriter;
@@ -43,6 +45,8 @@ public class UpdateMeetingUseCase {
     public UpdateMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
+            MeetingExternalInviteeSyncService meetingExternalInviteeSyncService,
+            SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase,
             MeetingRoomReservationGuard reservationGuard,
             MeetingAttendeeOverlapGuard attendeeOverlapGuard,
             MeetingAttendeeWriter meetingAttendeeWriter,
@@ -50,6 +54,8 @@ public class UpdateMeetingUseCase {
             DispatchNotificationUseCase dispatchNotificationUseCase) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
+        this.meetingExternalInviteeSyncService = meetingExternalInviteeSyncService;
+        this.sendMeetingExternalInvitationMailUseCase = sendMeetingExternalInvitationMailUseCase;
         this.reservationGuard = reservationGuard;
         this.attendeeOverlapGuard = attendeeOverlapGuard;
         this.meetingAttendeeWriter = meetingAttendeeWriter;
@@ -92,7 +98,7 @@ public class UpdateMeetingUseCase {
 
         // 참석자 시간 겹침 재검증(주최자 포함). 수정 중인 회의 자신은 제외한다.
         attendeeOverlapGuard.verifyNoOverlap(
-                attendeesToCheck(changed.hostUserId(), command.attendeeUserIds()),
+                attendeesToCheck(command.attendeeUserIds()),
                 changed.scheduledAt(),
                 changed.scheduledEndAt(),
                 changed.id());
@@ -105,9 +111,16 @@ public class UpdateMeetingUseCase {
                         saved.hostUserId(),
                         command.attendeeUserIds(),
                         command.reviewerUserId());
+        List<com.meetbowl.domain.meeting.MeetingExternalInvitee> externalInvitees =
+                meetingExternalInviteeSyncService.replace(saved.id(), command.externalInvitees());
+        sendMeetingExternalInvitationMailUseCase.execute(
+                command.organizationId(),
+                command.requesterId(),
+                saved,
+                externalInvitees);
         syncCalendar(saved, attendees);
         notifyMeetingUpdated(saved, previousAttendees, attendees, command.requesterId());
-        return MeetingResult.of(saved, attendees);
+        return MeetingResult.of(saved, attendees, externalInvitees);
     }
 
     /**
@@ -138,10 +151,9 @@ public class UpdateMeetingUseCase {
         }
     }
 
-    /** 겹침 검사 대상 = 주최자 ∪ 초대 참석자. 주최자도 그 시간에 바쁘면 안 되므로 함께 본다. */
-    private Set<UUID> attendeesToCheck(UUID hostUserId, List<UUID> attendeeUserIds) {
+    /** 겹침 검사 대상 = 초대 참석자. 회의실 예약과 개인 일정 충돌 여부는 분리한다. */
+    private Set<UUID> attendeesToCheck(List<UUID> attendeeUserIds) {
         Set<UUID> userIds = new LinkedHashSet<>();
-        userIds.add(hostUserId);
         if (attendeeUserIds != null) {
             userIds.addAll(attendeeUserIds);
         }

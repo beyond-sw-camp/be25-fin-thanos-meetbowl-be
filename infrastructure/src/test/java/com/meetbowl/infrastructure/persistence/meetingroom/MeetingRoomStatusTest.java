@@ -17,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
@@ -52,6 +53,7 @@ import com.meetbowl.infrastructure.persistence.meeting.MeetingJpaConfig;
         })
 class MeetingRoomStatusTest {
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final Instant FROM = Instant.parse("2099-05-01T01:00:00Z");
     private static final Instant TO = Instant.parse("2099-05-01T02:00:00Z");
 
@@ -69,7 +71,10 @@ class MeetingRoomStatusTest {
         meetingRoomRepositoryPort
                 .findAll()
                 .forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
-        UUID siteId = siteRepositoryPort.save(Site.of(null, "판교 사옥", "성남시")).id();
+        UUID siteId =
+                siteRepositoryPort
+                        .save(Site.of(null, UUID.randomUUID(), "판교 사옥", "성남시"))
+                        .id();
         buildingId = buildingRepositoryPort.save(Building.of(null, siteId, "A동")).id();
     }
 
@@ -99,7 +104,7 @@ class MeetingRoomStatusTest {
         UUID roomId = givenRoom("예약된 회의실", true);
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "회의", FROM, TO, UUID.randomUUID(), roomId, null, null, null, null, null));
+                        "회의", FROM, TO, UUID.randomUUID(), ORGANIZATION_ID, roomId, null, null, null, null, null, null));
 
         RoomStatusResult status = statusOf(roomId);
         assertThat(status.status()).isEqualTo(RoomAvailabilityStatus.RESERVED);
@@ -117,7 +122,9 @@ class MeetingRoomStatusTest {
                                 FROM,
                                 TO,
                                 UUID.randomUUID(),
+                                ORGANIZATION_ID,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null,
@@ -148,7 +155,9 @@ class MeetingRoomStatusTest {
                         otherStart,
                         otherEnd,
                         UUID.randomUUID(),
+                        ORGANIZATION_ID,
                         roomId,
+                        null,
                         null,
                         null,
                         null,
@@ -189,6 +198,7 @@ class MeetingRoomStatusTest {
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeOverlapGuard.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingRoomStatusUseCase.class

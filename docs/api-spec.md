@@ -158,7 +158,7 @@ X-Internal-Token: {internalToken}
 - 초기 비밀번호 변경이 필요한 사용자는 `initialPasswordChangeRequired: true`인 제한 Access Token만 발급받으며
   Refresh Token은 발급받지 않는다.
 - 관리자 비밀번호 초기화 응답에는 초기 비밀번호 원문 `1234`가 1회 포함되며, 이후에는 저장되지 않는다.
-- 서비스 초기 관리자는 배포·초기화 과정에서 1개만 제공하며, `prod` 배포 시 함께 생성한다. 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
+- 서비스 기본 관리자 계정은 seed 초기화 과정에서 `admin1`, `admin2` 두 개를 제공하며, 각각 다른 계열사에 소속된다. `prod` 배포 시 함께 생성한다. 관리자 회원 관리 API로 추가 생성하거나 변경하지 않는다.
 - 관리자 회원 관리 API가 생성하는 계정은 항상 `USER`이며, 기존 `ADMIN`·`SYSTEM` 계정은 수정, 상태 변경, 비밀번호 초기화 대상에서 제외한다.
 - 제한 Access Token은 `/auth/password/change-initial`에만 사용할 수 있다.
 - 초기 비밀번호 변경 완료 시 제한 Access Token을 폐기하고 정상 Access/Refresh Token을 발급한다.
@@ -187,7 +187,10 @@ X-Internal-Token: {internalToken}
 
 - 관리자 회원 계정 생성 시 초기 비밀번호는 항상 `1234`이며, DB에는 PasswordEncoder로 암호화된 해시만 저장한다.
 - 관리자 회원 계정 생성 및 관리자 비밀번호 초기화 대상 사용자는 `initialPasswordChangeRequired: true`로 저장한다.
-- 로컬 seed 계정 `admin`, `user1`, `user2`는 모두 `1234`를 사용하지만 `initialPasswordChangeRequired`를 강제로 `true`로 만들지 않는다.
+- 관리자 회원 계정 생성 시 `affiliateId`는 요청으로 받지 않으며, 현재 로그인한 관리자의 계열사(`organizationId`)를 자동 상속한다.
+- 회원 생성 요청의 `departmentId`, `teamId`, `positionId`는 상속된 계열사 체계와 일치해야 하며, 다른 계열사의 부서/팀/직급을 지정하면 거절한다.
+- 로컬 seed 계정 `admin1`, `admin2`, `user1`, `user2`는 모두 `1234`를 사용하지만 `initialPasswordChangeRequired`를 강제로 `true`로 만들지 않는다.
+- `admin1`과 `admin2`는 서로 다른 계열사를 가진다.
 - 운영 `prod` 배포에서도 같은 seed 계정 구성을 재사용한다.
 
 ### 조직 기준 정보
@@ -201,6 +204,8 @@ X-Internal-Token: {internalToken}
 | POST | `/organizations/positions` | 직급 등록 | Admin |
 | PATCH | `/organizations/positions/{positionId}` | 직급 수정 | Admin |
 | DELETE | `/organizations/positions/{positionId}` | 직급 삭제 | Admin |
+
+- 직급은 계열사 소속 기준정보다. 직급 등록/수정 요청에는 `affiliateId`가 포함되어야 하며, 같은 직급명과 정렬 순서는 같은 계열사 안에서만 중복을 막는다.
 
 ---
 

@@ -39,6 +39,7 @@ class SearchMailUseCaseTest {
                         UUID.randomUUID(),
                         UUID.randomUUID(),
                         List.of(ownerId),
+                        List.of(),
                         "배포 일정 공유",
                         "다음 배포는 금요일입니다.",
                         MailType.NORMAL,

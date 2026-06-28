@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireAdmin;
 import com.meetbowl.application.meetingroom.BuildingAdminUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -37,32 +39,44 @@ public class MeetingBuildingAdminController extends BaseController {
     /** 건물 목록 조회(siteId로 필터 가능). */
     @GetMapping
     public ApiResponse<List<BuildingResponse>> getBuildings(
-            @RequestParam(required = false) UUID siteId) {
-        return ok(buildingAdminUseCase.list(siteId).stream().map(BuildingResponse::from).toList());
+            @CurrentUser AuthenticatedUser admin, @RequestParam(required = false) UUID siteId) {
+        return ok(
+                buildingAdminUseCase.list(siteId, admin.organizationId()).stream()
+                        .map(BuildingResponse::from)
+                        .toList());
     }
 
     /** 건물 등록. */
     @PostMapping
     public ResponseEntity<ApiResponse<BuildingResponse>> createBuilding(
+            @CurrentUser AuthenticatedUser admin,
             @Valid @RequestBody BuildingRequest request) {
         return created(
                 BuildingResponse.from(
-                        buildingAdminUseCase.create(request.siteId(), request.name())));
+                        buildingAdminUseCase.create(
+                                request.siteId(), request.name(), admin.organizationId())));
     }
 
     /** 건물 수정. */
     @PatchMapping("/{buildingId}")
     public ApiResponse<BuildingResponse> updateBuilding(
-            @PathVariable UUID buildingId, @Valid @RequestBody BuildingRequest request) {
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID buildingId,
+            @Valid @RequestBody BuildingRequest request) {
         return ok(
                 BuildingResponse.from(
-                        buildingAdminUseCase.update(buildingId, request.siteId(), request.name())));
+                        buildingAdminUseCase.update(
+                                buildingId,
+                                request.siteId(),
+                                request.name(),
+                                admin.organizationId())));
     }
 
     /** 건물 삭제(하위 회의실이 있으면 차단). */
     @DeleteMapping("/{buildingId}")
-    public ApiResponse<Void> deleteBuilding(@PathVariable UUID buildingId) {
-        buildingAdminUseCase.delete(buildingId);
+    public ApiResponse<Void> deleteBuilding(
+            @CurrentUser AuthenticatedUser admin, @PathVariable UUID buildingId) {
+        buildingAdminUseCase.delete(buildingId, admin.organizationId());
         return ok();
     }
 }

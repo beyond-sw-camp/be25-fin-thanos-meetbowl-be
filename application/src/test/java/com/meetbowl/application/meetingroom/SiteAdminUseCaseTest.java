@@ -67,14 +67,14 @@ class SiteAdminUseCaseTest {
 
         UUID addSite() {
             UUID id = UUID.randomUUID();
-            sites.put(id, Site.of(id, "사이트", null));
+            sites.put(id, Site.of(id, UUID.randomUUID(), "사이트", null));
             return id;
         }
 
         @Override
         public Site save(Site site) {
             UUID id = site.id() == null ? UUID.randomUUID() : site.id();
-            Site stored = Site.of(id, site.name(), site.address());
+            Site stored = Site.of(id, site.affiliateId(), site.name(), site.address());
             sites.put(id, stored);
             return stored;
         }

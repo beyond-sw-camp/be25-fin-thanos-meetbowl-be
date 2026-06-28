@@ -211,7 +211,7 @@ class JpaUserRepositoryAdapterTest {
     }
 
     private Position position(String name) {
-        return new Position(POSITION_ID, name, "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW);
+        return new Position(POSITION_ID, AFFILIATE_ID, name, "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW);
     }
 
     private User user(

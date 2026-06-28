@@ -10,6 +10,7 @@ public record MailDetailResult(
         UUID organizationId,
         UUID senderUserId,
         List<UUID> recipientUserIds,
+        List<ExternalMailRecipientResult> externalRecipients,
         String subject,
         String body,
         String mailType,

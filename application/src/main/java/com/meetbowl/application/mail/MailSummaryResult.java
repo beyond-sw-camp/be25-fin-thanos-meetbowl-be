@@ -9,6 +9,7 @@ public record MailSummaryResult(
         UUID mailId,
         UUID senderUserId,
         List<UUID> recipientUserIds,
+        List<ExternalMailRecipientResult> externalRecipients,
         String subject,
         String mailType,
         String deliveryStatus,

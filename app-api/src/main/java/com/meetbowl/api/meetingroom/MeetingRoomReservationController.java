@@ -45,7 +45,10 @@ public class MeetingRoomReservationController extends BaseController {
             @RequestParam(defaultValue = "all") String role) {
         List<ReservationItemResponse> responses =
                 getRoomReservationsUseCase
-                        .getMyReservations(currentUser.userId(), toFilter(role))
+                        .getMyReservations(
+                                currentUser.userId(),
+                                toFilter(role),
+                                currentUser.organizationId())
                         .stream()
                         .map(ReservationItemResponse::from)
                         .toList();
@@ -55,13 +58,15 @@ public class MeetingRoomReservationController extends BaseController {
     /** 회의실 예약 타임라인. {@code from}~{@code to} 시간대의 회의실별 예약 블록을 반환한다. */
     @GetMapping
     public ApiResponse<List<RoomReservationsResponse>> getReservationBoard(
+            @CurrentUser AuthenticatedUser currentUser,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) UUID siteId,
             @RequestParam(required = false) UUID buildingId) {
         List<RoomReservationsResponse> responses =
                 getRoomReservationsUseCase
-                        .getReservationBoard(from, to, siteId, buildingId)
+                        .getReservationBoard(
+                                from, to, siteId, buildingId, currentUser.organizationId())
                         .stream()
                         .map(RoomReservationsResponse::from)
                         .toList();

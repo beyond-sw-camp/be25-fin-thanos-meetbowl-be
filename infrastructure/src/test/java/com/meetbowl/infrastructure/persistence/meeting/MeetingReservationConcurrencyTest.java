@@ -26,6 +26,7 @@ import org.springframework.test.context.TestPropertySource;
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
+import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.common.exception.BusinessException;
@@ -56,6 +57,7 @@ import com.meetbowl.infrastructure.persistence.meetingroom.SpringDataMeetingRoom
         })
 class MeetingReservationConcurrencyTest {
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final Instant START = Instant.parse("2099-03-01T01:00:00Z");
     private static final Instant END = Instant.parse("2099-03-01T02:00:00Z");
 
@@ -80,7 +82,7 @@ class MeetingReservationConcurrencyTest {
 
     private CreateMeetingCommand command(UUID roomId, UUID hostId, Instant start, Instant end) {
         return new CreateMeetingCommand(
-                "회의", start, end, hostId, roomId, null, null, null, null, null);
+                "회의", start, end, hostId, ORGANIZATION_ID, roomId, null, null, null, null, null, null);
     }
 
     @Test
@@ -182,6 +184,7 @@ class MeetingReservationConcurrencyTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeOverlapGuard.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class
     })

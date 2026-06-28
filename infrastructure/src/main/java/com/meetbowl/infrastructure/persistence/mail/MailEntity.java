@@ -75,6 +75,13 @@ public class MailEntity extends BaseEntity {
     @Column(name = "recipient_user_id", nullable = false, columnDefinition = "BINARY(16)")
     private List<UUID> recipientUserIds = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(
+            name = "mail_external_recipient",
+            joinColumns = @JoinColumn(name = "mail_id"))
+    @OrderColumn(name = "recipient_order", nullable = false)
+    private List<ExternalMailRecipientValue> externalRecipients = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(name = "mail_type", nullable = false, length = 30)
     private MailType mailType;
@@ -123,6 +130,8 @@ public class MailEntity extends BaseEntity {
         entity.organizationId = mail.organizationId();
         entity.senderUserId = mail.senderUserId();
         entity.recipientUserIds.addAll(mail.recipientUserIds());
+        entity.externalRecipients.addAll(
+                mail.externalRecipients().stream().map(ExternalMailRecipientValue::from).toList());
         entity.subject = mail.subject();
         entity.body = mail.body();
         entity.mailType = mail.mailType();
@@ -150,6 +159,7 @@ public class MailEntity extends BaseEntity {
                 organizationId,
                 senderUserId,
                 recipientUserIds,
+                externalRecipients.stream().map(ExternalMailRecipientValue::toDomain).toList(),
                 subject,
                 body,
                 mailType,

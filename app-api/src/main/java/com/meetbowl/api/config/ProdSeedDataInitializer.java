@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.meetbowl.application.auth.InitializeLocalAccountsUseCase;
 
-/** 운영 `prod` 프로필에서만 기본 관리자와 검증용 계정을 한 번 채운다. */
+/** 운영 `prod` 프로필에서만 기본 관리자 2개와 검증용 계정을 한 번 채운다. */
 @Profile("prod")
 @Component
 public class ProdSeedDataInitializer implements ApplicationRunner {

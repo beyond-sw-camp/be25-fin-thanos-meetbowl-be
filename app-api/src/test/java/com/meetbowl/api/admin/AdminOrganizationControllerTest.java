@@ -63,7 +63,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void getAffiliatesSuccess() throws Exception {
-        given(useCase.getAffiliates()).willReturn(List.of(affiliateResult("ACTIVE")));
+        given(useCase.getAffiliates(any())).willReturn(List.of(affiliateResult("ACTIVE")));
 
         mockMvc.perform(
                         get("/api/v1/admin/organizations/affiliates")
@@ -100,7 +100,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateAffiliateSuccess() throws Exception {
-        given(useCase.updateAffiliate(any())).willReturn(affiliateResult("ACTIVE"));
+        given(useCase.updateAffiliate(any(), any())).willReturn(affiliateResult("ACTIVE"));
 
         mockMvc.perform(
                         patch("/api/v1/admin/organizations/affiliates/{affiliateId}", AFFILIATE_ID)
@@ -123,7 +123,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateAffiliateStatusSuccess() throws Exception {
-        given(useCase.updateAffiliateStatus(any())).willReturn(affiliateResult("INACTIVE"));
+        given(useCase.updateAffiliateStatus(any(), any())).willReturn(affiliateResult("INACTIVE"));
 
         mockMvc.perform(
                         patch(
@@ -140,7 +140,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void getDepartmentsSuccess() throws Exception {
-        given(useCase.getDepartments()).willReturn(List.of(departmentResult("ACTIVE")));
+        given(useCase.getDepartments(any())).willReturn(List.of(departmentResult("ACTIVE")));
 
         mockMvc.perform(
                         get("/api/v1/admin/organizations/departments")
@@ -154,7 +154,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createDepartmentSuccess() throws Exception {
-        given(useCase.createDepartment(any())).willReturn(departmentResult("ACTIVE"));
+        given(useCase.createDepartment(any(), any())).willReturn(departmentResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/departments")
@@ -179,7 +179,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createDepartmentSucceedsWithoutCodeField() throws Exception {
-        given(useCase.createDepartment(any())).willReturn(departmentResult("ACTIVE"));
+        given(useCase.createDepartment(any(), any())).willReturn(departmentResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/departments")
@@ -202,7 +202,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createDepartmentReturnsConflictWhenSortOrderDuplicated() throws Exception {
-        given(useCase.createDepartment(any()))
+        given(useCase.createDepartment(any(), any()))
                 .willThrow(
                         new BusinessException(
                                 ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED,
@@ -235,7 +235,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateDepartmentSuccess() throws Exception {
-        given(useCase.updateDepartment(any())).willReturn(departmentResult("ACTIVE"));
+        given(useCase.updateDepartment(any(), any())).willReturn(departmentResult("ACTIVE"));
 
         mockMvc.perform(
                         patch(
@@ -262,7 +262,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateDepartmentStatusSuccess() throws Exception {
-        given(useCase.updateDepartmentStatus(any())).willReturn(departmentResult("INACTIVE"));
+        given(useCase.updateDepartmentStatus(any(), any())).willReturn(departmentResult("INACTIVE"));
 
         mockMvc.perform(
                         patch(
@@ -293,7 +293,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void getTeamsSuccess() throws Exception {
-        given(useCase.getTeams()).willReturn(List.of(teamResult("ACTIVE")));
+        given(useCase.getTeams(any())).willReturn(List.of(teamResult("ACTIVE")));
 
         mockMvc.perform(
                         get("/api/v1/admin/organizations/teams")
@@ -306,7 +306,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createTeamSuccess() throws Exception {
-        given(useCase.createTeam(any())).willReturn(teamResult("ACTIVE"));
+        given(useCase.createTeam(any(), any())).willReturn(teamResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/teams")
@@ -331,7 +331,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createTeamSucceedsWithoutCodeField() throws Exception {
-        given(useCase.createTeam(any())).willReturn(teamResult("ACTIVE"));
+        given(useCase.createTeam(any(), any())).willReturn(teamResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/teams")
@@ -354,7 +354,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateTeamSuccess() throws Exception {
-        given(useCase.updateTeam(any())).willReturn(teamResult("ACTIVE"));
+        given(useCase.updateTeam(any(), any())).willReturn(teamResult("ACTIVE"));
 
         mockMvc.perform(
                         patch("/api/v1/admin/organizations/teams/{teamId}", TEAM_ID)
@@ -379,7 +379,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void updateTeamStatusSuccess() throws Exception {
-        given(useCase.updateTeamStatus(any())).willReturn(teamResult("INACTIVE"));
+        given(useCase.updateTeamStatus(any(), any())).willReturn(teamResult("INACTIVE"));
 
         mockMvc.perform(
                         patch("/api/v1/admin/organizations/teams/{teamId}/status", TEAM_ID)
@@ -406,7 +406,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void getPositionsSuccess() throws Exception {
-        given(useCase.getPositions()).willReturn(List.of(positionResult("ACTIVE")));
+        given(useCase.getPositions(any())).willReturn(List.of(positionResult("ACTIVE")));
 
         mockMvc.perform(
                         get("/api/v1/admin/organizations/positions")
@@ -419,7 +419,7 @@ class AdminOrganizationControllerTest {
 
     @Test
     void createPositionSuccess() throws Exception {
-        given(useCase.createPosition(any())).willReturn(positionResult("ACTIVE"));
+        given(useCase.createPosition(any(), any())).willReturn(positionResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/positions")
@@ -430,19 +430,20 @@ class AdminOrganizationControllerTest {
                                 .content(
                                         """
                                         {
+                                          "affiliateId": "%s",
                                           "name": "Manager",
                                           "code": "MGR",
                                           "status": "ACTIVE",
                                           "sortOrder": 1
                                         }
-                                        """))
+                                        """.formatted(AFFILIATE_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.positionId").value(POSITION_ID.toString()));
     }
 
     @Test
     void createPositionSucceedsWithoutCodeField() throws Exception {
-        given(useCase.createPosition(any())).willReturn(positionResult("ACTIVE"));
+        given(useCase.createPosition(any(), any())).willReturn(positionResult("ACTIVE"));
 
         mockMvc.perform(
                         post("/api/v1/admin/organizations/positions")
@@ -453,17 +454,18 @@ class AdminOrganizationControllerTest {
                                 .content(
                                         """
                                         {
+                                          "affiliateId": "%s",
                                           "name": "Manager",
                                           "status": "ACTIVE",
                                           "sortOrder": 1
                                         }
-                                        """))
+                                        """.formatted(AFFILIATE_ID)))
                 .andExpect(status().isOk());
     }
 
     @Test
     void updatePositionSuccess() throws Exception {
-        given(useCase.updatePosition(any())).willReturn(positionResult("ACTIVE"));
+        given(useCase.updatePosition(any(), any())).willReturn(positionResult("ACTIVE"));
 
         mockMvc.perform(
                         patch("/api/v1/admin/organizations/positions/{positionId}", POSITION_ID)
@@ -474,19 +476,20 @@ class AdminOrganizationControllerTest {
                                 .content(
                                         """
                                         {
+                                          "affiliateId": "%s",
                                           "name": "Senior Manager",
                                           "code": "SMGR",
                                           "status": "ACTIVE",
                                           "sortOrder": 2
                                         }
-                                        """))
+                                        """.formatted(AFFILIATE_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.positionId").value(POSITION_ID.toString()));
     }
 
     @Test
     void updatePositionStatusSuccess() throws Exception {
-        given(useCase.updatePositionStatus(any())).willReturn(positionResult("INACTIVE"));
+        given(useCase.updatePositionStatus(any(), any())).willReturn(positionResult("INACTIVE"));
 
         mockMvc.perform(
                         patch(
@@ -547,6 +550,6 @@ class AdminOrganizationControllerTest {
 
     private AdminOrganizationMasterDataUseCase.PositionResult positionResult(String status) {
         return new AdminOrganizationMasterDataUseCase.PositionResult(
-                POSITION_ID, "Manager", "MGR", status, 1, NOW, NOW);
+                POSITION_ID, AFFILIATE_ID, "Manager", "MGR", status, 1, NOW, NOW);
     }
 }

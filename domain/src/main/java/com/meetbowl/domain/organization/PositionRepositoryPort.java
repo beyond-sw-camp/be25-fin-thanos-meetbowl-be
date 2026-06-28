@@ -18,18 +18,21 @@ public interface PositionRepositoryPort {
 
     List<Position> findAllForExcelExport();
 
+    List<Position> findAllByAffiliateId(UUID affiliateId);
+
     List<Position> findAllByIds(Collection<UUID> positionIds);
 
-    boolean existsByName(String name);
+    boolean existsByAffiliateIdAndName(UUID affiliateId, String name);
 
     boolean existsByCode(String code);
 
-    // 수정 시에는 자기 자신을 제외하고 중복 여부를 판단해야 한다.
-    boolean existsByNameAndIdNot(String name, UUID positionId);
+    // 수정 시에는 자기 자신을 제외하고 같은 계열사 안의 중복 여부를 판단해야 한다.
+    boolean existsByAffiliateIdAndNameAndIdNot(UUID affiliateId, String name, UUID positionId);
 
     boolean existsByCodeAndIdNot(String code, UUID positionId);
 
-    boolean existsBySortOrder(Integer sortOrder);
+    boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder);
 
-    boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId);
+    boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            UUID affiliateId, Integer sortOrder, UUID positionId);
 }

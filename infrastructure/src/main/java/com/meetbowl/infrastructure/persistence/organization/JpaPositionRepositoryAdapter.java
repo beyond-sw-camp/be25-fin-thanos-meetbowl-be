@@ -44,13 +44,20 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     }
 
     @Override
+    public List<Position> findAllByAffiliateId(UUID affiliateId) {
+        return repository.findAllByAffiliateId(affiliateId).stream()
+                .map(PositionEntity::toDomain)
+                .toList();
+    }
+
+    @Override
     public List<Position> findAllByIds(Collection<UUID> positionIds) {
         return repository.findAllById(positionIds).stream().map(PositionEntity::toDomain).toList();
     }
 
     @Override
-    public boolean existsByName(String name) {
-        return repository.existsByNameIgnoreCase(name);
+    public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
+        return repository.existsByAffiliateIdAndNameIgnoreCase(affiliateId, name);
     }
 
     @Override
@@ -59,8 +66,10 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     }
 
     @Override
-    public boolean existsByNameAndIdNot(String name, UUID positionId) {
-        return repository.existsByNameIgnoreCaseAndIdNot(name, positionId);
+    public boolean existsByAffiliateIdAndNameAndIdNot(
+            UUID affiliateId, String name, UUID positionId) {
+        return repository.existsByAffiliateIdAndNameIgnoreCaseAndIdNot(
+                affiliateId, name, positionId);
     }
 
     @Override
@@ -69,12 +78,14 @@ public class JpaPositionRepositoryAdapter implements PositionRepositoryPort {
     }
 
     @Override
-    public boolean existsBySortOrder(Integer sortOrder) {
-        return repository.existsBySortOrder(sortOrder);
+    public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
+        return repository.existsByAffiliateIdAndSortOrder(affiliateId, sortOrder);
     }
 
     @Override
-    public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
-        return repository.existsBySortOrderAndIdNot(sortOrder, positionId);
+    public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            UUID affiliateId, Integer sortOrder, UUID positionId) {
+        return repository.existsByAffiliateIdAndSortOrderAndIdNot(
+                affiliateId, sortOrder, positionId);
     }
 }

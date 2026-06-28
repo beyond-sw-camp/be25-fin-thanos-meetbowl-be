@@ -63,7 +63,7 @@ public class AdminOrganizationController extends BaseController {
             @CurrentUser AuthenticatedUser admin) {
         // 조직 기준정보 관리 API는 전부 관리자 전용이다.
         requireAdmin(admin);
-        return ok(AdminAffiliateListResponse.from(useCase.getAffiliates()));
+        return ok(AdminAffiliateListResponse.from(useCase.getAffiliates(admin.organizationId())));
     }
 
     @PostMapping("/affiliates")
@@ -95,7 +95,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.name(),
                                         request.code(),
                                         request.sortOrder(),
-                                        admin.userId()))));
+                                        admin.userId()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(AFFILIATE_ID_PATH + "/status")
@@ -108,14 +109,15 @@ public class AdminOrganizationController extends BaseController {
                 AdminAffiliateResponse.from(
                         useCase.updateAffiliateStatus(
                                 new AdminOrganizationMasterDataUseCase.UpdateAffiliateStatusCommand(
-                                        affiliateId, request.status().name()))));
+                                        affiliateId, request.status().name()),
+                                admin.organizationId())));
     }
 
     @GetMapping("/departments")
     public ApiResponse<AdminDepartmentListResponse> getDepartments(
             @CurrentUser AuthenticatedUser admin) {
         requireAdmin(admin);
-        return ok(AdminDepartmentListResponse.from(useCase.getDepartments()));
+        return ok(AdminDepartmentListResponse.from(useCase.getDepartments(admin.organizationId())));
     }
 
     @PostMapping("/departments")
@@ -130,7 +132,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.affiliateId(),
                                         request.name(),
                                         request.status().name(),
-                                        request.sortOrder()))));
+                                        request.sortOrder()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(DEPARTMENT_ID_PATH)
@@ -147,7 +150,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.affiliateId(),
                                         request.name(),
                                         request.sortOrder(),
-                                        admin.userId()))));
+                                        admin.userId()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(DEPARTMENT_ID_PATH + "/status")
@@ -161,7 +165,8 @@ public class AdminOrganizationController extends BaseController {
                         useCase.updateDepartmentStatus(
                                 new AdminOrganizationMasterDataUseCase
                                         .UpdateDepartmentStatusCommand(
-                                        departmentId, request.status().name()))));
+                                        departmentId, request.status().name()),
+                                admin.organizationId())));
     }
 
     @DeleteMapping(DEPARTMENT_ID_PATH)
@@ -176,14 +181,15 @@ public class AdminOrganizationController extends BaseController {
                         admin.userId(),
                         admin.displayName(),
                         ClientIpResolver.resolve(httpServletRequest),
-                        httpServletRequest.getHeader("User-Agent")));
+                        httpServletRequest.getHeader("User-Agent")),
+                admin.organizationId());
         return ok();
     }
 
     @GetMapping("/teams")
     public ApiResponse<AdminTeamListResponse> getTeams(@CurrentUser AuthenticatedUser admin) {
         requireAdmin(admin);
-        return ok(AdminTeamListResponse.from(useCase.getTeams()));
+        return ok(AdminTeamListResponse.from(useCase.getTeams(admin.organizationId())));
     }
 
     @PostMapping("/teams")
@@ -197,7 +203,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.departmentId(),
                                         request.name(),
                                         request.status().name(),
-                                        request.sortOrder()))));
+                                        request.sortOrder()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(TEAM_ID_PATH)
@@ -214,7 +221,8 @@ public class AdminOrganizationController extends BaseController {
                                         request.departmentId(),
                                         request.name(),
                                         request.sortOrder(),
-                                        admin.userId()))));
+                                        admin.userId()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(TEAM_ID_PATH + "/status")
@@ -227,7 +235,8 @@ public class AdminOrganizationController extends BaseController {
                 AdminTeamResponse.from(
                         useCase.updateTeamStatus(
                                 new AdminOrganizationMasterDataUseCase.UpdateTeamStatusCommand(
-                                        teamId, request.status().name()))));
+                                        teamId, request.status().name()),
+                                admin.organizationId())));
     }
 
     @DeleteMapping(TEAM_ID_PATH)
@@ -242,7 +251,8 @@ public class AdminOrganizationController extends BaseController {
                         admin.userId(),
                         admin.displayName(),
                         ClientIpResolver.resolve(httpServletRequest),
-                        httpServletRequest.getHeader("User-Agent")));
+                        httpServletRequest.getHeader("User-Agent")),
+                admin.organizationId());
         return ok();
     }
 
@@ -250,7 +260,7 @@ public class AdminOrganizationController extends BaseController {
     public ApiResponse<AdminPositionListResponse> getPositions(
             @CurrentUser AuthenticatedUser admin) {
         requireAdmin(admin);
-        return ok(AdminPositionListResponse.from(useCase.getPositions()));
+        return ok(AdminPositionListResponse.from(useCase.getPositions(admin.organizationId())));
     }
 
     @PostMapping("/positions")
@@ -262,9 +272,11 @@ public class AdminOrganizationController extends BaseController {
                 AdminPositionResponse.from(
                         useCase.createPosition(
                                 new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
+                                        request.affiliateId(),
                                         request.name(),
                                         request.status().name(),
-                                        request.sortOrder()))));
+                                        request.sortOrder()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(POSITION_ID_PATH)
@@ -278,9 +290,11 @@ public class AdminOrganizationController extends BaseController {
                         useCase.updatePosition(
                                 new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
                                         positionId,
+                                        request.affiliateId(),
                                         request.name(),
                                         request.sortOrder(),
-                                        admin.userId()))));
+                                        admin.userId()),
+                                admin.organizationId())));
     }
 
     @PatchMapping(POSITION_ID_PATH + "/status")
@@ -293,7 +307,8 @@ public class AdminOrganizationController extends BaseController {
                 AdminPositionResponse.from(
                         useCase.updatePositionStatus(
                                 new AdminOrganizationMasterDataUseCase.UpdatePositionStatusCommand(
-                                        positionId, request.status().name()))));
+                                        positionId, request.status().name()),
+                                admin.organizationId())));
     }
 
     @DeleteMapping(POSITION_ID_PATH)
@@ -308,7 +323,8 @@ public class AdminOrganizationController extends BaseController {
                         admin.userId(),
                         admin.displayName(),
                         ClientIpResolver.resolve(httpServletRequest),
-                        httpServletRequest.getHeader("User-Agent")));
+                        httpServletRequest.getHeader("User-Agent")),
+                admin.organizationId());
         return ok();
     }
 

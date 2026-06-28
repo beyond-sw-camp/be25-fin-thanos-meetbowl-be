@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireAdmin;
 import com.meetbowl.application.meetingroom.CreateMeetingRoomCommand;
 import com.meetbowl.application.meetingroom.MeetingRoomAdminUseCase;
@@ -37,6 +39,7 @@ public class MeetingRoomAdminController extends BaseController {
     /** 회의실 등록. */
     @PostMapping
     public ResponseEntity<ApiResponse<MeetingRoomResponse>> createMeetingRoom(
+            @CurrentUser AuthenticatedUser admin,
             @Valid @RequestBody CreateMeetingRoomRequest request) {
         CreateMeetingRoomCommand command =
                 new CreateMeetingRoomCommand(
@@ -46,14 +49,17 @@ public class MeetingRoomAdminController extends BaseController {
                         request.location(),
                         request.capacity(),
                         request.isAvailable() == null || request.isAvailable());
-        MeetingRoomResult result = meetingRoomAdminUseCase.create(command);
+        MeetingRoomResult result =
+                meetingRoomAdminUseCase.create(command, admin.organizationId());
         return created(MeetingRoomResponse.from(result));
     }
 
     /** 회의실 수정. */
     @PatchMapping("/{roomId}")
     public ApiResponse<MeetingRoomResponse> updateMeetingRoom(
-            @PathVariable UUID roomId, @Valid @RequestBody UpdateMeetingRoomRequest request) {
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID roomId,
+            @Valid @RequestBody UpdateMeetingRoomRequest request) {
         UpdateMeetingRoomCommand command =
                 new UpdateMeetingRoomCommand(
                         roomId,
@@ -62,22 +68,28 @@ public class MeetingRoomAdminController extends BaseController {
                         request.floor(),
                         request.location(),
                         request.capacity());
-        return ok(MeetingRoomResponse.from(meetingRoomAdminUseCase.update(command)));
+        return ok(
+                MeetingRoomResponse.from(
+                        meetingRoomAdminUseCase.update(command, admin.organizationId())));
     }
 
     /** 회의실 사용 가능 여부 변경(FR-089). */
     @PatchMapping("/{roomId}/availability")
     public ApiResponse<MeetingRoomResponse> changeAvailability(
-            @PathVariable UUID roomId, @Valid @RequestBody ChangeRoomAvailabilityRequest request) {
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID roomId,
+            @Valid @RequestBody ChangeRoomAvailabilityRequest request) {
         MeetingRoomResult result =
-                meetingRoomAdminUseCase.changeAvailability(roomId, request.isAvailable());
+                meetingRoomAdminUseCase.changeAvailability(
+                        roomId, request.isAvailable(), admin.organizationId());
         return ok(MeetingRoomResponse.from(result));
     }
 
     /** 회의실 삭제. */
     @DeleteMapping("/{roomId}")
-    public ApiResponse<Void> deleteMeetingRoom(@PathVariable UUID roomId) {
-        meetingRoomAdminUseCase.delete(roomId);
+    public ApiResponse<Void> deleteMeetingRoom(
+            @CurrentUser AuthenticatedUser admin, @PathVariable UUID roomId) {
+        meetingRoomAdminUseCase.delete(roomId, admin.organizationId());
         return ok();
     }
 }

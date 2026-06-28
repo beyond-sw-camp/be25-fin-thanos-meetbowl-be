@@ -5,6 +5,7 @@ import java.util.UUID;
 
 public record Position(
         UUID id,
+        UUID affiliateId,
         String name,
         String code,
         ReferenceStatus status,

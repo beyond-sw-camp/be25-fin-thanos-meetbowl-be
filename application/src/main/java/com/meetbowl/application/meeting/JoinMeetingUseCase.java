@@ -16,6 +16,8 @@ import com.meetbowl.domain.meeting.LiveKitTokenIssueCommand;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
+import com.meetbowl.domain.meeting.MeetingAttendee;
+import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRealtimeSessionStarter;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
@@ -39,6 +41,7 @@ public class JoinMeetingUseCase {
     private static final Duration JOIN_AVAILABLE_BEFORE = Duration.ofMinutes(15);
 
     private final MeetingRepositoryPort meetingRepositoryPort;
+    private final MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort;
     private final LiveKitTokenIssuer liveKitTokenIssuer;
     private final MeetingRealtimeSessionStarter meetingRealtimeSessionStarter;
     private final MeetingGuestNameAllocator meetingGuestNameAllocator;
@@ -46,11 +49,13 @@ public class JoinMeetingUseCase {
 
     public JoinMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
+            MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
             LiveKitTokenIssuer liveKitTokenIssuer,
             MeetingRealtimeSessionStarter meetingRealtimeSessionStarter,
             MeetingGuestNameAllocator meetingGuestNameAllocator,
             Clock clock) {
         this.meetingRepositoryPort = meetingRepositoryPort;
+        this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.liveKitTokenIssuer = liveKitTokenIssuer;
         this.meetingRealtimeSessionStarter = meetingRealtimeSessionStarter;
         this.meetingGuestNameAllocator = meetingGuestNameAllocator;
@@ -64,6 +69,7 @@ public class JoinMeetingUseCase {
 
         Meeting meeting = meetingRepositoryPort.findById(command.meetingId()).orElse(null);
         validateJoinAvailability(meeting);
+        validateJoinAccess(meeting, command.authenticatedUserId());
         String roomName = resolveRoomName(meeting, command.meetingId());
         String participantIdentity = resolveParticipantIdentity(command);
         String participantName = resolveParticipantName(command);
@@ -164,6 +170,31 @@ public class JoinMeetingUseCase {
                     Level.WARNING,
                     "회의 입장 전 STT 세션 자동 시작에 실패했지만 회의 입장은 계속 진행합니다. meetingId={0}, roomName={1}, code={2}",
                     new Object[] {meetingId, roomName, exception.errorCode().code()});
+        }
+    }
+
+    /**
+     * 로그인한 사용자는 회의 주최자이거나 명시적으로 초대된 참석자일 때만 입장할 수 있다.
+     *
+     * <p>게스트는 /guest/meeting 링크를 통해 비로그인 상태로 들어오는 경로를 쓴다. 따라서 인증 사용자의 일반 회의 입장만 제한하면, 초대 참석자/게스트
+     * 링크라는 두 경로를 유지하면서 meetingId 추측 입장을 막을 수 있다.
+     */
+    private void validateJoinAccess(Meeting meeting, UUID authenticatedUserId) {
+        if (meeting == null || authenticatedUserId == null) {
+            return;
+        }
+
+        if (meeting.isHostedBy(authenticatedUserId)) {
+            return;
+        }
+
+        boolean isAttendee =
+                meetingAttendeeRepositoryPort.findByMeetingId(meeting.id()).stream()
+                        .map(MeetingAttendee::userId)
+                        .anyMatch(authenticatedUserId::equals);
+        if (!isAttendee) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "초대된 참석자만 회의에 입장할 수 있습니다.");
         }
     }
 

@@ -88,6 +88,7 @@ public class SendMailUseCase {
                         command.organizationId(),
                         command.senderUserId(),
                         command.recipientUserIds(),
+                        List.of(),
                         command.subject(),
                         command.body(),
                         MailType.NORMAL,
