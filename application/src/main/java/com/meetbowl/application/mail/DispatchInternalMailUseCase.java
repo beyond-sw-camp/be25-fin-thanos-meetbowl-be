@@ -92,6 +92,7 @@ public class DispatchInternalMailUseCase {
                         command.organizationId(),
                         command.senderUserId(),
                         command.recipientUserIds(),
+                        List.of(),
                         command.subject(),
                         command.body(),
                         parseBodyType(command.bodyType()),

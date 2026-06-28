@@ -74,6 +74,7 @@ public class SendAnnouncementUseCase {
                         command.organizationId(),
                         command.senderUserId(),
                         recipientIds,
+                        List.of(),
                         command.subject(),
                         command.body(),
                         MailType.ANNOUNCEMENT,
