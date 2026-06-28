@@ -18,5 +18,6 @@ public record UpdateMeetingRequest(
         @NotNull(message = "예정 종료 시각은 필수입니다.") Instant scheduledEndAt,
         UUID meetingRoomId,
         @NotEmpty(message = "참여자는 최소 1명 이상 선택해야 합니다.") List<UUID> attendeeUserIds,
+        List<ExternalInviteeRequest> externalInvitees,
         @NotNull(message = "회의록 검토자는 필수입니다.") UUID reviewerUserId,
         String description) {}

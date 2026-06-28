@@ -96,10 +96,16 @@ public class MeetingController extends BaseController {
                         request.scheduledAt(),
                         request.scheduledEndAt(),
                         currentUser.userId(),
+                        currentUser.organizationId(),
                         request.meetingRoomId(),
                         request.provider(),
                         request.providerRoomId(),
                         request.attendeeUserIds(),
+                        request.externalInvitees() == null
+                                ? List.of()
+                                : request.externalInvitees().stream()
+                                        .map(ExternalInviteeRequest::toCommand)
+                                        .toList(),
                         request.reviewerUserId(),
                         request.description());
         MeetingResult result = createMeetingUseCase.execute(command);
@@ -150,11 +156,17 @@ public class MeetingController extends BaseController {
                 new UpdateMeetingCommand(
                         meetingId,
                         currentUser.userId(),
+                        currentUser.organizationId(),
                         request.title(),
                         request.scheduledAt(),
                         request.scheduledEndAt(),
                         request.meetingRoomId(),
                         request.attendeeUserIds(),
+                        request.externalInvitees() == null
+                                ? List.of()
+                                : request.externalInvitees().stream()
+                                        .map(ExternalInviteeRequest::toCommand)
+                                        .toList(),
                         request.reviewerUserId(),
                         request.description());
         return ok(MeetingResponse.from(updateMeetingUseCase.execute(command)));
