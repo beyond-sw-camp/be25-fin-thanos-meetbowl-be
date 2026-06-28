@@ -1,6 +1,5 @@
 package com.meetbowl.application.admin;
 
-import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.AffiliateRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.DepartmentRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.PositionRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.TeamRow;
@@ -91,21 +90,24 @@ public class AdminOrganizationMembersExcelApplyService {
         WorkbookRows rows = workbookMapper.read(command.fileBytes());
         ImportContext context = new ImportContext();
 
-        List<Affiliate> existingAffiliates = affiliateRepositoryPort.findAll();
         List<Department> existingDepartments = departmentRepositoryPort.findAll();
         List<Team> existingTeams = teamRepositoryPort.findAll();
         List<Position> existingPositions = positionRepositoryPort.findAll();
         List<User> existingUsers = userRepositoryPort.findAll();
+        Affiliate scopeAffiliate =
+                affiliateRepositoryPort
+                        .findById(command.adminAffiliateId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.COMMON_NOT_FOUND, "Affiliate not found."));
 
-        preloadExistingReferences(
-                existingAffiliates, existingDepartments, existingTeams, existingPositions, context);
+        preloadExistingReferences(existingDepartments, existingTeams, existingPositions, context);
 
-        // 시트 순서대로 검증/매핑해두면, 뒤 시트는 앞 시트에서 새로 정의한 조직 참조값까지 함께 검증할 수 있다.
-        resolveAffiliates(rows.affiliates(), existingAffiliates, context);
-        resolveDepartments(rows.departments(), existingDepartments, context);
-        resolveTeams(rows.teams(), existingTeams, context);
-        resolvePositions(rows.positions(), existingPositions, context);
-        resolveUsers(rows.users(), existingUsers, context);
+        resolveDepartments(rows.departments(), existingDepartments, context, scopeAffiliate);
+        resolveTeams(rows.teams(), existingTeams, context, scopeAffiliate);
+        resolvePositions(rows.positions(), existingPositions, context, scopeAffiliate);
+        resolveUsers(rows.users(), existingUsers, context, scopeAffiliate);
 
         if (!context.errors().isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, context.errors());
@@ -141,79 +143,11 @@ public class AdminOrganizationMembersExcelApplyService {
         return result;
     }
 
-    private void resolveAffiliates(
-            List<AffiliateRow> rows, List<Affiliate> existingAffiliates, ImportContext context) {
-        Map<UUID, Affiliate> byId =
-                existingAffiliates.stream()
-                        .collect(
-                                LinkedHashMap::new,
-                                (map, item) -> map.put(item.id(), item),
-                                Map::putAll);
-        Map<String, Affiliate> byName = new LinkedHashMap<>();
-        Map<String, Affiliate> byCode = new LinkedHashMap<>();
-        existingAffiliates.forEach(
-                affiliate -> {
-                    byName.put(normalizeKey(affiliate.name()), affiliate);
-                    byCode.put(normalizeKey(affiliate.code()), affiliate);
-                });
-
-        for (AffiliateRow row : rows) {
-            String name =
-                    required(row.affiliateName(), "계열사", row.rowNumber(), "affiliateName", context);
-            String code =
-                    required(row.affiliateCode(), "계열사", row.rowNumber(), "affiliateCode", context);
-            ReferenceStatus status =
-                    parseReferenceStatus(row.status(), "계열사", row.rowNumber(), context);
-            if (name == null || code == null || status == null) {
-                continue;
-            }
-
-            Affiliate target = null;
-            UUID affiliateId =
-                    parseUuid(row.affiliateId(), "계열사", row.rowNumber(), "affiliateId", context);
-            if (affiliateId != null) {
-                target = byId.get(affiliateId);
-                if (target == null) {
-                    addError("계열사", row.rowNumber(), "affiliateId", "존재하지 않는 계열사 ID입니다.", context);
-                    continue;
-                }
-            } else {
-                target = byName.get(normalizeKey(name));
-            }
-
-            String duplicateKey =
-                    target == null ? "name:" + normalizeKey(name) : "id:" + target.id().toString();
-            checkDuplicate(
-                    duplicateKey,
-                    "계열사",
-                    row.rowNumber(),
-                    "affiliateName",
-                    context.seenAffiliateKeys(),
-                    context);
-
-            Affiliate candidate =
-                    new Affiliate(
-                            target == null ? UUID.randomUUID() : target.id(),
-                            name,
-                            code,
-                            status,
-                            target == null ? null : target.sortOrder(),
-                            target == null ? Instant.now() : target.createdAt(),
-                            Instant.now());
-
-            validateAffiliateUniqueness(candidate, existingAffiliates, context, row.rowNumber());
-            context.resolvedAffiliatesByName().put(normalizeKey(name), candidate);
-            context.affiliatesToSave().put(candidate.id(), candidate);
-            if (target == null) {
-                context.createdAffiliates++;
-            } else {
-                context.updatedAffiliates++;
-            }
-        }
-    }
-
     private void resolveDepartments(
-            List<DepartmentRow> rows, List<Department> existingDepartments, ImportContext context) {
+            List<DepartmentRow> rows,
+            List<Department> existingDepartments,
+            ImportContext context,
+            Affiliate scopeAffiliate) {
         Map<UUID, Department> byId =
                 existingDepartments.stream()
                         .collect(
@@ -227,25 +161,13 @@ public class AdminOrganizationMembersExcelApplyService {
                         existingDepartments.stream().map(Department::code).toList());
 
         for (DepartmentRow row : rows) {
-            String affiliateName =
-                    required(row.affiliateName(), "부서", row.rowNumber(), "affiliateName", context);
             String departmentName =
                     required(
                             row.departmentName(), "부서", row.rowNumber(), "departmentName", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "부서", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "부서", row.rowNumber(), context);
-            if (affiliateName == null
-                    || departmentName == null
-                    || sortNumber == null
-                    || status == null) {
-                continue;
-            }
-
-            Affiliate affiliate =
-                    context.resolvedAffiliatesByName().get(normalizeKey(affiliateName));
-            if (affiliate == null) {
-                addError("부서", row.rowNumber(), "affiliateName", "존재하지 않는 계열사 참조입니다.", context);
+            if (departmentName == null || sortNumber == null || status == null) {
                 continue;
             }
 
@@ -259,13 +181,11 @@ public class AdminOrganizationMembersExcelApplyService {
                     continue;
                 }
             } else {
-                target = byHierarchy.get(hierarchyKey(affiliateName, departmentName));
+                target = byHierarchy.get(departmentName);
             }
 
             String duplicateKey =
-                    target == null
-                            ? hierarchyKey(affiliateName, departmentName)
-                            : "id:" + target.id().toString();
+                    target == null ? departmentName : "id:" + target.id().toString();
             checkDuplicate(
                     duplicateKey,
                     "부서",
@@ -274,13 +194,12 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenDepartmentKeys(),
                     context);
 
-            // 엑셀 신규 행은 code가 비어 있어도 허용하고, 입력값이 있어도 서버 채번 정책을 우선한다.
             String departmentCode =
                     target == null ? departmentCodeGenerator.nextCode() : target.code();
             Department candidate =
                     new Department(
                             target == null ? UUID.randomUUID() : target.id(),
-                            affiliate.id(),
+                            scopeAffiliate.id(),
                             null,
                             departmentName,
                             departmentCode,
@@ -289,10 +208,8 @@ public class AdminOrganizationMembersExcelApplyService {
                             target == null ? Instant.now() : target.createdAt(),
                             Instant.now());
 
-            validateDepartmentUniqueness(
-                    candidate, existingDepartments, context, row.rowNumber(), affiliateName);
-            context.resolvedDepartmentsByHierarchy()
-                    .put(hierarchyKey(affiliateName, departmentName), candidate);
+            validateDepartmentUniqueness(candidate, existingDepartments, context, row.rowNumber());
+            context.resolvedDepartmentsByHierarchy().put(departmentName, candidate);
             context.departmentsToSave().put(candidate.id(), candidate);
             if (target == null) {
                 context.createdDepartments++;
@@ -302,7 +219,11 @@ public class AdminOrganizationMembersExcelApplyService {
         }
     }
 
-    private void resolveTeams(List<TeamRow> rows, List<Team> existingTeams, ImportContext context) {
+    private void resolveTeams(
+            List<TeamRow> rows,
+            List<Team> existingTeams,
+            ImportContext context,
+            Affiliate scopeAffiliate) {
         Map<UUID, Team> byId =
                 existingTeams.stream()
                         .collect(
@@ -315,33 +236,20 @@ public class AdminOrganizationMembersExcelApplyService {
                         existingTeams.stream().map(Team::code).toList());
 
         for (TeamRow row : rows) {
-            String affiliateName =
-                    required(row.affiliateName(), "팀", row.rowNumber(), "affiliateName", context);
             String departmentName =
                     required(row.departmentName(), "팀", row.rowNumber(), "departmentName", context);
             String teamName = required(row.teamName(), "팀", row.rowNumber(), "teamName", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "팀", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "팀", row.rowNumber(), context);
-            if (affiliateName == null
-                    || departmentName == null
-                    || teamName == null
-                    || sortNumber == null
-                    || status == null) {
+            if (departmentName == null || teamName == null || sortNumber == null || status == null) {
                 continue;
             }
 
             Department department =
-                    context.resolvedDepartmentsByHierarchy()
-                            .get(hierarchyKey(affiliateName, departmentName));
+                    context.resolvedDepartmentsByHierarchy().get(departmentName);
             if (department == null) {
                 addError("팀", row.rowNumber(), "departmentName", "존재하지 않는 부서 참조입니다.", context);
-                continue;
-            }
-            if (!Objects.equals(
-                    department.affiliateId(),
-                    context.resolvedAffiliatesByName().get(normalizeKey(affiliateName)).id())) {
-                addError("팀", row.rowNumber(), "departmentName", "부서가 계열사 하위가 아닙니다.", context);
                 continue;
             }
 
@@ -354,13 +262,11 @@ public class AdminOrganizationMembersExcelApplyService {
                     continue;
                 }
             } else {
-                target = byHierarchy.get(teamKey(affiliateName, departmentName, teamName));
+                target = byHierarchy.get(teamKey(departmentName, teamName));
             }
 
             String duplicateKey =
-                    target == null
-                            ? teamKey(affiliateName, departmentName, teamName)
-                            : "id:" + target.id().toString();
+                    target == null ? teamKey(departmentName, teamName) : "id:" + target.id().toString();
             checkDuplicate(
                     duplicateKey,
                     "팀",
@@ -369,7 +275,6 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenTeamKeys(),
                     context);
 
-            // 팀도 수동 코드 변경을 받지 않고, 신규 행만 T-prefix로 자동 채번한다.
             String teamCode = target == null ? teamCodeGenerator.nextCode() : target.code();
             Team candidate =
                     new Team(
@@ -382,15 +287,8 @@ public class AdminOrganizationMembersExcelApplyService {
                             target == null ? Instant.now() : target.createdAt(),
                             Instant.now());
 
-            validateTeamUniqueness(
-                    candidate,
-                    existingTeams,
-                    context,
-                    row.rowNumber(),
-                    affiliateName,
-                    departmentName);
-            context.resolvedTeamsByHierarchy()
-                    .put(teamKey(affiliateName, departmentName, teamName), candidate);
+            validateTeamUniqueness(candidate, existingTeams, context, row.rowNumber(), departmentName);
+            context.resolvedTeamsByHierarchy().put(teamKey(departmentName, teamName), candidate);
             context.teamsToSave().put(candidate.id(), candidate);
             if (target == null) {
                 context.createdTeams++;
@@ -401,7 +299,10 @@ public class AdminOrganizationMembersExcelApplyService {
     }
 
     private void resolvePositions(
-            List<PositionRow> rows, List<Position> existingPositions, ImportContext context) {
+            List<PositionRow> rows,
+            List<Position> existingPositions,
+            ImportContext context,
+            Affiliate scopeAffiliate) {
         Map<UUID, Position> byId =
                 existingPositions.stream()
                         .collect(
@@ -409,29 +310,18 @@ public class AdminOrganizationMembersExcelApplyService {
                                 (map, item) -> map.put(item.id(), item),
                                 Map::putAll);
         Map<String, Position> byHierarchy = new LinkedHashMap<>();
-        existingPositions.forEach(
-                position ->
-                        byHierarchy.put(
-                                positionKey(position.affiliateId(), position.name()), position));
+        existingPositions.forEach(position -> byHierarchy.put(position.name(), position));
         OrganizationCodeGenerator positionCodeGenerator =
                 OrganizationCodeGenerator.forPositionCodes(
                         existingPositions.stream().map(Position::code).toList());
 
         for (PositionRow row : rows) {
-            String affiliateName =
-                    required(row.affiliateName(), "직급", row.rowNumber(), "affiliateName", context);
             String name =
                     required(row.positionName(), "직급", row.rowNumber(), "positionName", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "직급", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "직급", row.rowNumber(), context);
-            if (affiliateName == null || name == null || sortNumber == null || status == null) {
-                continue;
-            }
-
-            Affiliate affiliate = context.resolvedAffiliatesByName().get(normalizeKey(affiliateName));
-            if (affiliate == null) {
-                addError("직급", row.rowNumber(), "affiliateName", "존재하지 않는 계열사 참조입니다.", context);
+            if (name == null || sortNumber == null || status == null) {
                 continue;
             }
 
@@ -445,13 +335,11 @@ public class AdminOrganizationMembersExcelApplyService {
                     continue;
                 }
             } else {
-                target = byHierarchy.get(positionKey(affiliate.id(), name));
+                target = byHierarchy.get(name);
             }
 
             String duplicateKey =
-                    target == null
-                            ? "affiliate:" + affiliate.id() + "|name:" + normalizeKey(name)
-                            : "id:" + target.id().toString();
+                    target == null ? normalizeKey(name) : "id:" + target.id().toString();
             checkDuplicate(
                     duplicateKey,
                     "직급",
@@ -460,12 +348,11 @@ public class AdminOrganizationMembersExcelApplyService {
                     context.seenPositionKeys(),
                     context);
 
-            // 직급 import도 code 입력 유무와 무관하게 기존 코드를 유지하거나 P-prefix 새 코드를 생성한다.
             String code = target == null ? positionCodeGenerator.nextCode() : target.code();
             Position candidate =
                     new Position(
                             target == null ? UUID.randomUUID() : target.id(),
-                            affiliate.id(),
+                            scopeAffiliate.id(),
                             name,
                             code,
                             status,
@@ -474,8 +361,7 @@ public class AdminOrganizationMembersExcelApplyService {
                             Instant.now());
 
             validatePositionUniqueness(candidate, existingPositions, context, row.rowNumber());
-            context.resolvedPositionsByHierarchy()
-                    .put(positionKey(candidate.affiliateId(), candidate.name()), candidate);
+            context.resolvedPositionsByHierarchy().put(candidate.name(), candidate);
             context.positionsToSave().put(candidate.id(), candidate);
             if (target == null) {
                 context.createdPositions++;
@@ -485,7 +371,11 @@ public class AdminOrganizationMembersExcelApplyService {
         }
     }
 
-    private void resolveUsers(List<UserRow> rows, List<User> existingUsers, ImportContext context) {
+    private void resolveUsers(
+            List<UserRow> rows,
+            List<User> existingUsers,
+            ImportContext context,
+            Affiliate scopeAffiliate) {
         Map<UUID, User> byId =
                 existingUsers.stream()
                         .collect(
@@ -499,13 +389,8 @@ public class AdminOrganizationMembersExcelApplyService {
             String loginId = required(row.loginId(), "회원", row.rowNumber(), "loginId", context);
             String name = required(row.name(), "회원", row.rowNumber(), "name", context);
             String email = required(row.email(), "회원", row.rowNumber(), "email", context);
-            UserRole role = parseRole(row.role(), row.rowNumber(), context);
             UserStatus status = parseUserStatus(row.status(), row.rowNumber(), context);
-            if (loginId == null
-                    || name == null
-                    || email == null
-                    || role == null
-                    || status == null) {
+            if (loginId == null || name == null || email == null || status == null) {
                 continue;
             }
             if (!EMAIL_PATTERN.matcher(email).matches()) {
@@ -513,7 +398,7 @@ public class AdminOrganizationMembersExcelApplyService {
                 continue;
             }
 
-            OrganizationRefs refs = resolveUserReferences(row, context);
+            OrganizationRefs refs = resolveUserReferences(row, context, scopeAffiliate);
             if (refs == null) {
                 continue;
             }
@@ -545,8 +430,8 @@ public class AdminOrganizationMembersExcelApplyService {
 
             // 회원은 loginId를 우선 식별자로 본다. userId가 함께 온 경우에는 같은 회원인지 교차 검증만 수행한다.
             User target = loginMatched != null ? loginMatched : idMatched;
-            if (target != null && target.role() == UserRole.SYSTEM) {
-                addError("회원", row.rowNumber(), "role", "SYSTEM 계정은 엑셀로 수정할 수 없습니다.", context);
+            if (target != null && target.role() != UserRole.USER) {
+                addError("회원", row.rowNumber(), "userId", "관리자 계정은 이 엑셀에서 수정할 수 없습니다.", context);
                 continue;
             }
 
@@ -566,7 +451,7 @@ public class AdminOrganizationMembersExcelApplyService {
                                     passwordEncoder.encode(PasswordPolicy.INITIAL_PASSWORD),
                                     name,
                                     email,
-                                    role,
+                                    UserRole.USER,
                                     status,
                                     refs.affiliateId(),
                                     refs.departmentId(),
@@ -583,7 +468,7 @@ public class AdminOrganizationMembersExcelApplyService {
                                     target.passwordHash(),
                                     name,
                                     email,
-                                    role,
+                                    UserRole.USER,
                                     status,
                                     refs.affiliateId(),
                                     refs.departmentId(),
@@ -605,8 +490,8 @@ public class AdminOrganizationMembersExcelApplyService {
         }
     }
 
-    private OrganizationRefs resolveUserReferences(UserRow row, ImportContext context) {
-        String affiliateName = blankToNull(row.affiliateName());
+    private OrganizationRefs resolveUserReferences(
+            UserRow row, ImportContext context, Affiliate scopeAffiliate) {
         String departmentName = blankToNull(row.departmentName());
         String teamName = blankToNull(row.teamName());
         String positionName = blankToNull(row.positionName());
@@ -615,41 +500,20 @@ public class AdminOrganizationMembersExcelApplyService {
             addError("회원", row.rowNumber(), "departmentName", "팀이 있으면 부서가 필요합니다.", context);
             return null;
         }
-        if (departmentName != null && affiliateName == null) {
-            addError("회원", row.rowNumber(), "affiliateName", "부서가 있으면 계열사가 필요합니다.", context);
-            return null;
-        }
-
-        Affiliate affiliate =
-                affiliateName == null
-                        ? null
-                        : context.resolvedAffiliatesByName().get(normalizeKey(affiliateName));
-        if (affiliateName != null && affiliate == null) {
-            addError("회원", row.rowNumber(), "affiliateName", "존재하지 않는 계열사 참조입니다.", context);
-            return null;
-        }
 
         Department department =
                 departmentName == null
                         ? null
-                        : context.resolvedDepartmentsByHierarchy()
-                                .get(hierarchyKey(affiliateName, departmentName));
+                        : context.resolvedDepartmentsByHierarchy().get(departmentName);
         if (departmentName != null && department == null) {
             addError("회원", row.rowNumber(), "departmentName", "존재하지 않는 부서 참조입니다.", context);
-            return null;
-        }
-        if (department != null
-                && affiliate != null
-                && !Objects.equals(department.affiliateId(), affiliate.id())) {
-            addError("회원", row.rowNumber(), "departmentName", "부서가 계열사 하위가 아닙니다.", context);
             return null;
         }
 
         Team team =
                 teamName == null
                         ? null
-                        : context.resolvedTeamsByHierarchy()
-                                .get(teamKey(affiliateName, departmentName, teamName));
+                        : context.resolvedTeamsByHierarchy().get(teamKey(departmentName, teamName));
         if (teamName != null && team == null) {
             addError("회원", row.rowNumber(), "teamName", "존재하지 않는 팀 참조입니다.", context);
             return null;
@@ -661,23 +525,17 @@ public class AdminOrganizationMembersExcelApplyService {
             return null;
         }
 
-        if (positionName != null && affiliateName == null) {
-            addError("회원", row.rowNumber(), "affiliateName", "직급이 있으면 계열사가 필요합니다.", context);
-            return null;
-        }
-
         Position position =
                 positionName == null
                         ? null
-                        : context.resolvedPositionsByHierarchy()
-                                .get(positionKey(affiliate == null ? null : affiliate.id(), positionName));
+                        : context.resolvedPositionsByHierarchy().get(positionName);
         if (positionName != null && position == null) {
             addError("회원", row.rowNumber(), "positionName", "존재하지 않는 직급 참조입니다.", context);
             return null;
         }
 
         return new OrganizationRefs(
-                affiliate == null ? null : affiliate.id(),
+                scopeAffiliate.id(),
                 department == null ? null : department.id(),
                 team == null ? null : team.id(),
                 position == null ? null : position.id());
@@ -685,7 +543,6 @@ public class AdminOrganizationMembersExcelApplyService {
 
     private void saveAll(ImportContext context) {
         // validation을 모두 통과한 뒤 한 트랜잭션 안에서만 저장해 all-or-nothing 정책을 지킨다.
-        context.affiliatesToSave().values().forEach(affiliateRepositoryPort::save);
         context.departmentsToSave().values().forEach(departmentRepositoryPort::save);
         context.teamsToSave().values().forEach(teamRepositoryPort::save);
         context.positionsToSave().values().forEach(positionRepositoryPort::save);
@@ -714,27 +571,8 @@ public class AdminOrganizationMembersExcelApplyService {
                         Instant.now()));
     }
 
-    private void validateAffiliateUniqueness(
-            Affiliate candidate, List<Affiliate> existing, ImportContext context, int rowNumber) {
-        for (Affiliate affiliate : merge(existing, context.affiliatesToSave().values())) {
-            if (affiliate.id().equals(candidate.id())) {
-                continue;
-            }
-            if (normalizeKey(affiliate.name()).equals(normalizeKey(candidate.name()))) {
-                addError("계열사", rowNumber, "affiliateName", "같은 계열사명이 이미 존재합니다.", context);
-            }
-            if (normalizeKey(affiliate.code()).equals(normalizeKey(candidate.code()))) {
-                addError("계열사", rowNumber, "affiliateCode", "같은 계열사 코드가 이미 존재합니다.", context);
-            }
-        }
-    }
-
     private void validateDepartmentUniqueness(
-            Department candidate,
-            List<Department> existing,
-            ImportContext context,
-            int rowNumber,
-            String affiliateName) {
+            Department candidate, List<Department> existing, ImportContext context, int rowNumber) {
         for (Department department : merge(existing, context.departmentsToSave().values())) {
             if (department.id().equals(candidate.id())) {
                 continue;
@@ -747,10 +585,6 @@ public class AdminOrganizationMembersExcelApplyService {
                 addError("부서", rowNumber, "departmentCode", "같은 부서 코드가 이미 존재합니다.", context);
             }
         }
-        context.resolvedAffiliatesByName()
-                .putIfAbsent(
-                        normalizeKey(affiliateName),
-                        context.affiliatesToSave().get(candidate.affiliateId()));
     }
 
     private void validateTeamUniqueness(
@@ -758,7 +592,6 @@ public class AdminOrganizationMembersExcelApplyService {
             List<Team> existing,
             ImportContext context,
             int rowNumber,
-            String affiliateName,
             String departmentName) {
         for (Team team : merge(existing, context.teamsToSave().values())) {
             if (team.id().equals(candidate.id())) {
@@ -773,9 +606,7 @@ public class AdminOrganizationMembersExcelApplyService {
             }
         }
         context.resolvedDepartmentsByHierarchy()
-                .putIfAbsent(
-                        hierarchyKey(affiliateName, departmentName),
-                        context.departmentsToSave().get(candidate.departmentId()));
+                .putIfAbsent(departmentName, context.departmentsToSave().get(candidate.departmentId()));
     }
 
     private void validatePositionUniqueness(
@@ -892,24 +723,6 @@ public class AdminOrganizationMembersExcelApplyService {
         }
     }
 
-    private UserRole parseRole(String value, int rowNumber, ImportContext context) {
-        String trimmed = blankToNull(value);
-        if (trimmed == null) {
-            addError("회원", rowNumber, "role", "필수값이 비어 있습니다.", context);
-            return null;
-        }
-        try {
-            UserRole role = UserRole.valueOf(trimmed.toUpperCase(Locale.ROOT));
-            if (role != UserRole.ADMIN && role != UserRole.USER) {
-                throw new IllegalArgumentException("unsupported");
-            }
-            return role;
-        } catch (IllegalArgumentException exception) {
-            addError("회원", rowNumber, "role", "허용값은 ADMIN, USER 입니다.", context);
-            return null;
-        }
-    }
-
     private void checkDuplicate(
             String key,
             String sheetName,
@@ -937,27 +750,11 @@ public class AdminOrganizationMembersExcelApplyService {
     }
 
     private void preloadExistingReferences(
-            List<Affiliate> affiliates,
             List<Department> departments,
             List<Team> teams,
             List<Position> positions,
             ImportContext context) {
-        affiliates.forEach(
-                affiliate ->
-                        context.resolvedAffiliatesByName()
-                                .put(normalizeKey(affiliate.name()), affiliate));
-        departments.forEach(
-                department -> {
-                    Affiliate affiliate =
-                            affiliates.stream()
-                                    .filter(item -> item.id().equals(department.affiliateId()))
-                                    .findFirst()
-                                    .orElse(null);
-                    if (affiliate != null) {
-                        context.resolvedDepartmentsByHierarchy()
-                                .put(hierarchyKey(affiliate.name(), department.name()), department);
-                    }
-                });
+        departments.forEach(department -> context.resolvedDepartmentsByHierarchy().put(department.name(), department));
         teams.forEach(
                 team -> {
                     Department department =
@@ -965,37 +762,16 @@ public class AdminOrganizationMembersExcelApplyService {
                                     .filter(item -> item.id().equals(team.departmentId()))
                                     .findFirst()
                                     .orElse(null);
-                    if (department == null) {
-                        return;
-                    }
-                    Affiliate affiliate =
-                            affiliates.stream()
-                                    .filter(item -> item.id().equals(department.affiliateId()))
-                                    .findFirst()
-                                    .orElse(null);
-                    if (affiliate != null) {
-                        context.resolvedTeamsByHierarchy()
-                                .put(
-                                        teamKey(affiliate.name(), department.name(), team.name()),
-                                        team);
+                    if (department != null) {
+                        context.resolvedTeamsByHierarchy().put(teamKey(department.name(), team.name()), team);
                     }
                 });
         positions.forEach(
-                position ->
-                        context.resolvedPositionsByHierarchy()
-                                .put(positionKey(position.affiliateId(), position.name()), position));
+                position -> context.resolvedPositionsByHierarchy().put(position.name(), position));
     }
 
-    private String hierarchyKey(String affiliateName, String departmentName) {
-        return normalizeKey(affiliateName) + "|" + normalizeKey(departmentName);
-    }
-
-    private String teamKey(String affiliateName, String departmentName, String teamName) {
-        return hierarchyKey(affiliateName, departmentName) + "|" + normalizeKey(teamName);
-    }
-
-    private String positionKey(UUID affiliateId, String positionName) {
-        return String.valueOf(affiliateId) + "|" + normalizeKey(positionName);
+    private String teamKey(String departmentName, String teamName) {
+        return normalizeKey(departmentName) + "|" + normalizeKey(teamName);
     }
 
     private String blankToNull(String value) {
@@ -1016,17 +792,14 @@ public class AdminOrganizationMembersExcelApplyService {
 
     private static final class ImportContext {
         private final List<ErrorDetail> errors = new ArrayList<>();
-        private final Map<String, Integer> seenAffiliateKeys = new LinkedHashMap<>();
         private final Map<String, Integer> seenDepartmentKeys = new LinkedHashMap<>();
         private final Map<String, Integer> seenTeamKeys = new LinkedHashMap<>();
         private final Map<String, Integer> seenPositionKeys = new LinkedHashMap<>();
         private final Map<String, Integer> seenUserLoginIds = new LinkedHashMap<>();
-        private final Map<UUID, Affiliate> affiliatesToSave = new LinkedHashMap<>();
         private final Map<UUID, Department> departmentsToSave = new LinkedHashMap<>();
         private final Map<UUID, Team> teamsToSave = new LinkedHashMap<>();
         private final Map<UUID, Position> positionsToSave = new LinkedHashMap<>();
         private final Map<UUID, User> usersToSave = new LinkedHashMap<>();
-        private final Map<String, Affiliate> resolvedAffiliatesByName = new LinkedHashMap<>();
         private final Map<String, Department> resolvedDepartmentsByHierarchy =
                 new LinkedHashMap<>();
         private final Map<String, Team> resolvedTeamsByHierarchy = new LinkedHashMap<>();
@@ -1046,10 +819,6 @@ public class AdminOrganizationMembersExcelApplyService {
             return errors;
         }
 
-        private Map<String, Integer> seenAffiliateKeys() {
-            return seenAffiliateKeys;
-        }
-
         private Map<String, Integer> seenDepartmentKeys() {
             return seenDepartmentKeys;
         }
@@ -1066,10 +835,6 @@ public class AdminOrganizationMembersExcelApplyService {
             return seenUserLoginIds;
         }
 
-        private Map<UUID, Affiliate> affiliatesToSave() {
-            return affiliatesToSave;
-        }
-
         private Map<UUID, Department> departmentsToSave() {
             return departmentsToSave;
         }
@@ -1084,10 +849,6 @@ public class AdminOrganizationMembersExcelApplyService {
 
         private Map<UUID, User> usersToSave() {
             return usersToSave;
-        }
-
-        private Map<String, Affiliate> resolvedAffiliatesByName() {
-            return resolvedAffiliatesByName;
         }
 
         private Map<String, Department> resolvedDepartmentsByHierarchy() {
