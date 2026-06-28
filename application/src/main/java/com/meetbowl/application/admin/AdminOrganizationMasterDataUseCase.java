@@ -3,6 +3,7 @@ package com.meetbowl.application.admin;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -82,8 +83,18 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional(readOnly = true)
     public List<AffiliateResult> getAffiliates() {
-        return affiliateRepositoryPort.findAll().stream()
-                .sorted(AFFILIATE_SORT)
+        return getAffiliates(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AffiliateResult> getAffiliates(UUID adminAffiliateId) {
+        if (adminAffiliateId == null) {
+            return affiliateRepositoryPort.findAll().stream()
+                    .sorted(AFFILIATE_SORT)
+                    .map(AdminOrganizationMasterDataUseCase::toAffiliateResult)
+                    .toList();
+        }
+        return affiliateRepositoryPort.findById(adminAffiliateId).stream()
                 .map(AdminOrganizationMasterDataUseCase::toAffiliateResult)
                 .toList();
     }
@@ -108,7 +119,14 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public AffiliateResult updateAffiliate(UpdateAffiliateCommand command) {
+        return updateAffiliate(command, null);
+    }
+
+    @Transactional
+    public AffiliateResult updateAffiliate(
+            UpdateAffiliateCommand command, UUID adminAffiliateId) {
         Affiliate affiliate = loadAffiliate(command.affiliateId());
+        ensureAffiliateScope(affiliate.id(), adminAffiliateId);
         String name = requiredText(command.name(), "Affiliate name is required.");
         String code = requiredText(command.code(), "Affiliate code is required.");
         ensureAffiliateUnique(name, code, affiliate.id());
@@ -131,7 +149,14 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public AffiliateResult updateAffiliateStatus(UpdateAffiliateStatusCommand command) {
+        return updateAffiliateStatus(command, null);
+    }
+
+    @Transactional
+    public AffiliateResult updateAffiliateStatus(
+            UpdateAffiliateStatusCommand command, UUID adminAffiliateId) {
         Affiliate affiliate = loadAffiliate(command.affiliateId());
+        ensureAffiliateScope(affiliate.id(), adminAffiliateId);
         return toAffiliateResult(
                 affiliateRepositoryPort.save(
                         new Affiliate(
@@ -146,7 +171,17 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional(readOnly = true)
     public List<DepartmentResult> getDepartments() {
+        return getDepartments(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepartmentResult> getDepartments(UUID adminAffiliateId) {
         return departmentRepositoryPort.findAll().stream()
+                .filter(
+                        department ->
+                                adminAffiliateId == null
+                                        || Objects.equals(
+                                                department.affiliateId(), adminAffiliateId))
                 .sorted(DEPARTMENT_SORT)
                 .map(AdminOrganizationMasterDataUseCase::toDepartmentResult)
                 .toList();
@@ -154,10 +189,17 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public DepartmentResult createDepartment(CreateDepartmentCommand command) {
+        return createDepartment(command, null);
+    }
+
+    @Transactional
+    public DepartmentResult createDepartment(
+            CreateDepartmentCommand command, UUID adminAffiliateId) {
         String name = requiredText(command.name(), "Department name is required.");
         String code = nextDepartmentCode();
         // 부서는 Affiliate 하위 기준정보이므로 상위 Affiliate가 실제로 존재해야 한다.
         loadAffiliate(command.affiliateId());
+        ensureAffiliateScope(command.affiliateId(), adminAffiliateId);
         // 같은 Affiliate 안에서는 동일한 부서명을 허용하지 않는다.
         ensureDepartmentNameUnique(command.affiliateId(), name, null);
         ensureDepartmentSortOrderUnique(command.affiliateId(), command.sortOrder(), null);
@@ -177,9 +219,17 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public DepartmentResult updateDepartment(UpdateDepartmentCommand command) {
+        return updateDepartment(command, null);
+    }
+
+    @Transactional
+    public DepartmentResult updateDepartment(
+            UpdateDepartmentCommand command, UUID adminAffiliateId) {
         Department department = loadDepartment(command.departmentId());
+        ensureAffiliateScope(department.affiliateId(), adminAffiliateId);
         String name = requiredText(command.name(), "Department name is required.");
         loadAffiliate(command.affiliateId());
+        ensureSameAffiliate(department.affiliateId(), command.affiliateId());
         ensureDepartmentNameUnique(command.affiliateId(), name, department.id());
         ensureDepartmentSortOrderUnique(
                 command.affiliateId(), command.sortOrder(), department.id());
@@ -204,7 +254,14 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public DepartmentResult updateDepartmentStatus(UpdateDepartmentStatusCommand command) {
+        return updateDepartmentStatus(command, null);
+    }
+
+    @Transactional
+    public DepartmentResult updateDepartmentStatus(
+            UpdateDepartmentStatusCommand command, UUID adminAffiliateId) {
         Department department = loadDepartment(command.departmentId());
+        ensureAffiliateScope(department.affiliateId(), adminAffiliateId);
         return toDepartmentResult(
                 departmentRepositoryPort.save(
                         new Department(
@@ -221,6 +278,11 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public void deleteDepartment(DeleteDepartmentCommand command) {
+        deleteDepartment(command, null);
+    }
+
+    @Transactional
+    public void deleteDepartment(DeleteDepartmentCommand command, UUID adminAffiliateId) {
         Department department =
                 departmentRepositoryPort
                         .findById(command.departmentId())
@@ -236,8 +298,9 @@ public class AdminOrganizationMasterDataUseCase {
                                             null,
                                             "삭제할 부서를 찾을 수 없습니다.");
                                     return new BusinessException(
-                                            ErrorCode.COMMON_NOT_FOUND, "Department not found.");
+                                        ErrorCode.COMMON_NOT_FOUND, "Department not found.");
                                 });
+        ensureAffiliateScope(department.affiliateId(), adminAffiliateId);
         String beforeValue = snapshot(toDepartmentResult(department));
 
         // 부서 삭제 전에는 하위 팀과 소속 회원을 먼저 막아야 조직 트리와 회원 참조가 동시에 깨지지 않는다.
@@ -280,7 +343,18 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional(readOnly = true)
     public List<TeamResult> getTeams() {
+        return getTeams(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamResult> getTeams(UUID adminAffiliateId) {
         return teamRepositoryPort.findAll().stream()
+                .filter(
+                        team ->
+                                adminAffiliateId == null
+                                        || Objects.equals(
+                                                loadDepartment(team.departmentId()).affiliateId(),
+                                                adminAffiliateId))
                 .sorted(TEAM_SORT)
                 .map(AdminOrganizationMasterDataUseCase::toTeamResult)
                 .toList();
@@ -288,10 +362,16 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public TeamResult createTeam(CreateTeamCommand command) {
+        return createTeam(command, null);
+    }
+
+    @Transactional
+    public TeamResult createTeam(CreateTeamCommand command, UUID adminAffiliateId) {
         String name = requiredText(command.name(), "Team name is required.");
         String code = nextTeamCode();
         // 팀은 Department에 소속되므로 상위 Department 존재 여부를 먼저 확인한다.
         Department department = loadDepartment(command.departmentId());
+        ensureAffiliateScope(department.affiliateId(), adminAffiliateId);
         // 같은 Department 안에서는 동일한 팀명을 허용하지 않는다.
         ensureTeamNameUnique(command.departmentId(), name, null);
         // 팀 순서는 상위 부서와 무관하게 같은 계열사 전체 범위에서 유일해야 한다.
@@ -311,9 +391,19 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public TeamResult updateTeam(UpdateTeamCommand command) {
+        return updateTeam(command, null);
+    }
+
+    @Transactional
+    public TeamResult updateTeam(UpdateTeamCommand command, UUID adminAffiliateId) {
         Team team = loadTeam(command.teamId());
         String name = requiredText(command.name(), "Team name is required.");
         Department department = loadDepartment(command.departmentId());
+        if (adminAffiliateId != null) {
+            ensureAffiliateScope(loadDepartment(team.departmentId()).affiliateId(), adminAffiliateId);
+            ensureAffiliateScope(department.affiliateId(), adminAffiliateId);
+        }
+        ensureSameDepartment(team.departmentId(), command.departmentId());
         ensureTeamNameUnique(command.departmentId(), name, team.id());
         ensureTeamSortOrderUnique(department.affiliateId(), command.sortOrder(), team.id());
         Team saved =
@@ -336,7 +426,15 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public TeamResult updateTeamStatus(UpdateTeamStatusCommand command) {
+        return updateTeamStatus(command, null);
+    }
+
+    @Transactional
+    public TeamResult updateTeamStatus(UpdateTeamStatusCommand command, UUID adminAffiliateId) {
         Team team = loadTeam(command.teamId());
+        if (adminAffiliateId != null) {
+            ensureAffiliateScope(loadDepartment(team.departmentId()).affiliateId(), adminAffiliateId);
+        }
         return toTeamResult(
                 teamRepositoryPort.save(
                         new Team(
@@ -352,6 +450,11 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public void deleteTeam(DeleteTeamCommand command) {
+        deleteTeam(command, null);
+    }
+
+    @Transactional
+    public void deleteTeam(DeleteTeamCommand command, UUID adminAffiliateId) {
         Team team =
                 teamRepositoryPort
                         .findById(command.teamId())
@@ -366,9 +469,12 @@ public class AdminOrganizationMasterDataUseCase {
                                             command.teamId(),
                                             null,
                                             "삭제할 팀을 찾을 수 없습니다.");
-                                    return new BusinessException(
+                                return new BusinessException(
                                             ErrorCode.COMMON_NOT_FOUND, "Team not found.");
                                 });
+        if (adminAffiliateId != null) {
+            ensureAffiliateScope(loadDepartment(team.departmentId()).affiliateId(), adminAffiliateId);
+        }
         String beforeValue = snapshot(toTeamResult(team));
 
         // 팀 삭제는 소속 회원이 없을 때만 허용해서 회원의 조직 참조가 dangling 상태가 되지 않게 막는다.
@@ -398,7 +504,17 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional(readOnly = true)
     public List<PositionResult> getPositions() {
+        return getPositions(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PositionResult> getPositions(UUID adminAffiliateId) {
         return positionRepositoryPort.findAll().stream()
+                .filter(
+                        position ->
+                                adminAffiliateId == null
+                                        || Objects.equals(
+                                                position.affiliateId(), adminAffiliateId))
                 .sorted(POSITION_SORT)
                 .map(AdminOrganizationMasterDataUseCase::toPositionResult)
                 .toList();
@@ -406,16 +522,23 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public PositionResult createPosition(CreatePositionCommand command) {
+        return createPosition(command, null);
+    }
+
+    @Transactional
+    public PositionResult createPosition(CreatePositionCommand command, UUID adminAffiliateId) {
+        Affiliate affiliate = loadAffiliate(command.affiliateId());
+        ensureAffiliateScope(affiliate.id(), adminAffiliateId);
         String name = requiredText(command.name(), "Position name is required.");
-        // 직급 코드는 P-prefix 자동 채번 정책을 따르고, 이름 중복만 별도로 막는다.
-        ensurePositionNameUnique(name, null);
-        ensurePositionSortOrderUnique(command.sortOrder(), null);
+        // 직급 코드는 P-prefix 자동 채번 정책을 따르고, 이름/정렬 중복은 같은 계열사 범위로 제한한다.
+        ensurePositionNameUnique(affiliate.id(), name, null);
+        ensurePositionSortOrderUnique(affiliate.id(), command.sortOrder(), null);
         String code = nextPositionCode();
-        // 직급은 독립 기준정보이므로 이름/코드를 전역으로 유니크하게 관리한다.
         return toPositionResult(
                 positionRepositoryPort.save(
                         new Position(
                                 UUID.randomUUID(),
+                                affiliate.id(),
                                 name,
                                 code,
                                 parseStatus(command.status()),
@@ -426,14 +549,24 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public PositionResult updatePosition(UpdatePositionCommand command) {
+        return updatePosition(command, null);
+    }
+
+    @Transactional
+    public PositionResult updatePosition(UpdatePositionCommand command, UUID adminAffiliateId) {
         Position position = loadPosition(command.positionId());
+        Affiliate affiliate = loadAffiliate(command.affiliateId());
+        ensureAffiliateScope(position.affiliateId(), adminAffiliateId);
+        ensureAffiliateScope(affiliate.id(), adminAffiliateId);
+        ensureSameAffiliate(position.affiliateId(), command.affiliateId());
         String name = requiredText(command.name(), "Position name is required.");
-        ensurePositionNameUnique(name, position.id());
-        ensurePositionSortOrderUnique(command.sortOrder(), position.id());
+        ensurePositionNameUnique(affiliate.id(), name, position.id());
+        ensurePositionSortOrderUnique(affiliate.id(), command.sortOrder(), position.id());
         Position saved =
                 positionRepositoryPort.save(
                         new Position(
                                 position.id(),
+                                affiliate.id(),
                                 name,
                                 // 수정 시 code를 바꾸면 기존 식별/엑셀 참조 흐름이 흔들릴 수 있어 서버가 기존 값을 고정한다.
                                 position.code(),
@@ -449,11 +582,19 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public PositionResult updatePositionStatus(UpdatePositionStatusCommand command) {
+        return updatePositionStatus(command, null);
+    }
+
+    @Transactional
+    public PositionResult updatePositionStatus(
+            UpdatePositionStatusCommand command, UUID adminAffiliateId) {
         Position position = loadPosition(command.positionId());
+        ensureAffiliateScope(position.affiliateId(), adminAffiliateId);
         return toPositionResult(
                 positionRepositoryPort.save(
                         new Position(
                                 position.id(),
+                                position.affiliateId(),
                                 position.name(),
                                 position.code(),
                                 parseStatus(command.status()),
@@ -464,6 +605,11 @@ public class AdminOrganizationMasterDataUseCase {
 
     @Transactional
     public void deletePosition(DeletePositionCommand command) {
+        deletePosition(command, null);
+    }
+
+    @Transactional
+    public void deletePosition(DeletePositionCommand command, UUID adminAffiliateId) {
         Position position =
                 positionRepositoryPort
                         .findById(command.positionId())
@@ -479,8 +625,9 @@ public class AdminOrganizationMasterDataUseCase {
                                             null,
                                             "삭제할 직급을 찾을 수 없습니다.");
                                     return new BusinessException(
-                                            ErrorCode.COMMON_NOT_FOUND, "Position not found.");
+                                        ErrorCode.COMMON_NOT_FOUND, "Position not found.");
                                 });
+        ensureAffiliateScope(position.affiliateId(), adminAffiliateId);
         String beforeValue = snapshot(toPositionResult(position));
 
         // 직급 삭제도 사용 중인 회원이 하나라도 있으면 막아야 회원 검색/상세에서 존재하지 않는 직급을 가리키지 않는다.
@@ -525,6 +672,30 @@ public class AdminOrganizationMasterDataUseCase {
         if (duplicatedCode) {
             throw new BusinessException(
                     ErrorCode.COMMON_CONFLICT, "Affiliate code already exists.");
+        }
+    }
+
+    private void ensureAffiliateScope(UUID targetAffiliateId, UUID adminAffiliateId) {
+        if (adminAffiliateId == null || targetAffiliateId == null) {
+            return;
+        }
+        if (!Objects.equals(targetAffiliateId, adminAffiliateId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "다른 계열사의 기준정보는 관리할 수 없습니다.");
+        }
+    }
+
+    private void ensureSameAffiliate(UUID leftAffiliateId, UUID rightAffiliateId) {
+        if (!Objects.equals(leftAffiliateId, rightAffiliateId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "대상은 같은 계열사여야 합니다.");
+        }
+    }
+
+    private void ensureSameDepartment(UUID leftDepartmentId, UUID rightDepartmentId) {
+        if (!Objects.equals(leftDepartmentId, rightDepartmentId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "대상은 같은 부서여야 합니다.");
         }
     }
 
@@ -576,21 +747,25 @@ public class AdminOrganizationMasterDataUseCase {
         }
     }
 
-    private void ensurePositionNameUnique(String name, UUID positionId) {
+    private void ensurePositionNameUnique(UUID affiliateId, String name, UUID positionId) {
         boolean duplicatedName =
                 positionId == null
-                        ? positionRepositoryPort.existsByName(name)
-                        : positionRepositoryPort.existsByNameAndIdNot(name, positionId);
+                        ? positionRepositoryPort.existsByAffiliateIdAndName(affiliateId, name)
+                        : positionRepositoryPort.existsByAffiliateIdAndNameAndIdNot(
+                                affiliateId, name, positionId);
         if (duplicatedName) {
             throw new BusinessException(ErrorCode.COMMON_CONFLICT, "Position name already exists.");
         }
     }
 
-    private void ensurePositionSortOrderUnique(Integer sortOrder, UUID positionId) {
+    private void ensurePositionSortOrderUnique(
+            UUID affiliateId, Integer sortOrder, UUID positionId) {
         boolean duplicated =
                 positionId == null
-                        ? positionRepositoryPort.existsBySortOrder(sortOrder)
-                        : positionRepositoryPort.existsBySortOrderAndIdNot(sortOrder, positionId);
+                        ? positionRepositoryPort.existsByAffiliateIdAndSortOrder(
+                                affiliateId, sortOrder)
+                        : positionRepositoryPort.existsByAffiliateIdAndSortOrderAndIdNot(
+                                affiliateId, sortOrder, positionId);
         if (duplicated) {
             throw duplicatedSortOrderException();
         }
@@ -852,6 +1027,7 @@ public class AdminOrganizationMasterDataUseCase {
     private static PositionResult toPositionResult(Position position) {
         return new PositionResult(
                 position.id(),
+                position.affiliateId(),
                 position.name(),
                 position.code(),
                 position.status().name(),
@@ -894,10 +1070,11 @@ public class AdminOrganizationMasterDataUseCase {
     public record DeleteTeamCommand(
             UUID teamId, UUID adminId, String adminName, String ipAddress, String userAgent) {}
 
-    public record CreatePositionCommand(String name, String status, Integer sortOrder) {}
+    public record CreatePositionCommand(
+            UUID affiliateId, String name, String status, Integer sortOrder) {}
 
     public record UpdatePositionCommand(
-            UUID positionId, String name, Integer sortOrder, UUID adminId) {}
+            UUID positionId, UUID affiliateId, String name, Integer sortOrder, UUID adminId) {}
 
     public record UpdatePositionStatusCommand(UUID positionId, String status) {}
 
@@ -935,6 +1112,7 @@ public class AdminOrganizationMasterDataUseCase {
 
     public record PositionResult(
             UUID positionId,
+            UUID affiliateId,
             String name,
             String code,
             String status,

@@ -8,6 +8,7 @@ import com.meetbowl.application.admin.AdminOrganizationMasterDataUseCase;
 
 public record AdminPositionResponse(
         UUID positionId,
+        UUID affiliateId,
         String name,
         String code,
         String status,
@@ -19,6 +20,7 @@ public record AdminPositionResponse(
             AdminOrganizationMasterDataUseCase.PositionResult result) {
         return new AdminPositionResponse(
                 result.positionId(),
+                result.affiliateId(),
                 result.name(),
                 result.code(),
                 result.status(),

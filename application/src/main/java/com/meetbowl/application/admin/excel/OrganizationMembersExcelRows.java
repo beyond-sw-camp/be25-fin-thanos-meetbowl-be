@@ -42,6 +42,7 @@ public final class OrganizationMembersExcelRows {
     public record PositionRow(
             int rowNumber,
             String positionId,
+            String affiliateName,
             String positionName,
             String positionCode,
             String sortNumber,

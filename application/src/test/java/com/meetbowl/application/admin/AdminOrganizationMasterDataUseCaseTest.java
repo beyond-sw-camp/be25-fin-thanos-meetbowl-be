@@ -186,15 +186,20 @@ class AdminOrganizationMasterDataUseCaseTest {
 
     @Test
     void positionCrudSuccess() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         AdminOrganizationMasterDataUseCase.PositionResult created =
                 useCase.createPosition(
                         new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
-                                "Manager", "ACTIVE", 1));
+                                AFFILIATE_ID, "Manager", "ACTIVE", 1));
 
         AdminOrganizationMasterDataUseCase.PositionResult updated =
                 useCase.updatePosition(
                         new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
-                                created.positionId(), "Senior Manager", 2, UUID.randomUUID()));
+                                created.positionId(),
+                                AFFILIATE_ID,
+                                "Senior Manager",
+                                2,
+                                UUID.randomUUID()));
 
         AdminOrganizationMasterDataUseCase.PositionResult changedStatus =
                 useCase.updatePositionStatus(
@@ -205,6 +210,7 @@ class AdminOrganizationMasterDataUseCaseTest {
 
         assertEquals(1, items.size());
         assertEquals("Manager", created.name());
+        assertEquals(AFFILIATE_ID, created.affiliateId());
         assertEquals("P001", created.code());
         assertEquals("Senior Manager", updated.name());
         assertEquals("P001", updated.code());
@@ -244,7 +250,7 @@ class AdminOrganizationMasterDataUseCaseTest {
         AdminOrganizationMasterDataUseCase.PositionResult createdPosition =
                 useCase.createPosition(
                         new AdminOrganizationMasterDataUseCase.CreatePositionCommand(
-                                "Manager", "ACTIVE", 10));
+                                AFFILIATE_ID, "Manager", "ACTIVE", 10));
 
         assertEquals("D004", createdDepartment.code());
         assertEquals("T003", createdTeam.code());
@@ -280,6 +286,7 @@ class AdminOrganizationMasterDataUseCaseTest {
 
     @Test
     void duplicatePositionCreateFails() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
 
         BusinessException exception =
@@ -288,7 +295,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                         () ->
                                 useCase.createPosition(
                                         new AdminOrganizationMasterDataUseCase
-                                                .CreatePositionCommand("manager", "ACTIVE", 1)));
+                                                .CreatePositionCommand(
+                                                AFFILIATE_ID, "manager", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.COMMON_CONFLICT, exception.errorCode());
     }
@@ -501,6 +509,7 @@ class AdminOrganizationMasterDataUseCaseTest {
 
     @Test
     void createPositionFailsWhenSortOrderDuplicated() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
 
         BusinessException exception =
@@ -509,7 +518,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                         () ->
                                 useCase.createPosition(
                                         new AdminOrganizationMasterDataUseCase
-                                                .CreatePositionCommand("Director", "ACTIVE", 1)));
+                                                .CreatePositionCommand(
+                                                AFFILIATE_ID, "Director", "ACTIVE", 1)));
 
         assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
     }
@@ -517,10 +527,18 @@ class AdminOrganizationMasterDataUseCaseTest {
     @Test
     void updatePositionFailsWhenSortOrderDuplicated() {
         UUID otherPositionId = UUID.fromString("00000000-0000-0000-0000-000000000105");
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
         positionRepository.save(
                 new Position(
-                        otherPositionId, "Director", "DIR", ReferenceStatus.ACTIVE, 2, NOW, NOW));
+                        otherPositionId,
+                        AFFILIATE_ID,
+                        "Director",
+                        "DIR",
+                        ReferenceStatus.ACTIVE,
+                        2,
+                        NOW,
+                        NOW));
 
         BusinessException exception =
                 assertThrows(
@@ -530,6 +548,7 @@ class AdminOrganizationMasterDataUseCaseTest {
                                         new AdminOrganizationMasterDataUseCase
                                                 .UpdatePositionCommand(
                                                 otherPositionId,
+                                                AFFILIATE_ID,
                                                 "Director",
                                                 1,
                                                 UUID.randomUUID())));
@@ -539,21 +558,24 @@ class AdminOrganizationMasterDataUseCaseTest {
 
     @Test
     void updatePositionSucceedsWhenKeepingOwnSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         positionRepository.save(position(POSITION_ID, "Manager", "MGR"));
 
         AdminOrganizationMasterDataUseCase.PositionResult result =
                 useCase.updatePosition(
                         new AdminOrganizationMasterDataUseCase.UpdatePositionCommand(
-                                POSITION_ID, "Senior Manager", 1, UUID.randomUUID()));
+                                POSITION_ID, AFFILIATE_ID, "Senior Manager", 1, UUID.randomUUID()));
 
         assertEquals(1, result.sortOrder());
     }
 
     @Test
     void createPositionFailsWhenInactivePositionUsesSameSortOrder() {
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "Affiliate", "AFF"));
         positionRepository.save(
                 new Position(
                         POSITION_ID,
+                        AFFILIATE_ID,
                         "Legacy Manager",
                         "LMG",
                         ReferenceStatus.INACTIVE,
@@ -567,7 +589,8 @@ class AdminOrganizationMasterDataUseCaseTest {
                         () ->
                                 useCase.createPosition(
                                         new AdminOrganizationMasterDataUseCase
-                                                .CreatePositionCommand("Manager", "ACTIVE", 5)));
+                                                .CreatePositionCommand(
+                                                AFFILIATE_ID, "Manager", "ACTIVE", 5)));
 
         assertEquals(ErrorCode.ORGANIZATION_SORT_ORDER_DUPLICATED, exception.errorCode());
     }
@@ -766,7 +789,7 @@ class AdminOrganizationMasterDataUseCaseTest {
     }
 
     private Position position(UUID id, String name, String code) {
-        return new Position(id, name, code, ReferenceStatus.ACTIVE, 1, NOW, NOW);
+        return new Position(id, AFFILIATE_ID, name, code, ReferenceStatus.ACTIVE, 1, NOW, NOW);
     }
 
     private User user(String loginId, UUID departmentId, UUID teamId, UUID positionId) {
@@ -1067,7 +1090,14 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
-        public boolean existsByName(String name) {
+        public List<Position> findAllByAffiliateId(UUID affiliateId) {
+            return positions.values().stream()
+                    .filter(item -> java.util.Objects.equals(item.affiliateId(), affiliateId))
+                    .toList();
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return positions.values().stream().anyMatch(item -> item.name().equalsIgnoreCase(name));
         }
 
@@ -1077,11 +1107,14 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
-        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID positionId) {
             return positions.values().stream()
                     .anyMatch(
                             item ->
                                     !item.id().equals(positionId)
+                                            && java.util.Objects.equals(
+                                                    item.affiliateId(), affiliateId)
                                             && item.name().equalsIgnoreCase(name));
         }
 
@@ -1095,17 +1128,23 @@ class AdminOrganizationMasterDataUseCaseTest {
         }
 
         @Override
-        public boolean existsBySortOrder(Integer sortOrder) {
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
             return positions.values().stream()
-                    .anyMatch(item -> java.util.Objects.equals(item.sortOrder(), sortOrder));
+                    .anyMatch(
+                            item ->
+                                    java.util.Objects.equals(item.affiliateId(), affiliateId)
+                                            && java.util.Objects.equals(item.sortOrder(), sortOrder));
         }
 
         @Override
-        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID positionId) {
             return positions.values().stream()
                     .anyMatch(
                             item ->
                                     !item.id().equals(positionId)
+                                            && java.util.Objects.equals(
+                                                    item.affiliateId(), affiliateId)
                                             && java.util.Objects.equals(
                                                     item.sortOrder(), sortOrder));
         }

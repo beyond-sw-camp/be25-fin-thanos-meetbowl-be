@@ -19,15 +19,19 @@ public interface SpringDataPositionRepository extends JpaRepository<PositionEnti
             """)
     java.util.List<PositionEntity> findAllForExcelExport();
 
-    boolean existsByNameIgnoreCase(String name);
+    java.util.List<PositionEntity> findAllByAffiliateId(java.util.UUID affiliateId);
+
+    boolean existsByAffiliateIdAndNameIgnoreCase(java.util.UUID affiliateId, String name);
 
     boolean existsByCodeIgnoreCase(String code);
 
-    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
+    boolean existsByAffiliateIdAndNameIgnoreCaseAndIdNot(
+            java.util.UUID affiliateId, String name, UUID id);
 
     boolean existsByCodeIgnoreCaseAndIdNot(String code, UUID id);
 
-    boolean existsBySortOrder(Integer sortOrder);
+    boolean existsByAffiliateIdAndSortOrder(java.util.UUID affiliateId, Integer sortOrder);
 
-    boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID id);
+    boolean existsByAffiliateIdAndSortOrderAndIdNot(
+            java.util.UUID affiliateId, Integer sortOrder, UUID id);
 }

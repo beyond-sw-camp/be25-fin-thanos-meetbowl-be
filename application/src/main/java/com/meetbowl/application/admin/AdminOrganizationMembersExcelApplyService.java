@@ -408,19 +408,30 @@ public class AdminOrganizationMembersExcelApplyService {
                                 LinkedHashMap::new,
                                 (map, item) -> map.put(item.id(), item),
                                 Map::putAll);
-        Map<String, Position> byName = new LinkedHashMap<>();
-        existingPositions.forEach(position -> byName.put(normalizeKey(position.name()), position));
+        Map<String, Position> byHierarchy = new LinkedHashMap<>();
+        existingPositions.forEach(
+                position ->
+                        byHierarchy.put(
+                                positionKey(position.affiliateId(), position.name()), position));
         OrganizationCodeGenerator positionCodeGenerator =
                 OrganizationCodeGenerator.forPositionCodes(
                         existingPositions.stream().map(Position::code).toList());
 
         for (PositionRow row : rows) {
+            String affiliateName =
+                    required(row.affiliateName(), "직급", row.rowNumber(), "affiliateName", context);
             String name =
                     required(row.positionName(), "직급", row.rowNumber(), "positionName", context);
             Integer sortNumber = parseSortNumber(row.sortNumber(), "직급", row.rowNumber(), context);
             ReferenceStatus status =
                     parseReferenceStatus(row.status(), "직급", row.rowNumber(), context);
-            if (name == null || sortNumber == null || status == null) {
+            if (affiliateName == null || name == null || sortNumber == null || status == null) {
+                continue;
+            }
+
+            Affiliate affiliate = context.resolvedAffiliatesByName().get(normalizeKey(affiliateName));
+            if (affiliate == null) {
+                addError("직급", row.rowNumber(), "affiliateName", "존재하지 않는 계열사 참조입니다.", context);
                 continue;
             }
 
@@ -434,11 +445,13 @@ public class AdminOrganizationMembersExcelApplyService {
                     continue;
                 }
             } else {
-                target = byName.get(normalizeKey(name));
+                target = byHierarchy.get(positionKey(affiliate.id(), name));
             }
 
             String duplicateKey =
-                    target == null ? "name:" + normalizeKey(name) : "id:" + target.id().toString();
+                    target == null
+                            ? "affiliate:" + affiliate.id() + "|name:" + normalizeKey(name)
+                            : "id:" + target.id().toString();
             checkDuplicate(
                     duplicateKey,
                     "직급",
@@ -452,6 +465,7 @@ public class AdminOrganizationMembersExcelApplyService {
             Position candidate =
                     new Position(
                             target == null ? UUID.randomUUID() : target.id(),
+                            affiliate.id(),
                             name,
                             code,
                             status,
@@ -460,7 +474,8 @@ public class AdminOrganizationMembersExcelApplyService {
                             Instant.now());
 
             validatePositionUniqueness(candidate, existingPositions, context, row.rowNumber());
-            context.resolvedPositionsByName().put(normalizeKey(name), candidate);
+            context.resolvedPositionsByHierarchy()
+                    .put(positionKey(candidate.affiliateId(), candidate.name()), candidate);
             context.positionsToSave().put(candidate.id(), candidate);
             if (target == null) {
                 context.createdPositions++;
@@ -646,10 +661,16 @@ public class AdminOrganizationMembersExcelApplyService {
             return null;
         }
 
+        if (positionName != null && affiliateName == null) {
+            addError("회원", row.rowNumber(), "affiliateName", "직급이 있으면 계열사가 필요합니다.", context);
+            return null;
+        }
+
         Position position =
                 positionName == null
                         ? null
-                        : context.resolvedPositionsByName().get(normalizeKey(positionName));
+                        : context.resolvedPositionsByHierarchy()
+                                .get(positionKey(affiliate == null ? null : affiliate.id(), positionName));
         if (positionName != null && position == null) {
             addError("회원", row.rowNumber(), "positionName", "존재하지 않는 직급 참조입니다.", context);
             return null;
@@ -763,7 +784,8 @@ public class AdminOrganizationMembersExcelApplyService {
             if (position.id().equals(candidate.id())) {
                 continue;
             }
-            if (normalizeKey(position.name()).equals(normalizeKey(candidate.name()))) {
+            if (Objects.equals(position.affiliateId(), candidate.affiliateId())
+                    && normalizeKey(position.name()).equals(normalizeKey(candidate.name()))) {
                 addError("직급", rowNumber, "positionName", "같은 직급명이 이미 존재합니다.", context);
             }
             if (normalizeKey(position.code()).equals(normalizeKey(candidate.code()))) {
@@ -960,8 +982,8 @@ public class AdminOrganizationMembersExcelApplyService {
                 });
         positions.forEach(
                 position ->
-                        context.resolvedPositionsByName()
-                                .put(normalizeKey(position.name()), position));
+                        context.resolvedPositionsByHierarchy()
+                                .put(positionKey(position.affiliateId(), position.name()), position));
     }
 
     private String hierarchyKey(String affiliateName, String departmentName) {
@@ -970,6 +992,10 @@ public class AdminOrganizationMembersExcelApplyService {
 
     private String teamKey(String affiliateName, String departmentName, String teamName) {
         return hierarchyKey(affiliateName, departmentName) + "|" + normalizeKey(teamName);
+    }
+
+    private String positionKey(UUID affiliateId, String positionName) {
+        return String.valueOf(affiliateId) + "|" + normalizeKey(positionName);
     }
 
     private String blankToNull(String value) {
@@ -1004,7 +1030,7 @@ public class AdminOrganizationMembersExcelApplyService {
         private final Map<String, Department> resolvedDepartmentsByHierarchy =
                 new LinkedHashMap<>();
         private final Map<String, Team> resolvedTeamsByHierarchy = new LinkedHashMap<>();
-        private final Map<String, Position> resolvedPositionsByName = new LinkedHashMap<>();
+        private final Map<String, Position> resolvedPositionsByHierarchy = new LinkedHashMap<>();
         private int createdAffiliates;
         private int updatedAffiliates;
         private int createdDepartments;
@@ -1072,8 +1098,8 @@ public class AdminOrganizationMembersExcelApplyService {
             return resolvedTeamsByHierarchy;
         }
 
-        private Map<String, Position> resolvedPositionsByName() {
-            return resolvedPositionsByName;
+        private Map<String, Position> resolvedPositionsByHierarchy() {
+            return resolvedPositionsByHierarchy;
         }
     }
 

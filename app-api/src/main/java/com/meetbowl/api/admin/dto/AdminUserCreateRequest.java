@@ -14,7 +14,6 @@ public record AdminUserCreateRequest(
         @NotBlank @Email String email,
         @NotNull AdminUserRole role,
         @NotNull AdminUserStatus status,
-        UUID affiliateId,
         UUID departmentId,
         UUID teamId,
         UUID positionId,

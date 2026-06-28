@@ -90,7 +90,8 @@ class MyProfileUseCaseTest {
                         NOW,
                         NOW));
         positionRepository.save(
-                new Position(POSITION_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
+                new Position(
+                        POSITION_ID, AFFILIATE_ID, "Position", "POS", ReferenceStatus.ACTIVE, 1, NOW, NOW));
 
         userRepository.save(createUser(USER_ID, "user01", "user01@example.com", UserRole.USER));
         useCase =
@@ -513,7 +514,12 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public boolean existsByName(String name) {
+        public List<Position> findAllByAffiliateId(UUID affiliateId) {
+            return List.copyOf(positions.values());
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return positions.values().stream()
                     .anyMatch(position -> position.name().equalsIgnoreCase(name));
         }
@@ -525,11 +531,14 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID positionId) {
             return positions.values().stream()
                     .anyMatch(
                             position ->
                                     !position.id().equals(positionId)
+                                            && java.util.Objects.equals(
+                                                    position.affiliateId(), affiliateId)
                                             && position.name().equalsIgnoreCase(name));
         }
 
@@ -543,12 +552,13 @@ class MyProfileUseCaseTest {
         }
 
         @Override
-        public boolean existsBySortOrder(Integer sortOrder) {
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
             return false;
         }
 
         @Override
-        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID positionId) {
             return false;
         }
     }

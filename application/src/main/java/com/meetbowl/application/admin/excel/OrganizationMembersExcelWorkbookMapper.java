@@ -69,7 +69,13 @@ public class OrganizationMembersExcelWorkbookMapper {
                     "sortNumber",
                     "status");
     private static final List<String> POSITION_COLUMNS =
-            List.of("positionId", "positionName", "positionCode", "sortNumber", "status");
+            List.of(
+                    "positionId",
+                    "affiliateName",
+                    "positionName",
+                    "positionCode",
+                    "sortNumber",
+                    "status");
     private static final List<String> USER_COLUMNS =
             List.of(
                     "userId",
@@ -195,6 +201,7 @@ public class OrganizationMembersExcelWorkbookMapper {
                     new PositionRow(
                             rowIndex + 1,
                             value(row, columns.get("positionId")),
+                            value(row, columns.get("affiliateName")),
                             value(row, columns.get("positionName")),
                             value(row, columns.get("positionCode")),
                             value(row, columns.get("sortNumber")),
@@ -482,6 +489,7 @@ public class OrganizationMembersExcelWorkbookMapper {
                 styles,
                 3,
                 "직급 ID\n(positionId)",
+                "계열사명\n(affiliateName)",
                 "직급명\n(positionName)",
                 "직급 코드\n(positionCode)",
                 "순서\n(sortNumber)",
@@ -493,12 +501,13 @@ public class OrganizationMembersExcelWorkbookMapper {
                     rowIndex++,
                     styles.defaultStyle(),
                     row.positionId(),
+                    row.affiliateName(),
                     row.positionName(),
                     row.positionCode(),
                     row.sortNumber(),
                     row.status());
         }
-        autosize(sheet, 5);
+        autosize(sheet, 6);
     }
 
     private void writeUserSheet(Workbook workbook, Styles styles, List<UserRow> rows) {

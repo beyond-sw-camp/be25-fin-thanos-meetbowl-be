@@ -170,6 +170,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                                         new PositionRow(
                                                                 0,
                                                                 POSITION_ID.toString(),
+                                                                "한화시스템",
                                                                 "과장",
                                                                 "MANAGER",
                                                                 "4",
@@ -177,6 +178,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                                         new PositionRow(
                                                                 0,
                                                                 "",
+                                                                "한화생명",
                                                                 "부장",
                                                                 "GENERAL_MANAGER",
                                                                 "5",
@@ -280,7 +282,9 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                         "PLATFORM",
                                         "1",
                                         "ACTIVE")),
-                        List.of(new PositionRow(0, "", "대리", "STAFF", "1", "ACTIVE")),
+                        List.of(
+                                new PositionRow(
+                                        0, "", "한화시스템", "대리", "STAFF", "1", "ACTIVE")),
                         List.of(
                                 new UserRow(
                                         0,
@@ -380,7 +384,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
                         List.of(),
                         List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "", "2", "ACTIVE")),
                         List.of(new TeamRow(0, "", "한화시스템", "서비스개발부", "플랫폼개발팀", "", "3", "ACTIVE")),
-                        List.of(new PositionRow(0, "", "대리", "", "4", "ACTIVE")),
+                        List.of(new PositionRow(0, "", "한화시스템", "대리", "", "4", "ACTIVE")),
                         List.of());
 
         AdminOrganizationMembersExcelUseCase.ImportResult result =
@@ -414,7 +418,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
                 List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
                 List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "DEV", "1", "ACTIVE")),
                 List.of(new TeamRow(0, "", "한화시스템", "서비스개발부", "플랫폼개발팀", "PLATFORM", "1", "ACTIVE")),
-                List.of(new PositionRow(0, "", "대리", "STAFF", "1", "ACTIVE")),
+                List.of(new PositionRow(0, "", "한화시스템", "대리", "STAFF", "1", "ACTIVE")),
                 List.of(
                         new UserRow(
                                 0,
@@ -466,7 +470,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
     }
 
     private Position position(UUID id, String name, String code, Integer sortOrder) {
-        return new Position(id, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
+        return new Position(id, AFFILIATE_ID, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
     }
 
     private User user(UUID id, String loginId, String email, UserRole role, UserStatus status) {
@@ -704,7 +708,14 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsByName(String name) {
+        public List<Position> findAllByAffiliateId(UUID affiliateId) {
+            return values.values().stream()
+                    .filter(item -> java.util.Objects.equals(item.affiliateId(), affiliateId))
+                    .toList();
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return false;
         }
 
@@ -714,7 +725,8 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID positionId) {
             return false;
         }
 
@@ -724,12 +736,13 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsBySortOrder(Integer sortOrder) {
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
             return false;
         }
 
         @Override
-        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID positionId) {
             return false;
         }
     }

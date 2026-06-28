@@ -137,6 +137,8 @@ public class AdminOrganizationMembersExcelUseCase {
                                                         new PositionRow(
                                                                 0,
                                                                 position.id().toString(),
+                                                                affiliateNames.get(
+                                                                        position.affiliateId()),
                                                                 position.name(),
                                                                 position.code(),
                                                                 stringify(position.sortOrder()),
