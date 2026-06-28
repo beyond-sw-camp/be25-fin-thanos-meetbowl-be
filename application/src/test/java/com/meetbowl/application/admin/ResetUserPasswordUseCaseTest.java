@@ -58,7 +58,12 @@ class ResetUserPasswordUseCaseTest {
         ResetUserPasswordResult result =
                 useCase.execute(
                         new ResetUserPasswordCommand(
-                                user.id(), UUID.randomUUID(), "admin", "127.0.0.1", "Mozilla/5.0"));
+                                user.id(),
+                                null,
+                                UUID.randomUUID(),
+                                "admin",
+                                "127.0.0.1",
+                                "Mozilla/5.0"));
 
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
@@ -94,6 +99,7 @@ class ResetUserPasswordUseCaseTest {
                                 useCase.execute(
                                         new ResetUserPasswordCommand(
                                                 missingUserId,
+                                                null,
                                                 UUID.randomUUID(),
                                                 "admin",
                                                 "127.0.0.1",
@@ -116,6 +122,7 @@ class ResetUserPasswordUseCaseTest {
                                 useCase.execute(
                                         new ResetUserPasswordCommand(
                                                 admin.id(),
+                                                null,
                                                 admin.id(),
                                                 "admin",
                                                 "127.0.0.1",

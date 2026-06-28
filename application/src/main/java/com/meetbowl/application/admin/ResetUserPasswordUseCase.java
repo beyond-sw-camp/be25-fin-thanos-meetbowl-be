@@ -60,6 +60,7 @@ public class ResetUserPasswordUseCase {
                                                                             ErrorCode
                                                                                     .USER_NOT_FOUND));
                                     ensureManagedUser(user);
+                                    ensureAccessibleToAdmin(user, command.adminAffiliateId());
 
                                     User updatedUser =
                                             user.resetPasswordByAdmin(
@@ -86,6 +87,16 @@ public class ResetUserPasswordUseCase {
         if (user.role() != UserRole.USER) {
             throw new BusinessException(
                     ErrorCode.COMMON_FORBIDDEN, "관리자 및 시스템 계정의 비밀번호는 초기화할 수 없습니다.");
+        }
+    }
+
+    private void ensureAccessibleToAdmin(User user, UUID adminAffiliateId) {
+        if (adminAffiliateId == null) {
+            return;
+        }
+        if (!java.util.Objects.equals(user.affiliateId(), adminAffiliateId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "다른 계열사의 회원은 관리할 수 없습니다.");
         }
     }
 
