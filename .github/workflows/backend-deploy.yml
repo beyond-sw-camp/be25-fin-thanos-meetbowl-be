@@ -235,6 +235,24 @@ jobs:
             exit 1
           fi
 
+          echo "Resolved API ASG instance ids: ${INSTANCE_IDS}"
+          aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "$API_ASG_NAME" \
+            --query 'AutoScalingGroups[0].Instances[*].[InstanceId,LifecycleState,HealthStatus]' \
+            --output table
+
+          aws ssm describe-instance-information \
+            --query 'InstanceInformationList[*].[InstanceId,PingStatus,PlatformType,AgentVersion]' \
+            --output table
+
+          for INSTANCE_ID in ${INSTANCE_IDS}; do
+            echo "Checking SSM managed-node state for ${INSTANCE_ID}"
+            aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
+              --query 'InstanceInformationList[*].[InstanceId,PingStatus,PlatformType,AgentVersion]' \
+              --output table
+          done
+
           COMMAND_ID="$(
             aws ssm send-command \
               --document-name AWS-RunShellScript \
