@@ -68,7 +68,8 @@ public class AdminDashboardSummaryUseCase {
                         todayReservationCount(todayMeetings, todayStart, tomorrowStart),
                         inUseMeetingRoomCount(roomStatuses),
                         availableMeetingRoomCount(roomStatuses),
-                        timeSlotUsage(todayMeetings, todayStart),
+                        reservationStartUsage(todayMeetings, todayStart),
+                        timeSlotOccupancyUsage(todayMeetings, todayStart),
                         siteBuildingUsage(roomStatuses)));
     }
 
@@ -126,18 +127,44 @@ public class AdminDashboardSummaryUseCase {
                         .count();
     }
 
-    private List<AdminDashboardSummaryResult.TimeSlotUsageResult> timeSlotUsage(
+    private List<AdminDashboardSummaryResult.TimeSlotUsageResult> reservationStartUsage(
             List<Meeting> meetings, Instant todayStart) {
-        // 프런트가 바로 그릴 수 있도록 오늘 24개 슬롯을 빠짐없이 내려준다.
+        // 예약 시작 빈도 그래프는 "각 슬롯에 시작한 예약 수"를 그대로 보여줘야 한다.
         return IntStream.range(0, HOURS_PER_DAY)
-                .mapToObj(hour -> slotUsage(meetings, todayStart.plusSeconds(hour * 3600L)))
+                .mapToObj(
+                        hour ->
+                                reservationStartSlotUsage(
+                                        meetings, todayStart.plusSeconds(hour * 3600L)))
                 .toList();
     }
 
-    private AdminDashboardSummaryResult.TimeSlotUsageResult slotUsage(
+    private List<AdminDashboardSummaryResult.TimeSlotUsageResult> timeSlotOccupancyUsage(
+            List<Meeting> meetings, Instant slotStart) {
+        // 상세 점유 그래프는 "슬롯과 겹치는 회의실 수"를 보여줘야 하므로 별도 집계를 사용한다.
+        return IntStream.range(0, HOURS_PER_DAY)
+                .mapToObj(
+                        hour ->
+                                occupancySlotUsage(
+                                        meetings, slotStart.plusSeconds(hour * 3600L)))
+                .toList();
+    }
+
+    private AdminDashboardSummaryResult.TimeSlotUsageResult reservationStartSlotUsage(
             List<Meeting> meetings, Instant slotStart) {
         Instant slotEnd = slotStart.plusSeconds(3600);
-        // 한 슬롯 안에 조금이라도 걸치면 해당 시간대 사용으로 본다.
+        int reservationCount =
+                (int)
+                        meetings.stream()
+                                .filter(meeting -> !meeting.scheduledAt().isBefore(slotStart))
+                                .filter(meeting -> meeting.scheduledAt().isBefore(slotEnd))
+                                .count();
+        return new AdminDashboardSummaryResult.TimeSlotUsageResult(slotStart, reservationCount);
+    }
+
+    private AdminDashboardSummaryResult.TimeSlotUsageResult occupancySlotUsage(
+            List<Meeting> meetings, Instant slotStart) {
+        Instant slotEnd = slotStart.plusSeconds(3600);
+        // 한 슬롯 안에 조금이라도 걸치면 해당 시간대 점유로 본다.
         int reservationCount =
                 (int)
                         meetings.stream()

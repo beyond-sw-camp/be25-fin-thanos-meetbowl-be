@@ -713,7 +713,13 @@ DELETION_SCHEDULED
 
 관리자 작업 로그는 작업 일시, 작업 내용, 결과, 접속 IP 주소를 포함한다.
 
-### 14.1 메일 보관 정책 자동 적용
+### 14.1 관리자 대시보드 회의실 시간대 요약 기준
+
+- `meetingRoomSummary.timeSlotUsage`는 KST 기준 오늘 24개 시간 슬롯 각각에 대해 "해당 시간에 시작한 예약 건수"를 반환한다.
+- `meetingRoomSummary.timeSlotOccupancyUsage`는 KST 기준 오늘 24개 시간 슬롯 각각에 대해 "해당 시간 슬롯과 겹치는 점유 회의실 수"를 반환한다.
+- 프론트엔드는 두 시계열을 각각 `예약 시작 빈도`, `상세 점유 현황` 비교 그래프로 사용한다.
+
+### 14.2 메일 보관 정책 자동 적용
 
 - `autoDeleteEnabled=false`이면 보관 기간 정책은 저장만 되고 메일함 상태를 변경하지 않는다.
 - `autoDeleteEnabled=true`이면 서버 스케줄러가 KST 기준 주기적으로 정책을 적용한다.
