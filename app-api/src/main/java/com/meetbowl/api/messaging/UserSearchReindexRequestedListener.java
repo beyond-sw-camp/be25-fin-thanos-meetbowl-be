@@ -5,6 +5,8 @@ import java.util.LinkedHashSet;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.meetbowl.application.user.UserSearchReindexUseCase;
 import com.meetbowl.common.event.EventEnvelope;
 import com.meetbowl.common.event.EventTypes;
@@ -16,6 +18,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /** 회원/조직 수정 후 발행된 검색 재색인 요청을 수신해 기존 Elasticsearch 재색인 유스케이스로 위임한다. */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class UserSearchReindexRequestedListener {
 
     private final ObjectMapper objectMapper;

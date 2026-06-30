@@ -3,6 +3,8 @@ package com.meetbowl.api.minutes;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.meetbowl.application.minutes.SyncGeneratedMinutesCommand;
 import com.meetbowl.application.minutes.SyncGeneratedMinutesUseCase;
 import com.meetbowl.common.event.EventEnvelope;
@@ -14,6 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /** AI 서버가 발행한 minutes.generated 이벤트를 저장용 application use case에 전달한다. */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class RabbitMinutesGeneratedEventListener {
 
     private final ObjectMapper objectMapper;

@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.meetbowl.application.mail.ApplyMailRetentionPolicyUseCase;
 import com.meetbowl.application.mail.MailRetentionApplyResult;
 
@@ -15,6 +17,7 @@ import com.meetbowl.application.mail.MailRetentionApplyResult;
  * cron도 Asia/Seoul 시간대로 해석한다.
  */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class MailRetentionScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(MailRetentionScheduler.class);

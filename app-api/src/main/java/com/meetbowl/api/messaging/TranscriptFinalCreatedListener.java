@@ -6,6 +6,8 @@ import java.util.UUID;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.meetbowl.application.transcript.SaveFinalTranscriptCommand;
@@ -26,6 +28,7 @@ import com.meetbowl.application.transcript.SaveFinalTranscriptUseCase;
  * <p>메시지 DTO를 바로 도메인으로 흘리지 않고 여기서 command로 변환해 Application 계층 경계를 지킨다.
  */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class TranscriptFinalCreatedListener {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
