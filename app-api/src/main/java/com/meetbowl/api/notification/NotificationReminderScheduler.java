@@ -3,6 +3,8 @@ package com.meetbowl.api.notification;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.meetbowl.application.notification.SendMeetingRemindersUseCase;
 import com.meetbowl.application.notification.SendMinutesReviewRemindersUseCase;
 
@@ -16,6 +18,7 @@ import com.meetbowl.application.notification.SendMinutesReviewRemindersUseCase;
  * 주기에 재시도한다 — 발송은 알림 테이블을 원장으로 중복을 막으므로 재시도가 안전하다.
  */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class NotificationReminderScheduler {
 
     /** 회의 리마인더 점검 주기(60초). 발송 시각을 분 단위로 맞추기 위해 분 단위로 점검한다. */
