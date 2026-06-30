@@ -218,8 +218,8 @@ jobs:
       - name: Deploy API on ASG instances via SSM
         if: steps.deploy-mode.outputs.value == 'split'
         env:
-          API_ASG_NAME: ${{ secrets.MEETBOWL_API_ASG_NAME }}
-          API_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_DEPLOY_PATH }}
+          API_ASG_NAME: ${{ secrets.MEETBOWL_API_BLUE_ASG_NAME }}
+          API_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_BLUE_DEPLOY_PATH }}
         run: |
           set -euo pipefail
 
