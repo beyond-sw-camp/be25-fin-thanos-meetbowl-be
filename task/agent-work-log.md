@@ -1310,3 +1310,18 @@
   Did not tune `minimumIdle` or other Hikari timings; only the maximum pool size default changed.
 - Verification:
   Configuration-only change; no local Gradle rerun was performed in this workspace after the update.
+
+2026-07-01 meetbowl-be internal error logging for login/runtime diagnosis
+
+- Purpose: make unexpected `500 COMMON_INTERNAL_ERROR` responses diagnosable in production by logging the underlying exception instead of swallowing it silently in the global handler.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/common/GlobalExceptionHandler.java`,
+  and this log.
+- Behavior:
+  The catch-all `@ExceptionHandler(Exception.class)` now writes an error log with HTTP method, request URI, query string, and full exception stack trace before returning the existing common 500 response body.
+  Client-facing error contracts are unchanged.
+- Excluded scope:
+  Did not alter business-exception handling or introduce new error response fields.
+  Did not yet identify the exact production login failure cause because the deployed instance must be restarted with this code first.
+- Verification:
+  Attempted `./gradlew :app-api:compileJava`, but local execution was blocked by a Gradle wrapper lock-file permission error under `~/.gradle/wrapper/dists`.

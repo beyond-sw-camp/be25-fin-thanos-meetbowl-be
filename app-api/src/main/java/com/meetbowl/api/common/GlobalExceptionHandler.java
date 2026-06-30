@@ -3,7 +3,10 @@ package com.meetbowl.api.common;
 import java.util.List;
 
 import jakarta.validation.ConstraintViolationException;
+import jakarta.servlet.http.HttpServletRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -26,6 +29,8 @@ import com.meetbowl.common.response.ErrorDetail;
 /** app-api의 모든 예외를 문서의 공통 실패 응답 포맷으로 변환한다. Controller에서는 try-catch로 응답을 직접 만들지 않는다. */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /** UseCase와 Domain에서 발생시킨 의도된 업무 실패를 그대로 클라이언트 계약으로 변환한다. */
     @ExceptionHandler(BusinessException.class)
@@ -121,7 +126,16 @@ public class GlobalExceptionHandler {
 
     /** 예상하지 못한 예외의 내부 상세는 클라이언트에 노출하지 않는다. */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleException(
+            Exception exception, HttpServletRequest request) {
+        // 운영 장애를 추적할 수 있도록 요청 경로와 예외 스택은 서버 로그에 남기고,
+        // 클라이언트에는 기존 계약대로 공통 500 응답만 반환한다.
+        log.error(
+                "Unhandled exception: method={}, uri={}, query={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getQueryString(),
+                exception);
         ErrorCode errorCode = ErrorCode.COMMON_INTERNAL_ERROR;
         return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
     }
