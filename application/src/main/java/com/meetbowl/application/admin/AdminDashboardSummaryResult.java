@@ -24,6 +24,7 @@ public record AdminDashboardSummaryResult(
             int inUseMeetingRoomCount,
             int availableMeetingRoomCount,
             List<TimeSlotUsageResult> timeSlotUsage,
+            List<TimeSlotUsageResult> timeSlotOccupancyUsage,
             List<SiteBuildingUsageResult> siteBuildingUsage) {}
 
     public record TimeSlotUsageResult(java.time.Instant slotStartAt, int reservationCount) {}
