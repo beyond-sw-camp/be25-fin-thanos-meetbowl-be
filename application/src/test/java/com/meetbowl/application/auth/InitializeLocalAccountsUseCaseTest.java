@@ -1,7 +1,6 @@
 package com.meetbowl.application.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -28,8 +27,7 @@ class InitializeLocalAccountsUseCaseTest {
         AffiliateRepositoryPort affiliateRepository = mock(AffiliateRepositoryPort.class);
         UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        when(userRepository.findByLoginId("admin1")).thenReturn(Optional.empty());
-        when(userRepository.findByLoginId("admin2")).thenReturn(Optional.empty());
+        when(userRepository.findByLoginId("admin")).thenReturn(Optional.empty());
         when(userRepository.findByLoginId("user1")).thenReturn(Optional.empty());
         when(userRepository.findByLoginId("user2")).thenReturn(Optional.empty());
         when(affiliateRepository.save(any()))
@@ -51,23 +49,19 @@ class InitializeLocalAccountsUseCaseTest {
                 .execute();
 
         ArgumentCaptor<Affiliate> affiliateCaptor = ArgumentCaptor.forClass(Affiliate.class);
-        verify(affiliateRepository, org.mockito.Mockito.times(2)).save(affiliateCaptor.capture());
-        assertEquals("기본 계열사 1", affiliateCaptor.getAllValues().get(0).name());
-        assertEquals("기본 계열사 2", affiliateCaptor.getAllValues().get(1).name());
+        verify(affiliateRepository).save(affiliateCaptor.capture());
+        assertEquals("한화 시스템", affiliateCaptor.getAllValues().get(0).name());
         assertEquals("LOCAL-1", affiliateCaptor.getAllValues().get(0).code());
-        assertEquals("LOCAL-2", affiliateCaptor.getAllValues().get(1).code());
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, org.mockito.Mockito.times(4)).save(captor.capture());
+        verify(userRepository, org.mockito.Mockito.times(3)).save(captor.capture());
         assertEquals(UserRole.ADMIN, captor.getAllValues().get(0).role());
-        assertEquals(UserRole.ADMIN, captor.getAllValues().get(1).role());
+        assertEquals(UserRole.USER, captor.getAllValues().get(1).role());
         assertEquals(UserRole.USER, captor.getAllValues().get(2).role());
-        assertEquals(UserRole.USER, captor.getAllValues().get(3).role());
-        assertEquals("admin1", captor.getAllValues().get(0).loginId());
-        assertEquals("admin2", captor.getAllValues().get(1).loginId());
+        assertEquals("admin", captor.getAllValues().get(0).loginId());
+        assertEquals("한화 시스템 관리자", captor.getAllValues().get(0).name());
+        assertEquals(captor.getAllValues().get(0).affiliateId(), captor.getAllValues().get(1).affiliateId());
         assertEquals(captor.getAllValues().get(0).affiliateId(), captor.getAllValues().get(2).affiliateId());
-        assertEquals(captor.getAllValues().get(1).affiliateId(), captor.getAllValues().get(3).affiliateId());
-        assertNotEquals(captor.getAllValues().get(0).affiliateId(), captor.getAllValues().get(1).affiliateId());
     }
 
     @Test
@@ -75,8 +69,7 @@ class InitializeLocalAccountsUseCaseTest {
         AffiliateRepositoryPort affiliateRepository = mock(AffiliateRepositoryPort.class);
         UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-        when(userRepository.findByLoginId("admin1")).thenReturn(Optional.of(mock(User.class)));
-        when(userRepository.findByLoginId("admin2")).thenReturn(Optional.of(mock(User.class)));
+        when(userRepository.findByLoginId("admin")).thenReturn(Optional.of(mock(User.class)));
         when(userRepository.findByLoginId("user1")).thenReturn(Optional.of(mock(User.class)));
         when(userRepository.findByLoginId("user2")).thenReturn(Optional.of(mock(User.class)));
 

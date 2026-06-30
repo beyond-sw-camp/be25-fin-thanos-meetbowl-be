@@ -36,7 +36,7 @@ docker build -t meetbowl-be:local .
 local: flyway migrate + ddl-auto=validate
 test: ddl-auto=create-drop
 prod: flyway migrate + ddl-auto=validate
-prod: flyway migrate + ddl-auto=validate + 1회성 초기 계정(admin1/admin2/user1/user2) 생성
+prod: flyway migrate + ddl-auto=validate + 1회성 초기 계정(admin/user1/user2) 생성
 ```
 
 로컬 MariaDB 접속 정보는 환경 변수로 덮어쓸 수 있다.
@@ -121,8 +121,8 @@ GitHub Actions 배포 파이프라인은 `/meetbowl/prod/be/MEETBOWL_CORS_ALLOWE
 SSM 파라미터를 읽어 이 값을 주입한다.
 
 운영 배포 직후 기본 계정이 필요하면 `SPRING_PROFILES_ACTIVE=prod`로 실행한다.
-`prod`는 운영 설정을 그대로 쓰면서 `admin1`, `admin2`, `user1`, `user2`를 `1234` 비밀번호로 채우고,
-`admin1`과 `admin2`는 서로 다른 계열사에 소속되도록 만든다. 동일 계정이 있으면 다시 만들지 않는다.
+`prod`는 운영 설정을 그대로 쓰면서 `admin`, `user1`, `user2`를 `1234` 비밀번호로 채우고,
+`admin`은 `한화 시스템` 계열사에 소속되도록 만든다. 동일 계정이 있으면 다시 만들지 않는다.
 
 ## Architecture Checks
 

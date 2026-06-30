@@ -1204,3 +1204,44 @@
 - Verification:
   Passed targeted admin dashboard summary test.
   Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 notification SSE error response content-type fix
+
+- Purpose: diagnose and fix `No converter for [class com.meetbowl.common.response.ApiResponse] with preset Content-Type 'text/event-stream'` during notification SSE subscription failures.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/common/GlobalExceptionHandler.java`,
+  `app-api/src/test/java/com/meetbowl/api/notification/NotificationControllerTest.java`,
+  `app-api/src/test/java/com/meetbowl/api/config/SecurityConfigTest.java`,
+  and this log.
+- Behavior:
+  Forced all common exception-handler responses to `application/json` so an exception raised after an SSE handler mapping is selected does not try to serialize `ApiResponse` as `text/event-stream`.
+  Added a regression test proving `/api/v1/notifications/subscribe` authentication failure returns the common JSON error instead of failing message conversion.
+  Added a security/CORS regression test proving the SSE endpoint accepts `?token=` access tokens and returns the expected CORS header for the default local frontend origin.
+- Findings:
+  The frontend already opens SSE with `new EventSource('/api/v1/notifications/subscribe?token=...')`, which matches the backend query-token resolver.
+  Default backend CORS allows only `http://localhost:*` and `http://127.0.0.1:*`; deployed frontend origins still require `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`.
+- Excluded scope:
+  Did not change the SSE event payload format or token refresh behavior for long-lived EventSource connections.
+- Verification:
+  Passed `./gradlew :app-api:test --tests com.meetbowl.api.notification.NotificationControllerTest --tests com.meetbowl.api.config.SecurityConfigTest --no-daemon`.
+  Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 seed admin account policy update
+
+- Purpose: restore the default seed policy to a single `admin` administrator and migrate away from the temporary `admin1`/`admin2` seed accounts on prod.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCaseTest.java`,
+  `app-api/src/main/resources/db/migration/V10__restore_single_seed_admin.sql`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Changed local/prod bootstrap back to `admin`, `user1`, and `user2` under one seed affiliate named `한화 시스템`.
+  The seed `admin` display name is now `한화 시스템 관리자`.
+  Added Flyway migration `V10` to rename the existing `admin` affiliate to `한화 시스템`, rename `admin` to `한화 시스템 관리자`, and delete existing `admin1`/`admin2` rows.
+  Kept seed password `1234`, seed users `user1`/`user2`, and the seed affiliate code `LOCAL-1`.
+- Excluded scope:
+  Did not merge or delete orphaned affiliate rows that may have been created by the temporary two-admin seed policy.
+- Verification:
+  Passed `./gradlew :application:test --tests com.meetbowl.application.auth.InitializeLocalAccountsUseCaseTest --no-daemon`.
