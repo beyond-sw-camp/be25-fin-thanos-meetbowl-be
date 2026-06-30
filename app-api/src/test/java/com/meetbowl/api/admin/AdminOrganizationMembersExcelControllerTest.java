@@ -55,7 +55,7 @@ class AdminOrganizationMembersExcelControllerTest {
 
     @Test
     void downloadReturnsWorkbookBytes() throws Exception {
-        given(useCase.export())
+        given(useCase.export(ORGANIZATION_ID))
                 .willReturn(
                         new AdminOrganizationMembersExcelUseCase.ExportResult(
                                 "meetbowl_organization_members_template_v2.xlsx",
@@ -76,6 +76,8 @@ class AdminOrganizationMembersExcelControllerTest {
                                 .contentType(
                                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .andExpect(content().bytes("xlsx-data".getBytes()));
+
+        verify(useCase).export(ORGANIZATION_ID);
     }
 
     @Test

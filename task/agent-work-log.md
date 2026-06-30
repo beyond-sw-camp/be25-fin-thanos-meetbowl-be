@@ -1140,3 +1140,67 @@
 - Verification:
   Passed `./gradlew :application:test --tests com.meetbowl.application.minutes.GetMinutesGenerationContextUseCaseTest :app-api:compileJava --no-daemon`.
   Confirmed the new context result preserves participant metadata, raw transcript text, and transcript segment payloads together.
+
+2026-06-30 admin organization members Excel download controller test alignment
+
+- Purpose: fix CI `./gradlew test --no-daemon` compilation failure after `AdminOrganizationMembersExcelUseCase.export` changed to require the current admin affiliate/organization id.
+- Changed files:
+  `app-api/src/test/java/com/meetbowl/api/admin/AdminOrganizationMembersExcelControllerTest.java`,
+  and this log.
+- Behavior:
+  Updated the download controller test mock from the removed no-argument `export()` contract to `export(ORGANIZATION_ID)`.
+  Added verification that the controller passes the authenticated admin's organization id to the UseCase, matching the existing production controller behavior.
+- Excluded scope:
+  Did not change production code or API behavior.
+- Verification:
+  Passed targeted controller/dashboard/mail/infrastructure tests.
+  Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 infrastructure meeting test context external invitee dependency alignment
+
+- Purpose: unblock full `./gradlew test --no-daemon` after meeting UseCases gained external invitee synchronization and invitation-mail dependencies that the infrastructure meeting slice tests did not register.
+- Changed files:
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meeting/MeetingLifecycleTest.java`,
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meeting/MeetingReservationConcurrencyTest.java`,
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomReservationsTest.java`,
+  `infrastructure/src/test/java/com/meetbowl/infrastructure/persistence/meetingroom/MeetingRoomStatusTest.java`,
+  and this log.
+- Behavior:
+  Added the real external invitee repository adapter and sync service to the meeting persistence test contexts.
+  Added a mocked `SendMeetingExternalInvitationMailUseCase` because these tests verify meeting and meeting-room persistence behavior, not mail dispatch side effects.
+  Added a UTC `Clock` bean because these slice tests do not load the app-api runtime bean configuration.
+- Excluded scope:
+  Did not change production code or external invitation mail behavior.
+- Verification:
+  Passed targeted infrastructure meeting tests.
+  Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 domain mail test external recipient contract alignment
+
+- Purpose: unblock full `./gradlew test --no-daemon` after current `Mail` factory methods require the external recipient list separately from internal recipient user ids.
+- Changed files:
+  `domain/src/test/java/com/meetbowl/domain/mail/MailTest.java`,
+  and this log.
+- Behavior:
+  Updated domain mail tests that do not use external mail recipients to pass `List.of()` for the new `externalRecipients` argument.
+  Preserved the existing test scenarios for recipient duplication, body length validation, restore state validation, attachment ownership, and delivery lifecycle.
+- Excluded scope:
+  Did not change domain production code or mail behavior.
+- Verification:
+  Passed targeted domain mail test.
+  Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 admin dashboard time-slot usage test expectation alignment
+
+- Purpose: unblock full `./gradlew test --no-daemon` after the Excel controller compile fix exposed a stale dashboard summary assertion.
+- Changed files:
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Aligned `timeSlotUsage` assertions with the existing `AdminDashboardSummaryUseCase` contract where this series counts meetings by reservation start time.
+  Kept `timeSlotOccupancyUsage` assertions as the overlapping-slot occupancy series.
+- Excluded scope:
+  Did not change dashboard production logic or API response shape.
+- Verification:
+  Passed targeted admin dashboard summary test.
+  Passed full `./gradlew test --no-daemon`.

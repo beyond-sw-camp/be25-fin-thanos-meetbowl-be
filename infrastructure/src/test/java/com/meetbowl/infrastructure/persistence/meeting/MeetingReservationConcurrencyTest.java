@@ -2,7 +2,9 @@ package com.meetbowl.infrastructure.persistence.meeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
@@ -27,8 +30,10 @@ import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
+import com.meetbowl.application.meeting.MeetingExternalInviteeSyncService;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
+import com.meetbowl.application.meeting.SendMeetingExternalInvitationMailUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
@@ -182,11 +187,24 @@ class MeetingReservationConcurrencyTest {
         MeetingRoomJpaConfig.class,
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
+        JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
         MeetingAttendeeOverlapGuard.class,
+        MeetingExternalInviteeSyncService.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class
     })
-    static class TestApplication {}
+    static class TestApplication {
+
+        @Bean
+        SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase() {
+            return mock(SendMeetingExternalInvitationMailUseCase.class);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
+        }
+    }
 }

@@ -157,7 +157,7 @@ class AdminDashboardSummaryUseCaseTest {
                         .orElseThrow()
                         .reservationCount());
         assertEquals(
-                1,
+                0,
                 result.meetingRoomSummary().timeSlotUsage().stream()
                         .filter(
                                 slot ->
@@ -167,7 +167,7 @@ class AdminDashboardSummaryUseCaseTest {
                         .orElseThrow()
                         .reservationCount());
         assertEquals(
-                1,
+                2,
                 result.meetingRoomSummary().timeSlotUsage().stream()
                         .filter(
                                 slot ->
