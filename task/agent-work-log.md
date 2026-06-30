@@ -1277,6 +1277,21 @@
 - Excluded scope:
   Did not add new domain behavior for scheduler idempotency beyond the existing queue/listener contracts.
   Did not execute the remote EC2 deployment path from this workspace.
-- Verification:
+ - Verification:
   Passed `./gradlew :app-api:compileJava :infrastructure:compileJava --no-daemon`.
   Passed `./gradlew :app-api:test --tests com.meetbowl.api.config.LocalDataInitializerTest --no-daemon`.
+
+2026-07-01 meetbowl-be RabbitMQ URI override for managed broker migration
+
+- Purpose: allow production BE instances to connect to Amazon MQ with a single `amqps://...` environment variable instead of splitting broker host, port, credentials, and vhost across multiple SSM keys.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `.env.example`,
+  and this log.
+- Behavior:
+  Added `spring.rabbitmq.addresses=${MEETBOWL_RABBITMQ_URI:}` so Spring Boot uses a full broker URI when present and falls back to the existing host/port/username/password/vhost settings when it is absent.
+  Documented the new optional `MEETBOWL_RABBITMQ_URI` variable in the local environment example.
+- Excluded scope:
+  Did not remove the legacy split RabbitMQ variables because existing local and rollback environments still depend on them.
+- Verification:
+  Configuration-only change; runtime validation remains to be done on the production worker/API instances against the target Amazon MQ broker.
