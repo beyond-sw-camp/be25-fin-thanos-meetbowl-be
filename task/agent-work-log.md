@@ -1341,3 +1341,19 @@
   Did not add Redis username/password properties because the current target issue was TLS transport, not Redis AUTH.
 - Verification:
   Configuration-only change; no separate Gradle rerun was needed because property resolution is handled by Spring Boot configuration binding.
+
+2026-07-01 meetbowl-be Redis TLS/auth production wiring
+
+- Purpose: finish the managed Redis migration wiring after finding that the new TLS flag was not actually passed into BE containers and that production may also require Redis AUTH credentials.
+- Changed files:
+  `app-api/src/main/resources/application-prod.properties`,
+  `app-api/src/main/resources/application-local.properties`,
+  `.env.example`,
+  and this log.
+- Behavior:
+  Added optional `MEETBOWL_REDIS_USERNAME` / `MEETBOWL_REDIS_PASSWORD` bindings through Spring Boot Redis properties.
+  This keeps local/default environments unchanged when credentials are blank, while allowing ElastiCache-authenticated environments to connect without code forks.
+- Excluded scope:
+  Did not hard-require Redis credentials because some environments may still use unauthenticated local Redis.
+- Verification:
+  Passed `./gradlew :app-api:compileJava`.
