@@ -37,6 +37,7 @@ public enum ErrorCode {
     MEETING_JOIN_TOO_EARLY("MEETING_JOIN_TOO_EARLY", "회의 시작 15분 전부터 입장할 수 있습니다.", 409),
     MEETING_ROOM_ALREADY_RESERVED("MEETING_ROOM_ALREADY_RESERVED", "회의실이 이미 예약되어 있습니다.", 409),
     MEETING_ROOM_UNAVAILABLE("MEETING_ROOM_UNAVAILABLE", "사용할 수 없는 회의실입니다.", 409),
+    MEETING_ROOM_BLOCKED("MEETING_ROOM_BLOCKED", "해당 시간대는 사용 제한된 회의실입니다.", 409),
     ATTENDEE_TIME_CONFLICT("ATTENDEE_TIME_CONFLICT", "이미 다른 회의에 참석 중인 사용자가 있습니다.", 409),
     MEETING_FORBIDDEN_GUEST_ACCESS(
             "MEETING_FORBIDDEN_GUEST_ACCESS", "게스트가 접근할 수 없는 회의 기능입니다.", 403),
