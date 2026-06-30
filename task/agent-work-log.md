@@ -1295,3 +1295,18 @@
   Did not remove the legacy split RabbitMQ variables because existing local and rollback environments still depend on them.
 - Verification:
   Configuration-only change; runtime validation remains to be done on the production worker/API instances against the target Amazon MQ broker.
+
+2026-07-01 meetbowl-be datasource pool default lowered to 5
+
+- Purpose: reduce the default Hikari connection pool size from the library default 10 to 5 so newly started BE instances consume fewer MariaDB connections unless an environment override is explicitly provided.
+- Changed files:
+  `app-api/src/main/resources/application.properties`,
+  `.env.example`,
+  and this log.
+- Behavior:
+  Added `spring.datasource.hikari.maximum-pool-size=${MEETBOWL_DB_MAX_POOL_SIZE:5}` as the common default for every runtime profile.
+  Added `MEETBOWL_DB_MAX_POOL_SIZE=5` to the example environment file.
+- Excluded scope:
+  Did not tune `minimumIdle` or other Hikari timings; only the maximum pool size default changed.
+- Verification:
+  Configuration-only change; no local Gradle rerun was performed in this workspace after the update.
