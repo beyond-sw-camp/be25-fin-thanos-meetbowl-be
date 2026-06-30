@@ -1140,3 +1140,38 @@
 - Verification:
   Passed `./gradlew :application:test --tests com.meetbowl.application.minutes.GetMinutesGenerationContextUseCaseTest :app-api:compileJava --no-daemon`.
   Confirmed the new context result preserves participant metadata, raw transcript text, and transcript segment payloads together.
+
+2026-06-26 current MariaDB DDL export
+
+- Purpose: provide the current project DDL for ERD and table-specification documentation.
+- Changed files:
+  `docs/database/current-ddl.sql`,
+  `../docs/database/current-ddl.sql`,
+  and this log.
+- Behavior:
+  Exported the current MariaDB-oriented schema from the Spring/Hibernate `schema-export` profile and stored it as an ERDCloud import artifact.
+  The final DDL includes the current JPA-mapped schema state, including the Flyway-era additions for admin audit target fields, user soft delete, password reset requests, and the meeting-ended transactional Outbox.
+  Rewrote `current-ddl.sql` with only `CREATE TABLE` blocks and inline primary keys, unique constraints, and logical foreign keys so ERDCloud can render relationship lines for application-level raw UUID references.
+  Ordered tables so referenced tables are created before dependent tables where possible.
+  Omitted standalone indexes because they do not affect ERD relationship rendering.
+- Verification:
+  Ran `./gradlew :app-api:bootRun --args='--spring.profiles.active=schema-export'`.
+  The schema export produced `app-api/build/generated-schema/meetbowl-baseline.sql` with 40 `create table` statements and the expected current tables/columns.
+  Confirmed `current-ddl.sql` imports successfully into a local MariaDB verification database.
+  Verified the imported schema has 40 tables, 40 primary keys, 24 unique constraints, and 64 foreign keys.
+  The Spring process did not exit on its own because the meeting-ended Outbox scheduler stayed active under the export profile and repeatedly queried the empty H2 database; the process was stopped after the DDL file was generated.
+
+2026-06-28 local MariaDB environment example alignment
+
+- Purpose: prevent local `:app-api:bootRun` from failing with MariaDB 1045 because BE examples used credentials that did not match the infra Docker Compose defaults.
+- Changed files:
+  `.env.example`,
+  `README.md`,
+  and this log.
+- Behavior:
+  Aligned the local MariaDB example URL with the infra default port `3306`.
+  Aligned the local `meetbowl` database user password with the infra default `local-meetbowl-password`.
+  Runtime behavior is unchanged; `application-local.properties` already used the same defaults.
+- Verification:
+  Reviewed `be25-fin-thanos-meetbowl-infra/docker-compose.yml`, `be25-fin-thanos-meetbowl-infra/.env`, and `app-api/src/main/resources/application-local.properties`.
+  Did not rerun Spring Boot in this step.

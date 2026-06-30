@@ -44,7 +44,7 @@ prod: flyway migrate + ddl-auto=validate + 1회성 초기 계정(admin/user1/use
 ```bash
 MEETBOWL_DB_URL=jdbc:mariadb://localhost:3306/meetbowl
 MEETBOWL_DB_USERNAME=meetbowl
-MEETBOWL_DB_PASSWORD=meetbowl
+MEETBOWL_DB_PASSWORD=local-meetbowl-password
 ```
 
 ## Flyway
