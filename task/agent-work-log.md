@@ -1204,3 +1204,24 @@
 - Verification:
   Passed targeted admin dashboard summary test.
   Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 notification SSE error response content-type fix
+
+- Purpose: diagnose and fix `No converter for [class com.meetbowl.common.response.ApiResponse] with preset Content-Type 'text/event-stream'` during notification SSE subscription failures.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/common/GlobalExceptionHandler.java`,
+  `app-api/src/test/java/com/meetbowl/api/notification/NotificationControllerTest.java`,
+  `app-api/src/test/java/com/meetbowl/api/config/SecurityConfigTest.java`,
+  and this log.
+- Behavior:
+  Forced all common exception-handler responses to `application/json` so an exception raised after an SSE handler mapping is selected does not try to serialize `ApiResponse` as `text/event-stream`.
+  Added a regression test proving `/api/v1/notifications/subscribe` authentication failure returns the common JSON error instead of failing message conversion.
+  Added a security/CORS regression test proving the SSE endpoint accepts `?token=` access tokens and returns the expected CORS header for the default local frontend origin.
+- Findings:
+  The frontend already opens SSE with `new EventSource('/api/v1/notifications/subscribe?token=...')`, which matches the backend query-token resolver.
+  Default backend CORS allows only `http://localhost:*` and `http://127.0.0.1:*`; deployed frontend origins still require `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`.
+- Excluded scope:
+  Did not change the SSE event payload format or token refresh behavior for long-lived EventSource connections.
+- Verification:
+  Passed `./gradlew :app-api:test --tests com.meetbowl.api.notification.NotificationControllerTest --tests com.meetbowl.api.config.SecurityConfigTest --no-daemon`.
+  Passed full `./gradlew test --no-daemon`.
