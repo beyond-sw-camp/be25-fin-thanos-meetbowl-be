@@ -1325,3 +1325,19 @@
   Did not yet identify the exact production login failure cause because the deployed instance must be restarted with this code first.
 - Verification:
   Attempted `./gradlew :app-api:compileJava`, but local execution was blocked by a Gradle wrapper lock-file permission error under `~/.gradle/wrapper/dists`.
+
+2026-07-01 meetbowl-be Redis TLS environment toggle
+
+- Purpose: allow production instances to connect to TLS-only managed Redis endpoints such as ElastiCache serverless without custom code branches.
+- Changed files:
+  `app-api/src/main/resources/application-prod.properties`,
+  `app-api/src/main/resources/application-local.properties`,
+  `.env.example`,
+  and this log.
+- Behavior:
+  Added `spring.data.redis.ssl.enabled=${MEETBOWL_REDIS_SSL_ENABLED:false}` so Redis TLS can be turned on by environment variable in both local and production profiles.
+  Documented `MEETBOWL_REDIS_SSL_ENABLED` in the example environment file.
+- Excluded scope:
+  Did not add Redis username/password properties because the current target issue was TLS transport, not Redis AUTH.
+- Verification:
+  Configuration-only change; no separate Gradle rerun was needed because property resolution is handled by Spring Boot configuration binding.
