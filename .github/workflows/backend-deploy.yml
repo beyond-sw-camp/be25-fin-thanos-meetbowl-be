@@ -8,6 +8,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: "Deployment mode"
+        required: true
+        default: split
+        type: choice
+        options:
+          - split
+          - all
 
 concurrency:
   group: meetbowl-be-${{ github.ref }}
@@ -181,33 +190,94 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Load CORS origin patterns from SSM
+      - name: Resolve deploy mode
+        id: deploy-mode
         run: |
           set -euo pipefail
 
-          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME="/meetbowl/prod/be/MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
+          DEPLOY_MODE="split"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.deploy_mode }}" ]; then
+            DEPLOY_MODE="${{ github.event.inputs.deploy_mode }}"
+          fi
 
-          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS="$(
-            aws ssm get-parameter \
-              --name "$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS_SSM_NAME" \
-              --with-decryption \
-              --query 'Parameter.Value' \
+          echo "value=${DEPLOY_MODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Update API desired image tag in SSM
+        if: steps.deploy-mode.outputs.value == 'split'
+        env:
+          API_IMAGE_TAG_SSM_NAME: /meetbowl/prod/be-api/MEETBOWL_BE_IMAGE_TAG
+        run: |
+          set -euo pipefail
+
+          aws ssm put-parameter \
+            --name "$API_IMAGE_TAG_SSM_NAME" \
+            --type String \
+            --overwrite \
+            --value "${IMAGE_TAG}"
+
+      - name: Deploy API on ASG instances via SSM
+        if: steps.deploy-mode.outputs.value == 'split'
+        env:
+          API_ASG_NAME: ${{ secrets.MEETBOWL_API_ASG_NAME }}
+          API_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+
+          INSTANCE_IDS="$(
+            aws autoscaling describe-auto-scaling-groups \
+              --auto-scaling-group-names "$API_ASG_NAME" \
+              --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService`].InstanceId' \
               --output text
           )"
 
-          echo "::add-mask::$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS"
-          echo "MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS=$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS" >> "$GITHUB_ENV"
+          if [ -z "${INSTANCE_IDS}" ]; then
+            echo "no InService instances found in ASG: ${API_ASG_NAME}"
+            exit 1
+          fi
 
-      - name: Deploy on EC2
+          COMMAND_ID="$(
+            aws ssm send-command \
+              --document-name AWS-RunShellScript \
+              --comment "meetbowl-be api deploy ${IMAGE_TAG}" \
+              --instance-ids ${INSTANCE_IDS} \
+              --parameters "commands=[\"set -euo pipefail\",\"cd ${API_DEPLOY_PATH}\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} ./scripts/deploy-be-api.sh\"]" \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+
+          for INSTANCE_ID in ${INSTANCE_IDS}; do
+            aws ssm wait command-executed \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$INSTANCE_ID"
+
+            STATUS="$(
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query 'Status' \
+                --output text
+            )"
+
+            if [ "$STATUS" != "Success" ]; then
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$INSTANCE_ID" \
+                --query '{Status:Status,StandardOutputContent:StandardOutputContent,StandardErrorContent:StandardErrorContent}' \
+                --output json
+              exit 1
+            fi
+          done
+
+      - name: Deploy worker on EC2
+        if: steps.deploy-mode.outputs.value == 'split'
         env:
-          SSH_HOST: ${{ secrets.MEETBOWL_EC2_HOST }}
-          SSH_USER: ${{ secrets.MEETBOWL_EC2_USER }}
-          SSH_KEY: ${{ secrets.MEETBOWL_EC2_SSH_KEY }}
-          DEPLOY_PATH: ${{ secrets.MEETBOWL_DEPLOY_PATH }}
+          SSH_HOST: ${{ secrets.MEETBOWL_WORKER_EC2_HOST }}
+          SSH_USER: ${{ secrets.MEETBOWL_WORKER_EC2_USER }}
+          SSH_KEY: ${{ secrets.MEETBOWL_WORKER_EC2_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.MEETBOWL_WORKER_DEPLOY_PATH }}
           AWS_REGION: ${{ env.AWS_REGION }}
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS: ${{ env.MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS }}
         run: |
           set -euo pipefail
 
@@ -217,7 +287,39 @@ jobs:
           ssh-keyscan "$SSH_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS='$MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS' bash -s" <<'EOF'
+            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' bash -s" <<'EOF'
+          set -euo pipefail
+
+          cd "$DEPLOY_PATH"
+
+          if [ ! -x ./scripts/deploy-be-worker.sh ]; then
+            echo "expected deploy script at $DEPLOY_PATH/scripts/deploy-be-worker.sh"
+            exit 1
+          fi
+
+          ./scripts/deploy-be-worker.sh
+          EOF
+
+      - name: Deploy legacy all-mode fallback on dedicated EC2
+        if: steps.deploy-mode.outputs.value == 'all'
+        env:
+          SSH_HOST: ${{ secrets.MEETBOWL_FALLBACK_EC2_HOST }}
+          SSH_USER: ${{ secrets.MEETBOWL_FALLBACK_EC2_USER }}
+          SSH_KEY: ${{ secrets.MEETBOWL_FALLBACK_EC2_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.MEETBOWL_FALLBACK_DEPLOY_PATH }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" \
+            "DEPLOY_PATH='$DEPLOY_PATH' AWS_REGION='$AWS_REGION' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' bash -s" <<'EOF'
           set -euo pipefail
 
           cd "$DEPLOY_PATH"

@@ -1245,3 +1245,38 @@
   Did not merge or delete orphaned affiliate rows that may have been created by the temporary two-admin seed policy.
 - Verification:
   Passed `./gradlew :application:test --tests com.meetbowl.application.auth.InitializeLocalAccountsUseCaseTest --no-daemon`.
+
+2026-06-30 meetbowl-be role split and split deploy workflow
+
+- Purpose: keep the existing single-image rollback path while allowing `meetbowl-be` to run in split `api` / `worker` roles and align the backend deployment workflow with that runtime shape.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/ConditionalOnMeetbowlAppRole.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/MeetbowlAppRole.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/MeetbowlAppRoleCondition.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/UserSearchIndexStartupInitializer.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
+  `app-api/src/main/java/com/meetbowl/api/mail/MailRetentionScheduler.java`,
+  `app-api/src/main/java/com/meetbowl/api/messaging/MeetingEndedOutboxScheduler.java`,
+  `app-api/src/main/java/com/meetbowl/api/messaging/TranscriptFinalCreatedListener.java`,
+  `app-api/src/main/java/com/meetbowl/api/messaging/UserSearchReindexRequestedListener.java`,
+  `app-api/src/main/java/com/meetbowl/api/minutes/RabbitMinutesGeneratedEventListener.java`,
+  `app-api/src/main/java/com/meetbowl/api/notification/NotificationReminderScheduler.java`,
+  `app-api/src/main/resources/application.properties`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/search/user/UserSearchIndexInitializer.java`,
+  `.env.example`,
+  `README.md`,
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  Added `MEETBOWL_APP_ROLE` with `all`, `api`, `worker` modes. Missing or unknown values fall back to `all`.
+  Restricted scheduler, RabbitMQ listener, prod seed, and user-search startup work to `all` or `worker`, so `api` mode can serve HTTP traffic without duplicate background execution.
+  Moved the user-search startup trigger into `app-api` so the `infrastructure` module no longer owns application startup wiring.
+  Updated the GitHub Actions deploy job so API deploys target the API ASG through AWS SSM and Worker deploys target the dedicated worker EC2 through SSH.
+  The workflow now records the API desired image tag into SSM so API instances can read the same tag at boot through `/meetbowl/prod/be-api/MEETBOWL_BE_IMAGE_TAG`.
+  Manual `workflow_dispatch` fallback deployment in `all` mode now assumes a dedicated fallback EC2.
+- Excluded scope:
+  Did not add new domain behavior for scheduler idempotency beyond the existing queue/listener contracts.
+  Did not execute the remote EC2 deployment path from this workspace.
+- Verification:
+  Passed `./gradlew :app-api:compileJava :infrastructure:compileJava --no-daemon`.
+  Passed `./gradlew :app-api:test --tests com.meetbowl.api.config.LocalDataInitializerTest --no-daemon`.
