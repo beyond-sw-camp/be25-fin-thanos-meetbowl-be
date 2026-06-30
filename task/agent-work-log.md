@@ -1204,3 +1204,172 @@
 - Verification:
   Passed targeted admin dashboard summary test.
   Passed full `./gradlew test --no-daemon`.
+
+2026-06-28 admin user update affiliate fallback and attendee chip shape polish
+
+- Purpose:
+  Prevent admin user update from failing when the request omits `affiliateId`, and make attendee chips visually match the external invite chips more closely.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminUserManagementUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminUserManagementUseCaseTest.java`,
+  `../meetbowl-fe/src/components/rooms/UserSearchPicker.vue`,
+  and this log.
+- Behavior:
+  Admin user update now falls back to the target user's current affiliate when `affiliateId` is absent instead of attempting to save a null affiliate.
+  Update validation now checks managed-account/access-scope rules before organization reference validation so SYSTEM-account protection and affiliate scope errors are preserved.
+  Attendee chips now use the same pill-like radius, inline metadata flow, and padding feel as the external invite chips while still showing `이름 · 부서 · 직급`.
+- Verification:
+  Passed `npm run build` in `meetbowl-fe`.
+ Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminUserManagementUseCaseTest --no-daemon --console=plain`.
+
+2026-06-28 admin organization members excel scoped by affiliate
+
+- Purpose:
+  Make the organization/member Excel export and import operate as a single-affiliate file instead of a cross-affiliate workbook.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/AdminOrganizationMembersExcelController.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Excel download now filters departments, teams, positions, and users to the current admin affiliate only, and the downloaded filename is suffixed with the affiliate code.
+  The workbook template no longer asks for `affiliateName` in department/team/position/member rows; the affiliate sheet was removed and scope now comes from the logged-in admin's affiliate.
+  Import validation now rejects workbooks that try to mix multiple affiliates and resolves all downstream organization references inside the file's single affiliate scope.
+- Verification:
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest --no-daemon --console=plain`.
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :app-api:compileJava --no-daemon --console=plain`.
+
+2026-06-28 admin organization members excel remove affiliate input from workbook
+
+- Purpose:
+  Remove affiliate entry columns and the affiliate sheet from the organization/member Excel template so the workbook is always scoped by the logged-in admin's affiliate.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelRows.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  The workbook now contains only `부서`, `팀`, `직급`, and `회원` sheets.
+  Department/team/position/member rows no longer expose `affiliateName` or any affiliate input column.
+  Import continues to resolve scope from the admin's affiliate ID passed in from the API layer.
+- Verification:
+  Pending: `:application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest`
+  Pending: `:app-api:compileJava`
+
+2026-06-28 admin organization members excel simplify workbook to user-only names
+
+- Purpose:
+  Remove manager/admin handling from the Excel template, and drop code entry columns so admins only edit names and status values.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelRows.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  The workbook now exports only `USER` accounts.
+  Department/team/position sheets no longer expose code input columns.
+  The user sheet no longer exposes a role column; imported members are forced to `USER`, and admin accounts are rejected if someone tries to hand-edit them into the file.
+  Header cells now use colored fills so required fields and read-only IDs are visually distinct.
+- Verification:
+ Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest --no-daemon --console=plain`
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :app-api:compileJava --no-daemon --console=plain`
+
+2026-06-29 local minutes sample seed for frontend verification
+
+- Purpose:
+  Prepare a local-only sample meeting and minutes payload so the minutes frontend can be checked without manual API calls.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/minutes/InitializeLocalMinutesUseCase.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  and this log.
+- Behavior:
+  When the `local` profile boots, the app now creates a sample ended meeting with attendees and a draft minutes document if they do not already exist.
+  The sample content includes markdown headings and bullet lists so the minutes detail UI can be validated with realistic text.
+- Verification:
+ Pending: compile/run check for the new local initializer and sample minutes seed.
+
+2026-06-29 local/dev minutes sample seed expanded for user1 visibility
+
+- Purpose:
+  Make the sample minutes data available in both `local` and `dev` profiles so `user1` can see a minute item immediately in the frontend.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  and this log.
+- Behavior:
+  The sample account/minutes bootstrap now runs under `local | dev` instead of local only.
+  This keeps the frontend verification path usable even when the backend is launched with the dev profile.
+- Verification:
+  Pending: compile/run check after profile change.
+
+2026-06-30 admin dashboard timeslot summary contract split for reservation starts vs occupancy
+
+- Purpose:
+  Fix the admin dashboard comparison graph so the backend returns separate time-series for reservation start counts and room occupancy counts instead of overloading one field with overlap-based counts.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryResult.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/dto/AdminDashboardSummaryResponse.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `app-api/src/test/java/com/meetbowl/api/admin/AdminDashboardSummaryControllerTest.java`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  `meetingRoomSummary.timeSlotUsage` now means the number of meetings that start within each KST hourly slot.
+  `meetingRoomSummary.timeSlotOccupancyUsage` was added and now means the number of meetings overlapping each KST hourly slot.
+  The admin dashboard frontend can now bind the blue "예약 시작 빈도" line and orange "상세 점유 현황" line to genuinely different datasets.
+- Verification:
+  Pending: `:application:test` for `AdminDashboardSummaryUseCaseTest`
+  Pending: `:app-api:test` for `AdminDashboardSummaryControllerTest`
+
+2026-06-30 remove local sample minutes seed
+
+- Purpose:
+  Drop the temporary local/dev sample minutes bootstrap because it is no longer needed for frontend verification and should not stay wired into backend startup.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/InitializeLocalMinutesUseCase.java`,
+  and this log.
+- Behavior:
+  Backend startup now seeds only the local Swagger test accounts again.
+  No sample meeting/minutes data is created automatically in `local` or `dev`.
+- Verification:
+  Pending: compile check after removing the sample seed wiring.
+
+2026-06-30 admin dashboard weekday reservation usage contract added
+
+- Purpose:
+  Fix the admin dashboard weekday bar chart so the backend returns real per-weekday reservation counts instead of leaving the frontend with an empty fallback dataset.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryResult.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/dto/AdminDashboardSummaryResponse.java`,
+  `app-api/src/test/java/com/meetbowl/api/admin/AdminDashboardSummaryControllerTest.java`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  The admin dashboard summary API now includes `meetingRoomSummary.weekdayReservationUsage` with Monday-through-Sunday labels and reservation counts for the current KST week.
+  The frontend weekday bar chart can now render real API data from the same dashboard summary payload as the other charts.
+- Verification:
+  Pending: targeted admin dashboard application/API tests and compile checks.
+
+2026-06-30 admin dashboard current room distribution includes reserved overlaps
+
+- Purpose:
+  Align the admin dashboard room distribution with user expectations by counting rooms that are currently time-overlapping with a reservation even if the meeting has not been explicitly started yet.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  `meetingRoomSummary.inUseMeetingRoomCount` and `meetingRoomSummary.siteBuildingUsage` now include both `IN_USE` and `RESERVED` room statuses at the current moment.
+  The dashboard's current room distribution now reflects rooms blocked by meetings in the current time window even when the meeting status is still `SCHEDULED`.
+- Verification:
+  Pending: targeted admin dashboard application test and compile checks.
