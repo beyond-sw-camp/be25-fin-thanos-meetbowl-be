@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -51,6 +52,11 @@ public class GetMeetingRoomStatusUseCase {
 
     @Transactional(readOnly = true)
     public List<RoomStatusResult> execute(RoomStatusQuery query) {
+        return execute(query, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomStatusResult> execute(RoomStatusQuery query, UUID affiliateId) {
         if (query.from() == null || query.to() == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "조회 시작/종료 시각은 필수입니다.");
         }
@@ -64,6 +70,7 @@ public class GetMeetingRoomStatusUseCase {
 
         List<MeetingRoom> rooms =
                 meetingRoomRepositoryPort.findAll().stream()
+                        .filter(room -> matchesAffiliate(room, affiliateId, buildings, sites))
                         .filter(room -> matchesBuilding(room, query))
                         .filter(room -> matchesSite(room, query, buildings))
                         .sorted(Comparator.comparing(MeetingRoom::name))
@@ -145,6 +152,19 @@ public class GetMeetingRoomStatusUseCase {
 
     private boolean matchesBuilding(MeetingRoom room, RoomStatusQuery query) {
         return query.buildingId() == null || query.buildingId().equals(room.buildingId());
+    }
+
+    private boolean matchesAffiliate(
+            MeetingRoom room,
+            UUID affiliateId,
+            Map<UUID, Building> buildings,
+            Map<UUID, Site> sites) {
+        if (affiliateId == null) {
+            return true;
+        }
+        Building building = buildings.get(room.buildingId());
+        Site site = building == null ? null : sites.get(building.siteId());
+        return site != null && Objects.equals(site.affiliateId(), affiliateId);
     }
 
     private boolean matchesSite(

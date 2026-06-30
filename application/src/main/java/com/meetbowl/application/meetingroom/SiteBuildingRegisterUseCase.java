@@ -1,5 +1,7 @@
 package com.meetbowl.application.meetingroom;
 
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,13 @@ public class SiteBuildingRegisterUseCase {
      */
     @Transactional
     public SiteWithBuildingResult execute(String siteName, String buildingName) {
-        Site site = siteRepositoryPort.save(Site.create(siteName, null));
+        return execute(null, siteName, buildingName);
+    }
+
+    @Transactional
+    public SiteWithBuildingResult execute(
+            UUID adminAffiliateId, String siteName, String buildingName) {
+        Site site = siteRepositoryPort.save(Site.create(adminAffiliateId, siteName, null));
         Building building = buildingRepositoryPort.save(Building.create(site.id(), buildingName));
         return new SiteWithBuildingResult(site.id(), site.name(), building.id(), building.name());
     }

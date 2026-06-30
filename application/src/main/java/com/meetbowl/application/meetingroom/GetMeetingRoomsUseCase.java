@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -41,11 +42,18 @@ public class GetMeetingRoomsUseCase {
 
     @Transactional(readOnly = true)
     public PageResponse<MeetingRoomListItemResult> execute(GetMeetingRoomsQuery query) {
+        return execute(query, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<MeetingRoomListItemResult> execute(
+            GetMeetingRoomsQuery query, UUID affiliateId) {
         Map<UUID, Building> buildings = indexById(buildingRepositoryPort.findAll(), Building::id);
         Map<UUID, Site> sites = indexById(siteRepositoryPort.findAll(), Site::id);
 
         List<MeetingRoom> filtered =
                 meetingRoomRepositoryPort.findAll().stream()
+                        .filter(room -> matchesAffiliate(room, affiliateId, buildings, sites))
                         .filter(room -> matchesBuilding(room, query))
                         .filter(room -> matchesSite(room, query, buildings))
                         .filter(
@@ -65,6 +73,19 @@ public class GetMeetingRoomsUseCase {
 
     private boolean matchesBuilding(MeetingRoom room, GetMeetingRoomsQuery query) {
         return query.buildingId() == null || query.buildingId().equals(room.buildingId());
+    }
+
+    private boolean matchesAffiliate(
+            MeetingRoom room,
+            UUID affiliateId,
+            Map<UUID, Building> buildings,
+            Map<UUID, Site> sites) {
+        if (affiliateId == null) {
+            return true;
+        }
+        Building building = buildings.get(room.buildingId());
+        Site site = building == null ? null : sites.get(building.siteId());
+        return site != null && Objects.equals(site.affiliateId(), affiliateId);
     }
 
     private boolean matchesSite(

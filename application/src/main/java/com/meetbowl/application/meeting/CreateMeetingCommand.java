@@ -20,9 +20,11 @@ public record CreateMeetingCommand(
         Instant scheduledAt,
         Instant scheduledEndAt,
         UUID hostUserId,
+        UUID organizationId,
         UUID meetingRoomId,
         String provider,
         String providerRoomId,
         List<UUID> attendeeUserIds,
+        List<ExternalInviteeCommand> externalInvitees,
         UUID reviewerUserId,
         String description) {}

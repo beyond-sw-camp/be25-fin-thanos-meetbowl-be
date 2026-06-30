@@ -19,6 +19,8 @@ import com.meetbowl.domain.meetingroom.Building;
 import com.meetbowl.domain.meetingroom.BuildingRepositoryPort;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
+import com.meetbowl.domain.meetingroom.Site;
+import com.meetbowl.domain.meetingroom.SiteRepositoryPort;
 
 class MeetingRoomAdminUseCaseTest {
 
@@ -29,7 +31,8 @@ class MeetingRoomAdminUseCaseTest {
         FakeMeetingRoomRepositoryPort roomRepository = new FakeMeetingRoomRepositoryPort();
 
         MeetingRoomAdminUseCase useCase =
-                new MeetingRoomAdminUseCase(roomRepository, buildingRepository);
+                new MeetingRoomAdminUseCase(
+                        roomRepository, buildingRepository, new FakeSiteRepositoryPort());
 
         MeetingRoomResult result =
                 useCase.create(
@@ -45,7 +48,9 @@ class MeetingRoomAdminUseCaseTest {
     void createRejectsUnknownBuilding() {
         MeetingRoomAdminUseCase useCase =
                 new MeetingRoomAdminUseCase(
-                        new FakeMeetingRoomRepositoryPort(), new FakeBuildingRepositoryPort());
+                        new FakeMeetingRoomRepositoryPort(),
+                        new FakeBuildingRepositoryPort(),
+                        new FakeSiteRepositoryPort());
 
         BusinessException exception =
                 assertThrows(
@@ -63,7 +68,8 @@ class MeetingRoomAdminUseCaseTest {
         UUID roomId = roomRepository.addRoom();
 
         MeetingRoomAdminUseCase useCase =
-                new MeetingRoomAdminUseCase(roomRepository, new FakeBuildingRepositoryPort());
+                new MeetingRoomAdminUseCase(
+                        roomRepository, new FakeBuildingRepositoryPort(), new FakeSiteRepositoryPort());
 
         useCase.delete(roomId);
 
@@ -74,7 +80,9 @@ class MeetingRoomAdminUseCaseTest {
     void deleteRejectsUnknownRoom() {
         MeetingRoomAdminUseCase useCase =
                 new MeetingRoomAdminUseCase(
-                        new FakeMeetingRoomRepositoryPort(), new FakeBuildingRepositoryPort());
+                        new FakeMeetingRoomRepositoryPort(),
+                        new FakeBuildingRepositoryPort(),
+                        new FakeSiteRepositoryPort());
 
         BusinessException exception =
                 assertThrows(BusinessException.class, () -> useCase.delete(UUID.randomUUID()));
@@ -87,7 +95,8 @@ class MeetingRoomAdminUseCaseTest {
         UUID roomId = roomRepository.addRoom();
 
         MeetingRoomAdminUseCase useCase =
-                new MeetingRoomAdminUseCase(roomRepository, new FakeBuildingRepositoryPort());
+                new MeetingRoomAdminUseCase(
+                        roomRepository, new FakeBuildingRepositoryPort(), new FakeSiteRepositoryPort());
 
         MeetingRoomResult result = useCase.changeAvailability(roomId, false);
 
@@ -180,5 +189,26 @@ class MeetingRoomAdminUseCaseTest {
         public void deleteById(UUID id) {
             buildings.remove(id);
         }
+    }
+
+    private static class FakeSiteRepositoryPort implements SiteRepositoryPort {
+
+        @Override
+        public Site save(Site site) {
+            return site;
+        }
+
+        @Override
+        public Optional<Site> findById(UUID id) {
+            return Optional.of(Site.of(id, UUID.randomUUID(), "사이트", null));
+        }
+
+        @Override
+        public List<Site> findAll() {
+            return List.of();
+        }
+
+        @Override
+        public void deleteById(UUID id) {}
     }
 }

@@ -21,6 +21,7 @@ public final class MailResponse {
             UUID mailId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalRecipient> externalRecipients,
             String subject,
             String mailType,
             String deliveryStatus,
@@ -34,6 +35,7 @@ public final class MailResponse {
                     result.mailId(),
                     result.senderUserId(),
                     result.recipientUserIds(),
+                    result.externalRecipients().stream().map(ExternalRecipient::from).toList(),
                     result.subject(),
                     result.mailType(),
                     result.deliveryStatus(),
@@ -49,6 +51,7 @@ public final class MailResponse {
             UUID organizationId,
             UUID senderUserId,
             List<UUID> recipientUserIds,
+            List<ExternalRecipient> externalRecipients,
             String subject,
             String body,
             String mailType,
@@ -71,6 +74,7 @@ public final class MailResponse {
                     result.organizationId(),
                     result.senderUserId(),
                     result.recipientUserIds(),
+                    result.externalRecipients().stream().map(ExternalRecipient::from).toList(),
                     result.subject(),
                     result.body(),
                     result.mailType(),
@@ -99,6 +103,22 @@ public final class MailResponse {
                         info.mimeType(),
                         info.sizeBytes());
             }
+        }
+
+        public record ExternalRecipient(String name, String email) {
+
+            public static ExternalRecipient from(
+                    com.meetbowl.application.mail.ExternalMailRecipientResult recipient) {
+                return new ExternalRecipient(recipient.name(), recipient.email());
+            }
+        }
+    }
+
+    public record ExternalRecipient(String name, String email) {
+
+        public static ExternalRecipient from(
+                com.meetbowl.application.mail.ExternalMailRecipientResult recipient) {
+            return new ExternalRecipient(recipient.name(), recipient.email());
         }
     }
 }

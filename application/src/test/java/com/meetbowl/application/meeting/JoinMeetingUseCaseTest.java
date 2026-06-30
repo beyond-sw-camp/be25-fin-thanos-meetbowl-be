@@ -19,6 +19,8 @@ import com.meetbowl.domain.meeting.LiveKitTokenIssueCommand;
 import com.meetbowl.domain.meeting.LiveKitTokenIssueResult;
 import com.meetbowl.domain.meeting.LiveKitTokenIssuer;
 import com.meetbowl.domain.meeting.Meeting;
+import com.meetbowl.domain.meeting.MeetingAttendee;
+import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingRealtimeSessionStarter;
 import com.meetbowl.domain.meeting.MeetingRepositoryPort;
 import com.meetbowl.domain.meeting.MeetingStatus;
@@ -51,8 +53,15 @@ class JoinMeetingUseCaseTest {
                                         "provider-room-123",
                                         MeetingStatus.SCHEDULED,
                                         null,
-                                        null,
-                                        "주간 전략 공유")),
+                                null,
+                                "주간 전략 공유")),
+                        new StubMeetingAttendeeRepository(
+                                List.of(
+                                        MeetingAttendee.create(
+                                                meetingId,
+                                                UUID.fromString(
+                                                        "31f73d71-c04e-4410-a98c-fdc15e918091"),
+                                                com.meetbowl.domain.meeting.AttendeeRole.PARTICIPANT))),
                         tokenIssuer,
                         realtimeSessionStarter,
                         new MeetingGuestNameAllocator(),
@@ -88,6 +97,7 @@ class JoinMeetingUseCaseTest {
         JoinMeetingUseCase useCase =
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
+                        new StubMeetingAttendeeRepository(List.of()),
                         tokenIssuer,
                         realtimeSessionStarter,
                         new MeetingGuestNameAllocator(),
@@ -114,6 +124,7 @@ class JoinMeetingUseCaseTest {
         JoinMeetingUseCase useCase =
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
+                        new StubMeetingAttendeeRepository(List.of()),
                         tokenIssuer,
                         realtimeSessionStarter,
                         new MeetingGuestNameAllocator(),
@@ -143,6 +154,7 @@ class JoinMeetingUseCaseTest {
         JoinMeetingUseCase useCase =
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
+                        new StubMeetingAttendeeRepository(List.of()),
                         tokenIssuer,
                         realtimeSessionStarter,
                         new MeetingGuestNameAllocator(),
@@ -169,6 +181,7 @@ class JoinMeetingUseCaseTest {
         JoinMeetingUseCase useCase =
                 new JoinMeetingUseCase(
                         new StubMeetingRepository(null),
+                        new StubMeetingAttendeeRepository(List.of()),
                         tokenIssuer,
                         realtimeSessionStarter,
                         allocator,
@@ -203,6 +216,7 @@ class JoinMeetingUseCaseTest {
                                         Instant.parse("2026-06-12T01:00:00Z"),
                                         Instant.parse("2026-06-12T02:00:00Z"),
                                         "종료 테스트")),
+                        new StubMeetingAttendeeRepository(List.of()),
                         new RecordingTokenIssuer(),
                         new RecordingRealtimeSessionStarter(),
                         new MeetingGuestNameAllocator(),
@@ -239,6 +253,7 @@ class JoinMeetingUseCaseTest {
                                         null,
                                         null,
                                         "입장 시간 제한 테스트")),
+                        new StubMeetingAttendeeRepository(List.of()),
                         new RecordingTokenIssuer(),
                         new RecordingRealtimeSessionStarter(),
                         new MeetingGuestNameAllocator(),
@@ -278,6 +293,7 @@ class JoinMeetingUseCaseTest {
                                         null,
                                         null,
                                         "입장 가능 시간 테스트")),
+                        new StubMeetingAttendeeRepository(List.of()),
                         tokenIssuer,
                         realtimeSessionStarter,
                         new MeetingGuestNameAllocator(),
@@ -311,6 +327,7 @@ class JoinMeetingUseCaseTest {
                                         null,
                                         null,
                                         "취소 회의 입장 차단 테스트")),
+                        new StubMeetingAttendeeRepository(List.of()),
                         new RecordingTokenIssuer(),
                         new RecordingRealtimeSessionStarter(),
                         new MeetingGuestNameAllocator(),
@@ -331,6 +348,7 @@ class JoinMeetingUseCaseTest {
     void stt세션자동시작이실패해도회의입장은계속할수있다() {
         UUID meetingId = UUID.randomUUID();
         UUID hostUserId = UUID.randomUUID();
+        UUID invitedUserId = UUID.randomUUID();
         RecordingTokenIssuer tokenIssuer = new RecordingTokenIssuer();
         JoinMeetingUseCase useCase =
                 new JoinMeetingUseCase(
@@ -348,6 +366,12 @@ class JoinMeetingUseCaseTest {
                                         null,
                                         null,
                                         "STT 장애 허용 테스트")),
+                        new StubMeetingAttendeeRepository(
+                                List.of(
+                                        MeetingAttendee.create(
+                                                meetingId,
+                                                invitedUserId,
+                                                com.meetbowl.domain.meeting.AttendeeRole.PARTICIPANT))),
                         tokenIssuer,
                         new FailingRealtimeSessionStarter(),
                         new MeetingGuestNameAllocator(),
@@ -357,7 +381,7 @@ class JoinMeetingUseCaseTest {
                 useCase.execute(
                         new JoinMeetingCommand(
                                 meetingId,
-                                UUID.randomUUID(),
+                                invitedUserId,
                                 UUID.randomUUID(),
                                 "게스트",
                                 "guest-stt-warning-test"));
@@ -365,6 +389,53 @@ class JoinMeetingUseCaseTest {
         assertEquals("provider-room-stt-warning", result.roomName());
         assertEquals("issued-token", result.token());
         assertTrue(tokenIssuer.lastCommand.participantIdentity().startsWith("user-"));
+    }
+
+    @Test
+    void 초대되지않은로그인사용자는입장할수없다() {
+        UUID meetingId = UUID.randomUUID();
+        UUID hostUserId = UUID.randomUUID();
+        UUID invitedUserId = UUID.randomUUID();
+        JoinMeetingUseCase useCase =
+                new JoinMeetingUseCase(
+                        new StubMeetingRepository(
+                                Meeting.of(
+                                        meetingId,
+                                        "입장 제한 회의",
+                                        Instant.parse("2026-06-12T00:55:00Z"),
+                                        Instant.parse("2026-06-12T01:55:00Z"),
+                                        hostUserId,
+                                        null,
+                                        "LIVEKIT",
+                                        "provider-room-restricted",
+                                        MeetingStatus.SCHEDULED,
+                                        null,
+                                        null,
+                                        "입장 제한 테스트")),
+                        new StubMeetingAttendeeRepository(
+                                List.of(
+                                        MeetingAttendee.create(
+                                                meetingId,
+                                                invitedUserId,
+                                                com.meetbowl.domain.meeting.AttendeeRole.PARTICIPANT))),
+                        new RecordingTokenIssuer(),
+                        new RecordingRealtimeSessionStarter(),
+                        new MeetingGuestNameAllocator(),
+                        FIXED_CLOCK);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.execute(
+                                        new JoinMeetingCommand(
+                                                meetingId,
+                                                UUID.randomUUID(),
+                                                UUID.randomUUID(),
+                                                "로그인 사용자",
+                                                "user-unauthorized")));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
     }
 
     private static final class RecordingTokenIssuer implements LiveKitTokenIssuer {
@@ -461,5 +532,50 @@ class JoinMeetingUseCaseTest {
 
         @Override
         public void deleteById(UUID id) {}
+    }
+
+    private static final class StubMeetingAttendeeRepository
+            implements MeetingAttendeeRepositoryPort {
+
+        private final List<MeetingAttendee> attendees;
+
+        private StubMeetingAttendeeRepository(List<MeetingAttendee> attendees) {
+            this.attendees = attendees;
+        }
+
+        @Override
+        public MeetingAttendee save(MeetingAttendee attendee) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> saveAll(List<MeetingAttendee> attendees) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
+            return attendees.stream().filter(attendee -> attendee.meetingId().equals(meetingId)).toList();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return attendees.stream()
+                    .filter(attendee -> meetingIds.contains(attendee.meetingId()))
+                    .toList();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByUserId(UUID userId) {
+            return attendees.stream().filter(attendee -> attendee.userId().equals(userId)).toList();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void deleteByMeetingId(UUID meetingId) {}
     }
 }

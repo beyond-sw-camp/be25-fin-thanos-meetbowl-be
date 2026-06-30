@@ -12,10 +12,12 @@ import java.util.UUID;
 public record UpdateMeetingCommand(
         UUID meetingId,
         UUID requesterId,
+        UUID organizationId,
         String title,
         Instant scheduledAt,
         Instant scheduledEndAt,
         UUID meetingRoomId,
         List<UUID> attendeeUserIds,
+        List<ExternalInviteeCommand> externalInvitees,
         UUID reviewerUserId,
         String description) {}

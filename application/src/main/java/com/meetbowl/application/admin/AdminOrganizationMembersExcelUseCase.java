@@ -1,16 +1,13 @@
 package com.meetbowl.application.admin;
 
-import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.AffiliateRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.DepartmentRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.PositionRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.TeamRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.UserRow;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,8 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.WorkbookRows;
 import com.meetbowl.application.admin.excel.OrganizationMembersExcelWorkbookMapper;
 import com.meetbowl.common.exception.BusinessException;
-import com.meetbowl.domain.organization.Affiliate;
-import com.meetbowl.domain.organization.AffiliateRepositoryPort;
+import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.organization.Department;
 import com.meetbowl.domain.organization.DepartmentRepositoryPort;
 import com.meetbowl.domain.organization.Position;
@@ -33,7 +29,6 @@ import com.meetbowl.domain.user.UserRole;
 @Service
 public class AdminOrganizationMembersExcelUseCase {
 
-    private final AffiliateRepositoryPort affiliateRepositoryPort;
     private final DepartmentRepositoryPort departmentRepositoryPort;
     private final TeamRepositoryPort teamRepositoryPort;
     private final PositionRepositoryPort positionRepositoryPort;
@@ -43,7 +38,6 @@ public class AdminOrganizationMembersExcelUseCase {
     private final AdminOrganizationMembersExcelAuditService auditService;
 
     public AdminOrganizationMembersExcelUseCase(
-            AffiliateRepositoryPort affiliateRepositoryPort,
             DepartmentRepositoryPort departmentRepositoryPort,
             TeamRepositoryPort teamRepositoryPort,
             PositionRepositoryPort positionRepositoryPort,
@@ -51,7 +45,6 @@ public class AdminOrganizationMembersExcelUseCase {
             OrganizationMembersExcelWorkbookMapper workbookMapper,
             AdminOrganizationMembersExcelApplyService applyService,
             AdminOrganizationMembersExcelAuditService auditService) {
-        this.affiliateRepositoryPort = affiliateRepositoryPort;
         this.departmentRepositoryPort = departmentRepositoryPort;
         this.teamRepositoryPort = teamRepositoryPort;
         this.positionRepositoryPort = positionRepositoryPort;
@@ -62,74 +55,57 @@ public class AdminOrganizationMembersExcelUseCase {
     }
 
     @Transactional(readOnly = true)
-    public ExportResult export() {
-        // 엑셀 export는 메모리 정렬이 아니라 DB 정렬 조회 결과를 그대로 사용한다.
-        List<Affiliate> affiliates = affiliateRepositoryPort.findAllForExcelExport();
-        List<Department> departments = departmentRepositoryPort.findAllForExcelExport();
-        List<Team> teams = teamRepositoryPort.findAllForExcelExport();
-        List<Position> positions = positionRepositoryPort.findAllForExcelExport();
+    public ExportResult export(UUID adminAffiliateId) {
+        List<Department> departments =
+                departmentRepositoryPort.findAllForExcelExport().stream()
+                        .filter(department -> adminAffiliateId.equals(department.affiliateId()))
+                        .toList();
+        Set<UUID> departmentIds = departments.stream().map(Department::id).collect(java.util.stream.Collectors.toSet());
+        List<Team> teams =
+                teamRepositoryPort.findAllForExcelExport().stream()
+                        .filter(team -> departmentIds.contains(team.departmentId()))
+                        .toList();
+        List<Position> positions =
+                positionRepositoryPort.findAllForExcelExport().stream()
+                        .filter(position -> adminAffiliateId.equals(position.affiliateId()))
+                        .toList();
         List<User> users =
-                userRepositoryPort.findAllForExcelExportByRoles(
-                        Set.of(UserRole.ADMIN, UserRole.USER));
-
-        Map<UUID, String> affiliateNames =
-                affiliates.stream().collect(Collectors.toMap(Affiliate::id, Affiliate::name));
-        Map<UUID, String> departmentNames =
-                departments.stream().collect(Collectors.toMap(Department::id, Department::name));
-        Map<UUID, Department> departmentsById =
-                departments.stream()
-                        .collect(Collectors.toMap(Department::id, department -> department));
-        Map<UUID, String> positionNames =
-                positions.stream().collect(Collectors.toMap(Position::id, Position::name));
+                userRepositoryPort.findAllForExcelExportByRoles(Set.of(UserRole.USER))
+                        .stream()
+                        .filter(user -> adminAffiliateId.equals(user.affiliateId()))
+                        .toList();
+        java.util.Map<UUID, String> departmentNames =
+                departments.stream().collect(java.util.stream.Collectors.toMap(Department::id, Department::name));
+        java.util.Map<UUID, String> positionNames =
+                positions.stream().collect(java.util.stream.Collectors.toMap(Position::id, Position::name));
 
         byte[] bytes =
                 workbookMapper.write(
                         new WorkbookRows(
-                                affiliates.stream()
-                                        .map(
-                                                affiliate ->
-                                                        new AffiliateRow(
-                                                                0,
-                                                                affiliate.id().toString(),
-                                                                affiliate.name(),
-                                                                affiliate.code(),
-                                                                affiliate.status().name()))
-                                        .toList(),
                                 departments.stream()
                                         .map(
                                                 department ->
                                                         new DepartmentRow(
                                                                 0,
                                                                 department.id().toString(),
-                                                                affiliateNames.get(
-                                                                        department.affiliateId()),
                                                                 department.name(),
-                                                                department.code(),
                                                                 stringify(department.sortOrder()),
                                                                 department.status().name()))
                                         .toList(),
                                 teams.stream()
                                         .map(
-                                                team -> {
-                                                    Department department =
-                                                            departmentsById.get(
-                                                                    team.departmentId());
-                                                    return new TeamRow(
-                                                            0,
-                                                            team.id().toString(),
-                                                            department == null
-                                                                    ? null
-                                                                    : affiliateNames.get(
-                                                                            department
-                                                                                    .affiliateId()),
-                                                            department == null
-                                                                    ? null
-                                                                    : department.name(),
-                                                            team.name(),
-                                                            team.code(),
-                                                            stringify(team.sortOrder()),
-                                                            team.status().name());
-                                                })
+                                                team ->
+                                                        new TeamRow(
+                                                                0,
+                                                                team.id().toString(),
+                                                                        departments.stream()
+                                                                                .filter(item -> item.id().equals(team.departmentId()))
+                                                                                .map(Department::name)
+                                                                                .findFirst()
+                                                                                .orElse(null),
+                                                                team.name(),
+                                                                stringify(team.sortOrder()),
+                                                                team.status().name()))
                                         .toList(),
                                 positions.stream()
                                         .map(
@@ -138,7 +114,6 @@ public class AdminOrganizationMembersExcelUseCase {
                                                                 0,
                                                                 position.id().toString(),
                                                                 position.name(),
-                                                                position.code(),
                                                                 stringify(position.sortOrder()),
                                                                 position.status().name()))
                                         .toList(),
@@ -151,18 +126,18 @@ public class AdminOrganizationMembersExcelUseCase {
                                                                 user.loginId(),
                                                                 user.name(),
                                                                 user.email(),
-                                                                affiliateNames.get(
-                                                                        user.affiliateId()),
                                                                 departmentNames.get(
                                                                         user.departmentId()),
-                                                                resolveTeamName(
-                                                                        teams, user.teamId()),
+                                                                resolveTeamName(teams, user.teamId()),
                                                                 positionNames.get(
                                                                         user.positionId()),
-                                                                user.role().name(),
                                                                 user.status().name()))
                                         .toList()));
-        return new ExportResult(OrganizationMembersExcelWorkbookMapper.FILE_NAME, bytes);
+        String fileName =
+                OrganizationMembersExcelWorkbookMapper.FILE_NAME.replace(
+                        ".xlsx",
+                        "_" + sanitizeFileName(adminAffiliateId.toString()) + ".xlsx");
+        return new ExportResult(fileName, bytes);
     }
 
     public ImportResult importExcel(ImportCommand command) {
@@ -206,11 +181,19 @@ public class AdminOrganizationMembersExcelUseCase {
         return value == null ? "" : String.valueOf(value);
     }
 
+    private String sanitizeFileName(String value) {
+        if (value == null || value.isBlank()) {
+            return "affiliate";
+        }
+        return value.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
+    }
+
     public record ExportResult(String fileName, byte[] fileBytes) {}
 
     public record ImportCommand(
             byte[] fileBytes,
             String fileName,
+            UUID adminAffiliateId,
             UUID adminId,
             String adminName,
             String ipAddress,

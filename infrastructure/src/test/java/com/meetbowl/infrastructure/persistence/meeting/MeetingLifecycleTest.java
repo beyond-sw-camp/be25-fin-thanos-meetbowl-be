@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -23,9 +24,12 @@ import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
+import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
+import com.meetbowl.application.meeting.MeetingExternalInviteeSyncService;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
+import com.meetbowl.application.meeting.SendMeetingExternalInvitationMailUseCase;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
@@ -55,6 +59,7 @@ import com.meetbowl.infrastructure.persistence.meetingroom.SpringDataMeetingRoom
         })
 class MeetingLifecycleTest {
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final Instant START = Instant.parse("2099-04-01T01:00:00Z");
     private static final Instant END = Instant.parse("2099-04-01T02:00:00Z");
 
@@ -83,7 +88,7 @@ class MeetingLifecycleTest {
     private MeetingResult createRoomMeeting(UUID roomId, UUID hostId, Instant start, Instant end) {
         return createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "회의", start, end, hostId, roomId, null, null, null, null, null));
+                        "회의", start, end, hostId, ORGANIZATION_ID, roomId, null, null, null, null, null, null));
     }
 
     @Test
@@ -111,7 +116,9 @@ class MeetingLifecycleTest {
                                 START,
                                 END,
                                 host,
+                                ORGANIZATION_ID,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null,
@@ -164,7 +171,7 @@ class MeetingLifecycleTest {
         UUID invitee = UUID.randomUUID();
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "초대 회의", START, END, host, null, null, null, List.of(invitee), null, null));
+                        "초대 회의", START, END, host, ORGANIZATION_ID, null, null, null, List.of(invitee), null, null, null));
 
         // 초대된 사람: 초대 탭 1건, 주최 탭 0건
         assertThat(getMeetingUseCase.getMyMeetings(invitee, MeetingListFilter.INVITED, null, null))
@@ -192,10 +199,12 @@ class MeetingLifecycleTest {
                         START,
                         END,
                         host,
+                        ORGANIZATION_ID,
                         null,
                         null,
                         null,
                         List.of(invitee, reviewer),
+                        null,
                         reviewer,
                         null));
 
@@ -230,10 +239,12 @@ class MeetingLifecycleTest {
                         new UpdateMeetingCommand(
                                 created.meetingId(),
                                 host,
+                                ORGANIZATION_ID,
                                 "수정된 회의",
                                 newStart,
                                 newEnd,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null));
@@ -250,17 +261,19 @@ class MeetingLifecycleTest {
         MeetingResult created =
                 createMeetingUseCase.execute(
                         new CreateMeetingCommand(
-                                "원격 회의", START, END, host, null, null, null, null, null, null));
+                                "원격 회의", START, END, host, ORGANIZATION_ID, null, null, null, null, null, null, null));
 
         MeetingResult updated =
                 updateMeetingUseCase.execute(
                         new UpdateMeetingCommand(
                                 created.meetingId(),
                                 host,
+                                ORGANIZATION_ID,
                                 "회의실로 전환",
                                 START,
                                 END,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null));
@@ -297,10 +310,12 @@ class MeetingLifecycleTest {
                         new UpdateMeetingCommand(
                                 created.meetingId(),
                                 host,
+                                ORGANIZATION_ID,
                                 "제목만 변경",
                                 START,
                                 END,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null));
@@ -326,10 +341,12 @@ class MeetingLifecycleTest {
                                         new UpdateMeetingCommand(
                                                 movable.meetingId(),
                                                 host,
+                                                ORGANIZATION_ID,
                                                 "이동",
                                                 START,
                                                 END,
                                                 roomId,
+                                                null,
                                                 null,
                                                 null,
                                                 null)));
@@ -352,10 +369,12 @@ class MeetingLifecycleTest {
                                         new UpdateMeetingCommand(
                                                 created.meetingId(),
                                                 stranger,
+                                                ORGANIZATION_ID,
                                                 "남이 수정",
                                                 START,
                                                 END,
                                                 roomId,
+                                                null,
                                                 null,
                                                 null,
                                                 null)));
@@ -378,10 +397,12 @@ class MeetingLifecycleTest {
                                 START,
                                 END,
                                 host,
+                                ORGANIZATION_ID,
                                 roomId,
                                 null,
                                 null,
                                 List.of(a, b),
+                                null,
                                 a,
                                 null));
 
@@ -391,11 +412,13 @@ class MeetingLifecycleTest {
                         new UpdateMeetingCommand(
                                 created.meetingId(),
                                 host,
+                                ORGANIZATION_ID,
                                 "회의",
                                 START,
                                 END,
                                 roomId,
                                 List.of(b, c),
+                                null,
                                 c,
                                 null));
 
@@ -420,7 +443,7 @@ class MeetingLifecycleTest {
         MeetingResult created =
                 createMeetingUseCase.execute(
                         new CreateMeetingCommand(
-                                "회의", START, END, host, roomId, null, null, List.of(a), a, null));
+                                "회의", START, END, host, ORGANIZATION_ID, roomId, null, null, List.of(a), null, a, null));
 
         // 검토자(outsider)가 참석자 목록[a]에 없음 → 거부
         BusinessException exception =
@@ -431,11 +454,13 @@ class MeetingLifecycleTest {
                                         new UpdateMeetingCommand(
                                                 created.meetingId(),
                                                 host,
+                                                ORGANIZATION_ID,
                                                 "회의",
                                                 START,
                                                 END,
                                                 roomId,
                                                 List.of(a),
+                                                null,
                                                 outsider,
                                                 null)));
 
@@ -477,10 +502,12 @@ class MeetingLifecycleTest {
                                         new UpdateMeetingCommand(
                                                 created.meetingId(),
                                                 host,
+                                                ORGANIZATION_ID,
                                                 "회의",
                                                 START,
                                                 END,
                                                 roomId,
+                                                null,
                                                 null,
                                                 null,
                                                 null)));
@@ -533,10 +560,13 @@ class MeetingLifecycleTest {
         MeetingRoomJpaConfig.class,
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
+        JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeOverlapGuard.class,
+        MeetingExternalInviteeSyncService.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingUseCase.class,
@@ -549,6 +579,16 @@ class MeetingLifecycleTest {
         @Bean
         DispatchNotificationUseCase dispatchNotificationUseCase() {
             return mock(DispatchNotificationUseCase.class);
+        }
+
+        @Bean
+        SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase() {
+            return mock(SendMeetingExternalInvitationMailUseCase.class);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
         }
     }
 }

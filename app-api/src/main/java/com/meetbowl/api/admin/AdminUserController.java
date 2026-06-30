@@ -94,7 +94,7 @@ public class AdminUserController extends BaseController {
                                         request.email(),
                                         request.role().name(),
                                         request.status().name(),
-                                        request.affiliateId(),
+                                        admin.organizationId(),
                                         request.departmentId(),
                                         request.teamId(),
                                         request.positionId(),
@@ -126,7 +126,8 @@ public class AdminUserController extends BaseController {
                 AdminUserListResponse.from(
                         adminUserManagementUseCase.search(
                                 new AdminUserManagementUseCase.SearchCommand(
-                                        keyword, page, size))));
+                                        keyword, page, size),
+                                admin.organizationId())));
     }
 
     @PostMapping("/search-index/reindex")
@@ -147,7 +148,9 @@ public class AdminUserController extends BaseController {
     public ApiResponse<AdminUserResponse> get(
             @CurrentUser AuthenticatedUser admin, @PathVariable UUID userId) {
         requireAdmin(admin);
-        return ok(AdminUserResponse.from(adminUserManagementUseCase.get(userId)));
+        return ok(
+                AdminUserResponse.from(
+                        adminUserManagementUseCase.get(userId, admin.organizationId())));
     }
 
     /**
@@ -183,7 +186,8 @@ public class AdminUserController extends BaseController {
                                         admin.userId(),
                                         admin.displayName(),
                                         ClientIpResolver.resolve(httpServletRequest),
-                                        httpServletRequest.getHeader("User-Agent")))));
+                                        httpServletRequest.getHeader("User-Agent")),
+                                admin.organizationId())));
     }
 
     /**
@@ -211,7 +215,8 @@ public class AdminUserController extends BaseController {
                                         admin.userId(),
                                         admin.displayName(),
                                         ClientIpResolver.resolve(httpServletRequest),
-                                        httpServletRequest.getHeader("User-Agent")))));
+                                        httpServletRequest.getHeader("User-Agent")),
+                                admin.organizationId())));
     }
 
     /**
@@ -236,7 +241,8 @@ public class AdminUserController extends BaseController {
                                         admin.userId(),
                                         admin.displayName(),
                                         ClientIpResolver.resolve(httpServletRequest),
-                                        httpServletRequest.getHeader("User-Agent")))));
+                                        httpServletRequest.getHeader("User-Agent")),
+                                admin.organizationId())));
     }
 
     @PostMapping(USER_ID_PATH + "/password/reset")
@@ -250,6 +256,7 @@ public class AdminUserController extends BaseController {
                 resetUserPasswordUseCase.execute(
                         new ResetUserPasswordCommand(
                                 userId,
+                                admin.organizationId(),
                                 admin.userId(),
                                 admin.displayName(),
                                 ClientIpResolver.resolve(httpServletRequest),

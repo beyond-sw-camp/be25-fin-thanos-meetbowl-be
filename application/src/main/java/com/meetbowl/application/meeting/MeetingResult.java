@@ -25,13 +25,21 @@ public record MeetingResult(
         String status,
         Instant startedAt,
         Instant endedAt,
-        List<AttendeeResult> attendees) {
+        List<AttendeeResult> attendees,
+        List<ExternalInviteeResult> externalInvitees) {
 
     public static MeetingResult of(Meeting meeting) {
-        return of(meeting, List.of());
+        return of(meeting, List.of(), List.of());
     }
 
     public static MeetingResult of(Meeting meeting, List<MeetingAttendee> attendees) {
+        return of(meeting, attendees, List.of());
+    }
+
+    public static MeetingResult of(
+            Meeting meeting,
+            List<MeetingAttendee> attendees,
+            List<com.meetbowl.domain.meeting.MeetingExternalInvitee> externalInvitees) {
         return new MeetingResult(
                 meeting.id(),
                 meeting.title(),
@@ -45,6 +53,7 @@ public record MeetingResult(
                 meeting.status() == null ? null : meeting.status().name(),
                 meeting.startedAt(),
                 meeting.endedAt(),
-                attendees.stream().map(AttendeeResult::of).toList());
+                attendees.stream().map(AttendeeResult::of).toList(),
+                externalInvitees.stream().map(ExternalInviteeResult::from).toList());
     }
 }

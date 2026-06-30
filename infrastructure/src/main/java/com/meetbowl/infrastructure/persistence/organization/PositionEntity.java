@@ -6,6 +6,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
+import java.util.UUID;
+
 import com.meetbowl.domain.organization.Position;
 import com.meetbowl.domain.organization.ReferenceStatus;
 import com.meetbowl.infrastructure.persistence.common.BaseEntity;
@@ -14,6 +16,10 @@ import com.meetbowl.infrastructure.persistence.common.BaseEntity;
 @Entity
 @Table(name = "positions")
 public class PositionEntity extends BaseEntity {
+    /** 소속 계열사 ID. */
+    @Column(name = "affiliate_id")
+    private UUID affiliateId;
+
     /** 직급명(예: 사원, 대리, 과장). */
     @Column(nullable = false, length = 100)
     private String name;
@@ -33,6 +39,7 @@ public class PositionEntity extends BaseEntity {
     protected PositionEntity() {}
 
     private PositionEntity(Position position) {
+        affiliateId = position.affiliateId();
         name = position.name();
         code = position.code();
         status = position.status();
@@ -46,6 +53,7 @@ public class PositionEntity extends BaseEntity {
     }
 
     Position toDomain() {
-        return new Position(getId(), name, code, status, sortOrder, getCreatedAt(), getUpdatedAt());
+        return new Position(
+                getId(), affiliateId, name, code, status, sortOrder, getCreatedAt(), getUpdatedAt());
     }
 }

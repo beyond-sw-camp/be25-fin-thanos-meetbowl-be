@@ -79,6 +79,9 @@ class AdminDashboardSummaryControllerTest {
                         jsonPath("$.data.meetingRoomSummary.timeSlotUsage[0].slotStartAt")
                                 .value("2026-06-13T00:00:00Z"))
                 .andExpect(
+                        jsonPath("$.data.meetingRoomSummary.timeSlotOccupancyUsage[0].slotStartAt")
+                                .value("2026-06-13T00:00:00Z"))
+                .andExpect(
                         jsonPath("$.data.meetingRoomSummary.siteBuildingUsage[0].siteId")
                                 .value(SITE_ID.toString()))
                 .andExpect(
@@ -120,6 +123,9 @@ class AdminDashboardSummaryControllerTest {
                         3,
                         2,
                         4,
+                        List.of(
+                                new AdminDashboardSummaryResult.TimeSlotUsageResult(
+                                        Instant.parse("2026-06-13T00:00:00Z"), 1)),
                         List.of(
                                 new AdminDashboardSummaryResult.TimeSlotUsageResult(
                                         Instant.parse("2026-06-13T00:00:00Z"), 2)),

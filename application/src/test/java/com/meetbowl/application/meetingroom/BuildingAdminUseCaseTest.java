@@ -131,7 +131,7 @@ class BuildingAdminUseCaseTest {
 
         UUID addSite() {
             UUID id = UUID.randomUUID();
-            sites.put(id, Site.of(id, "사이트", null));
+            sites.put(id, Site.of(id, UUID.randomUUID(), "사이트", null));
             return id;
         }
 

@@ -125,6 +125,7 @@ class SendAnnouncementUseCaseTest {
                 mail.organizationId(),
                 mail.senderUserId(),
                 mail.recipientUserIds(),
+                mail.externalRecipients(),
                 mail.subject(),
                 mail.body(),
                 mail.mailType(),

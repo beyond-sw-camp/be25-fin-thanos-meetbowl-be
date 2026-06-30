@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -65,6 +66,12 @@ public class GetRoomReservationsUseCase {
      */
     @Transactional(readOnly = true)
     public List<ReservationItemResult> getMyReservations(UUID userId, MeetingListFilter filter) {
+        return getMyReservations(userId, filter, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReservationItemResult> getMyReservations(
+            UUID userId, MeetingListFilter filter, UUID affiliateId) {
         List<Meeting> meetings =
                 switch (filter) {
                     case HOST -> meetingRepositoryPort.findByHostUserId(userId);
@@ -77,10 +84,13 @@ public class GetRoomReservationsUseCase {
 
         Map<UUID, MeetingRoom> rooms =
                 indexById(meetingRoomRepositoryPort.findAll(), MeetingRoom::id);
+        Map<UUID, Building> buildings = indexById(buildingRepositoryPort.findAll(), Building::id);
+        Map<UUID, Site> sites = indexById(siteRepositoryPort.findAll(), Site::id);
 
         return meetings.stream()
                 .filter(meeting -> meeting.meetingRoomId() != null)
                 .filter(this::isActive)
+                .filter(meeting -> matchesAffiliate(meeting, affiliateId, rooms, buildings, sites))
                 .sorted(Comparator.comparing(Meeting::scheduledAt))
                 .map(meeting -> toItem(meeting, rooms))
                 .toList();
@@ -90,6 +100,12 @@ public class GetRoomReservationsUseCase {
     @Transactional(readOnly = true)
     public List<RoomReservationsResult> getReservationBoard(
             Instant from, Instant to, UUID siteId, UUID buildingId) {
+        return getReservationBoard(from, to, siteId, buildingId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomReservationsResult> getReservationBoard(
+            Instant from, Instant to, UUID siteId, UUID buildingId, UUID affiliateId) {
         if (from == null || to == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "조회 시작/종료 시각은 필수입니다.");
         }
@@ -103,6 +119,7 @@ public class GetRoomReservationsUseCase {
 
         List<MeetingRoom> rooms =
                 meetingRoomRepositoryPort.findAll().stream()
+                        .filter(room -> matchesAffiliate(room, affiliateId, buildings, sites))
                         .filter(room -> buildingId == null || buildingId.equals(room.buildingId()))
                         .filter(room -> matchesSite(room, siteId, buildings))
                         .sorted(Comparator.comparing(MeetingRoom::name))
@@ -202,6 +219,35 @@ public class GetRoomReservationsUseCase {
         }
         Building building = buildings.get(room.buildingId());
         return building != null && siteId.equals(building.siteId());
+    }
+
+    private boolean matchesAffiliate(
+            MeetingRoom room,
+            UUID affiliateId,
+            Map<UUID, Building> buildings,
+            Map<UUID, Site> sites) {
+        if (affiliateId == null) {
+            return true;
+        }
+        Building building = buildings.get(room.buildingId());
+        Site site = building == null ? null : sites.get(building.siteId());
+        return site != null && Objects.equals(site.affiliateId(), affiliateId);
+    }
+
+    private boolean matchesAffiliate(
+            Meeting meeting,
+            UUID affiliateId,
+            Map<UUID, MeetingRoom> rooms,
+            Map<UUID, Building> buildings,
+            Map<UUID, Site> sites) {
+        if (affiliateId == null) {
+            return true;
+        }
+        MeetingRoom room = rooms.get(meeting.meetingRoomId());
+        if (room == null) {
+            return false;
+        }
+        return matchesAffiliate(room, affiliateId, buildings, sites);
     }
 
     private static <T> Map<UUID, T> indexById(List<T> items, Function<T, UUID> idExtractor) {

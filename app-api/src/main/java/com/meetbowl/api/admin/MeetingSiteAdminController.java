@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireAdmin;
 import com.meetbowl.application.meetingroom.SiteAdminUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -35,31 +37,38 @@ public class MeetingSiteAdminController extends BaseController {
 
     /** 사이트 목록 조회. */
     @GetMapping
-    public ApiResponse<List<SiteResponse>> getSites() {
-        return ok(siteAdminUseCase.list().stream().map(SiteResponse::from).toList());
+    public ApiResponse<List<SiteResponse>> getSites(@CurrentUser AuthenticatedUser admin) {
+        return ok(siteAdminUseCase.list(admin.organizationId()).stream().map(SiteResponse::from).toList());
     }
 
     /** 사이트 등록. */
     @PostMapping
     public ResponseEntity<ApiResponse<SiteResponse>> createSite(
+            @CurrentUser AuthenticatedUser admin,
             @Valid @RequestBody SiteRequest request) {
         return created(
-                SiteResponse.from(siteAdminUseCase.create(request.name(), request.address())));
+                SiteResponse.from(
+                        siteAdminUseCase.create(
+                                admin.organizationId(), request.name(), request.address())));
     }
 
     /** 사이트 수정. */
     @PatchMapping("/{siteId}")
     public ApiResponse<SiteResponse> updateSite(
-            @PathVariable UUID siteId, @Valid @RequestBody SiteRequest request) {
+            @CurrentUser AuthenticatedUser admin,
+            @PathVariable UUID siteId,
+            @Valid @RequestBody SiteRequest request) {
         return ok(
                 SiteResponse.from(
-                        siteAdminUseCase.update(siteId, request.name(), request.address())));
+                        siteAdminUseCase.update(
+                                siteId, admin.organizationId(), request.name(), request.address())));
     }
 
     /** 사이트 삭제(하위 건물이 있으면 차단). */
     @DeleteMapping("/{siteId}")
-    public ApiResponse<Void> deleteSite(@PathVariable UUID siteId) {
-        siteAdminUseCase.delete(siteId);
+    public ApiResponse<Void> deleteSite(
+            @CurrentUser AuthenticatedUser admin, @PathVariable UUID siteId) {
+        siteAdminUseCase.delete(siteId, admin.organizationId());
         return ok();
     }
 }

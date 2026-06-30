@@ -2,7 +2,9 @@ package com.meetbowl.infrastructure.persistence.meetingroom;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -12,14 +14,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
 import com.meetbowl.application.meeting.CreateMeetingCommand;
 import com.meetbowl.application.meeting.CreateMeetingUseCase;
+import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
+import com.meetbowl.application.meeting.MeetingExternalInviteeSyncService;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
+import com.meetbowl.application.meeting.SendMeetingExternalInvitationMailUseCase;
 import com.meetbowl.application.meetingroom.GetMeetingRoomStatusUseCase;
 import com.meetbowl.application.meetingroom.RoomAvailabilityStatus;
 import com.meetbowl.application.meetingroom.RoomStatusQuery;
@@ -36,6 +42,7 @@ import com.meetbowl.domain.meetingroom.Site;
 import com.meetbowl.domain.meetingroom.SiteRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.meeting.JpaMeetingAttendeeRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.meeting.JpaMeetingExternalInviteeRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meeting.JpaMeetingRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meeting.MeetingJpaConfig;
 
@@ -52,6 +59,7 @@ import com.meetbowl.infrastructure.persistence.meeting.MeetingJpaConfig;
         })
 class MeetingRoomStatusTest {
 
+    private static final UUID ORGANIZATION_ID = UUID.randomUUID();
     private static final Instant FROM = Instant.parse("2099-05-01T01:00:00Z");
     private static final Instant TO = Instant.parse("2099-05-01T02:00:00Z");
 
@@ -69,7 +77,10 @@ class MeetingRoomStatusTest {
         meetingRoomRepositoryPort
                 .findAll()
                 .forEach(room -> meetingRoomRepositoryPort.deleteById(room.id()));
-        UUID siteId = siteRepositoryPort.save(Site.of(null, "판교 사옥", "성남시")).id();
+        UUID siteId =
+                siteRepositoryPort
+                        .save(Site.of(null, UUID.randomUUID(), "판교 사옥", "성남시"))
+                        .id();
         buildingId = buildingRepositoryPort.save(Building.of(null, siteId, "A동")).id();
     }
 
@@ -99,7 +110,7 @@ class MeetingRoomStatusTest {
         UUID roomId = givenRoom("예약된 회의실", true);
         createMeetingUseCase.execute(
                 new CreateMeetingCommand(
-                        "회의", FROM, TO, UUID.randomUUID(), roomId, null, null, null, null, null));
+                        "회의", FROM, TO, UUID.randomUUID(), ORGANIZATION_ID, roomId, null, null, null, null, null, null));
 
         RoomStatusResult status = statusOf(roomId);
         assertThat(status.status()).isEqualTo(RoomAvailabilityStatus.RESERVED);
@@ -117,7 +128,9 @@ class MeetingRoomStatusTest {
                                 FROM,
                                 TO,
                                 UUID.randomUUID(),
+                                ORGANIZATION_ID,
                                 roomId,
+                                null,
                                 null,
                                 null,
                                 null,
@@ -148,7 +161,9 @@ class MeetingRoomStatusTest {
                         otherStart,
                         otherEnd,
                         UUID.randomUUID(),
+                        ORGANIZATION_ID,
                         roomId,
+                        null,
                         null,
                         null,
                         null,
@@ -185,13 +200,27 @@ class MeetingRoomStatusTest {
         MeetingRoomJpaConfig.class,
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
+        JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
+        MeetingAttendeeOverlapGuard.class,
+        MeetingExternalInviteeSyncService.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingRoomStatusUseCase.class
     })
-    static class TestApplication {}
+    static class TestApplication {
+
+        @Bean
+        SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase() {
+            return mock(SendMeetingExternalInvitationMailUseCase.class);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
+        }
+    }
 }

@@ -1,5 +1,8 @@
 package com.meetbowl.application.meeting;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -9,6 +12,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.meeting.Meeting;
 import com.meetbowl.domain.meeting.MeetingAttendee;
@@ -31,25 +35,35 @@ public class CreateMeetingUseCase {
 
     private final MeetingRepositoryPort meetingRepositoryPort;
     private final MeetingAttendeeWriter meetingAttendeeWriter;
+    private final MeetingExternalInviteeSyncService meetingExternalInviteeSyncService;
+    private final SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase;
     private final MeetingRoomReservationGuard reservationGuard;
     private final MeetingAttendeeOverlapGuard attendeeOverlapGuard;
     private final ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider;
+    private final Clock clock;
 
     public CreateMeetingUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeWriter meetingAttendeeWriter,
+            MeetingExternalInviteeSyncService meetingExternalInviteeSyncService,
+            SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase,
             MeetingRoomReservationGuard reservationGuard,
             MeetingAttendeeOverlapGuard attendeeOverlapGuard,
-            ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider) {
+            ObjectProvider<MeetingCalendarSyncPort> meetingCalendarSyncPortProvider,
+            Clock clock) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeWriter = meetingAttendeeWriter;
+        this.meetingExternalInviteeSyncService = meetingExternalInviteeSyncService;
+        this.sendMeetingExternalInvitationMailUseCase = sendMeetingExternalInvitationMailUseCase;
         this.reservationGuard = reservationGuard;
         this.attendeeOverlapGuard = attendeeOverlapGuard;
         this.meetingCalendarSyncPortProvider = meetingCalendarSyncPortProvider;
+        this.clock = clock;
     }
 
     @Transactional
     public MeetingResult execute(CreateMeetingCommand command) {
+        validateScheduledAt(command.scheduledAt());
         // 입력 검증(제목 필수, 예정 시작 < 예정 종료 등)은 도메인 생성 시 수행된다.
         Meeting meeting =
                 Meeting.create(
@@ -70,7 +84,7 @@ public class CreateMeetingUseCase {
 
         // 참석자 시간 겹침 검증(주최자 포함). 생성이므로 제외할 회의는 없다(null).
         attendeeOverlapGuard.verifyNoOverlap(
-                attendeesToCheck(command.hostUserId(), command.attendeeUserIds()),
+                attendeesToCheck(command.attendeeUserIds()),
                 meeting.scheduledAt(),
                 meeting.scheduledEndAt(),
                 null);
@@ -82,14 +96,20 @@ public class CreateMeetingUseCase {
                         command.hostUserId(),
                         command.attendeeUserIds(),
                         command.reviewerUserId());
+        List<com.meetbowl.domain.meeting.MeetingExternalInvitee> externalInvitees =
+                meetingExternalInviteeSyncService.replace(saved.id(), command.externalInvitees());
+        sendMeetingExternalInvitationMailUseCase.execute(
+                command.organizationId(),
+                command.hostUserId(),
+                saved,
+                externalInvitees);
         syncCalendar(saved, attendees);
-        return MeetingResult.of(saved, attendees);
+        return MeetingResult.of(saved, attendees, externalInvitees);
     }
 
-    /** 겹침 검사 대상 = 주최자 ∪ 초대 참석자. 주최자도 그 시간에 바쁘면 안 되므로 함께 본다. */
-    private Set<UUID> attendeesToCheck(UUID hostUserId, List<UUID> attendeeUserIds) {
+    /** 겹침 검사 대상 = 초대 참석자. 회의실 예약은 호스트 개인 일정과는 분리해 검사한다. */
+    private Set<UUID> attendeesToCheck(List<UUID> attendeeUserIds) {
         Set<UUID> userIds = new LinkedHashSet<>();
-        userIds.add(hostUserId);
         if (attendeeUserIds != null) {
             userIds.addAll(attendeeUserIds);
         }
@@ -111,4 +131,13 @@ public class CreateMeetingUseCase {
                                         meeting.scheduledAt(),
                                         meeting.scheduledEndAt())));
     }
+
+    private void validateScheduledAt(Instant scheduledAt) {
+        Instant currentMinute = Instant.now(clock).truncatedTo(ChronoUnit.MINUTES);
+        if (scheduledAt != null && scheduledAt.isBefore(currentMinute)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST, "현재 시각 이전의 회의는 생성할 수 없습니다.");
+        }
+    }
+
 }

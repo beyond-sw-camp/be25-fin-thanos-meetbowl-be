@@ -58,6 +58,7 @@ public record AdminDashboardSummaryResponse(
             int inUseMeetingRoomCount,
             int availableMeetingRoomCount,
             List<TimeSlotUsageResponse> timeSlotUsage,
+            List<TimeSlotUsageResponse> timeSlotOccupancyUsage,
             List<SiteBuildingUsageResponse> siteBuildingUsage) {
 
         static MeetingRoomSummaryResponse from(
@@ -67,6 +68,9 @@ public record AdminDashboardSummaryResponse(
                     result.inUseMeetingRoomCount(),
                     result.availableMeetingRoomCount(),
                     result.timeSlotUsage().stream().map(TimeSlotUsageResponse::from).toList(),
+                    result.timeSlotOccupancyUsage().stream()
+                            .map(TimeSlotUsageResponse::from)
+                            .toList(),
                     result.siteBuildingUsage().stream()
                             .map(SiteBuildingUsageResponse::from)
                             .toList());

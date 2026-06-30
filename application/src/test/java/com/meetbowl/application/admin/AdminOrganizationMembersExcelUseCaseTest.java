@@ -1,6 +1,5 @@
 package com.meetbowl.application.admin;
 
-import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.AffiliateRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.DepartmentRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.PositionRow;
 import static com.meetbowl.application.admin.excel.OrganizationMembersExcelRows.TeamRow;
@@ -81,6 +80,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
     @BeforeEach
     void setUp() {
         affiliateRepository = new FakeAffiliateRepository();
+        affiliateRepository.save(affiliate(AFFILIATE_ID, "한화시스템", "HSC", 1));
         departmentRepository = new FakeDepartmentRepository();
         teamRepository = new FakeTeamRepository();
         positionRepository = new FakePositionRepository();
@@ -108,7 +108,6 @@ class AdminOrganizationMembersExcelUseCaseTest {
                 new AdminOrganizationMembersExcelAuditService(auditLogRepository, objectMapper);
         useCase =
                 new AdminOrganizationMembersExcelUseCase(
-                        affiliateRepository,
                         departmentRepository,
                         teamRepository,
                         positionRepository,
@@ -120,7 +119,6 @@ class AdminOrganizationMembersExcelUseCaseTest {
 
     @Test
     void importSuccessCreatesAndUpdatesOrganizationMembersAndPublishesReindexEvent() {
-        affiliateRepository.save(affiliate(AFFILIATE_ID, "한화시스템", "HSC", 10));
         departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "서비스개발부", "DEV", 10));
         teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "플랫폼개발팀", "PLATFORM", 10));
         positionRepository.save(position(POSITION_ID, "대리", "STAFF", 10));
@@ -133,54 +131,30 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                 workbookBytes(
                                         new WorkbookRows(
                                                 List.of(
-                                                        new AffiliateRow(
-                                                                0,
-                                                                AFFILIATE_ID.toString(),
-                                                                "한화시스템",
-                                                                "HSC-NEW",
-                                                                "ACTIVE"),
-                                                        new AffiliateRow(
-                                                                0, "", "한화생명", "HLI", "ACTIVE")),
-                                                List.of(
                                                         new DepartmentRow(
                                                                 0,
                                                                 DEPARTMENT_ID.toString(),
-                                                                "한화시스템",
                                                                 "서비스개발본부",
-                                                                "DEV-HQ",
                                                                 "2",
                                                                 "ACTIVE"),
-                                                        new DepartmentRow(
-                                                                0, "", "한화생명", "경영지원부", "MGMT", "1",
-                                                                "ACTIVE")),
+                                                        new DepartmentRow(0, "", "경영지원부", "1", "ACTIVE")),
                                                 List.of(
                                                         new TeamRow(
                                                                 0,
                                                                 TEAM_ID.toString(),
-                                                                "한화시스템",
                                                                 "서비스개발본부",
                                                                 "플랫폼아키텍처팀",
-                                                                "PLATFORM-ARCH",
                                                                 "3",
                                                                 "ACTIVE"),
-                                                        new TeamRow(
-                                                                0, "", "한화생명", "경영지원부", "운영관리팀",
-                                                                "OPS", "1", "ACTIVE")),
+                                                        new TeamRow(0, "", "경영지원부", "운영관리팀", "1", "ACTIVE")),
                                                 List.of(
                                                         new PositionRow(
                                                                 0,
                                                                 POSITION_ID.toString(),
                                                                 "과장",
-                                                                "MANAGER",
                                                                 "4",
                                                                 "ACTIVE"),
-                                                        new PositionRow(
-                                                                0,
-                                                                "",
-                                                                "부장",
-                                                                "GENERAL_MANAGER",
-                                                                "5",
-                                                                "ACTIVE")),
+                                                        new PositionRow(0, "", "부장", "5", "ACTIVE")),
                                                 List.of(
                                                         new UserRow(
                                                                 0,
@@ -188,11 +162,9 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                                                 "legacy",
                                                                 "레거시 사용자",
                                                                 "legacy-updated@meetbowl.local",
-                                                                "한화시스템",
                                                                 "서비스개발본부",
                                                                 "플랫폼아키텍처팀",
                                                                 "과장",
-                                                                "ADMIN",
                                                                 "INACTIVE"),
                                                         new UserRow(
                                                                 0,
@@ -200,20 +172,19 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                                                 "new-user",
                                                                 "신규 사용자",
                                                                 "new-user@meetbowl.local",
-                                                                "한화생명",
                                                                 "경영지원부",
                                                                 "운영관리팀",
                                                                 "부장",
-                                                                "USER",
                                                                 "ACTIVE")))),
                                 "organization-members.xlsx",
+                                AFFILIATE_ID,
                                 ADMIN_ID,
                                 "Admin",
                                 "127.0.0.1",
                                 "JUnit"));
 
-        assertEquals(1, result.createdAffiliates());
-        assertEquals(1, result.updatedAffiliates());
+        assertEquals(0, result.createdAffiliates());
+        assertEquals(0, result.updatedAffiliates());
         assertEquals(1, result.createdDepartments());
         assertEquals(1, result.updatedDepartments());
         assertEquals(1, result.createdTeams());
@@ -236,7 +207,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
         assertEquals("과장", updatedPosition.name());
         assertEquals(4, updatedPosition.sortOrder());
         assertEquals("legacy-updated@meetbowl.local", updatedUser.email());
-        assertEquals(UserRole.ADMIN, updatedUser.role());
+        assertEquals(UserRole.USER, updatedUser.role());
         assertEquals(UserStatus.INACTIVE, updatedUser.status());
         assertEquals("new-user", createdUser.loginId());
         assertTrue(createdUser.initialPasswordChangeRequired());
@@ -256,11 +227,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                 useCase.importExcel(
                                         commandWithBytes(
                                                 removeHeader(
-                                                        workbookBytes(validWorkbook()), "회원", 8))));
+                                                        workbookBytes(validWorkbook()), "회원", 7))));
 
         assertEquals(ErrorCode.VALIDATION_FAILED, exception.errorCode());
         assertEquals("회원", exception.details().get(0).sheetName());
-        assertEquals("role", exception.details().get(0).field());
+        assertEquals("status", exception.details().get(0).field());
         assertEquals(AuditResult.FAILURE, auditLogRepository.lastSaved.result());
     }
 
@@ -268,19 +239,16 @@ class AdminOrganizationMembersExcelUseCaseTest {
     void importFailsWhenRoleOrStatusIsInvalid() {
         WorkbookRows rows =
                 new WorkbookRows(
-                        List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
-                        List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "DEV", "1", "ACTIVE")),
+                        List.of(new DepartmentRow(0, "", "서비스개발부", "1", "ACTIVE")),
                         List.of(
                                 new TeamRow(
                                         0,
                                         "",
-                                        "한화시스템",
                                         "서비스개발부",
                                         "플랫폼개발팀",
-                                        "PLATFORM",
                                         "1",
                                         "ACTIVE")),
-                        List.of(new PositionRow(0, "", "대리", "STAFF", "1", "ACTIVE")),
+                        List.of(new PositionRow(0, "", "대리", "1", "ACTIVE")),
                         List.of(
                                 new UserRow(
                                         0,
@@ -288,11 +256,9 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                         "user01",
                                         "사용자",
                                         "user01@meetbowl.local",
-                                        "한화시스템",
                                         "서비스개발부",
                                         "플랫폼개발팀",
                                         "대리",
-                                        "GUEST",
                                         "LOCKED")));
 
         BusinessException exception =
@@ -301,17 +267,14 @@ class AdminOrganizationMembersExcelUseCaseTest {
                         () -> useCase.importExcel(commandWithBytes(workbookBytes(rows))));
 
         assertEquals(ErrorCode.VALIDATION_FAILED, exception.errorCode());
-        assertEquals(2, exception.details().size());
+        assertEquals(1, exception.details().size());
     }
 
     @Test
     void importFailsWhenSortNumberIsNotNumericAndDoesNotPersistAnything() {
         WorkbookRows rows =
                 new WorkbookRows(
-                        List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
-                        List.of(
-                                new DepartmentRow(
-                                        0, "", "한화시스템", "서비스개발부", "DEV", "abc", "ACTIVE")),
+                        List.of(new DepartmentRow(0, "", "서비스개발부", "abc", "ACTIVE")),
                         List.of(),
                         List.of(),
                         List.of());
@@ -328,7 +291,6 @@ class AdminOrganizationMembersExcelUseCaseTest {
     void importFailsWhenLoginIdDuplicatedInSameWorkbook() {
         WorkbookRows rows =
                 new WorkbookRows(
-                        List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
                         List.of(),
                         List.of(),
                         List.of(),
@@ -342,8 +304,6 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                         "",
                                         "",
                                         "",
-                                        "",
-                                        "USER",
                                         "ACTIVE"),
                                 new UserRow(
                                         0,
@@ -354,8 +314,6 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                         "",
                                         "",
                                         "",
-                                        "",
-                                        "USER",
                                         "ACTIVE")));
 
         BusinessException exception =
@@ -370,17 +328,15 @@ class AdminOrganizationMembersExcelUseCaseTest {
 
     @Test
     void importGeneratesDepartmentTeamAndPositionCodesWhenNewRowsLeaveCodeBlank() {
-        affiliateRepository.save(affiliate(AFFILIATE_ID, "한화시스템", "HSC", 1));
         departmentRepository.save(department(DEPARTMENT_ID, AFFILIATE_ID, "기존부서", "D001", 1));
         teamRepository.save(team(TEAM_ID, DEPARTMENT_ID, "기존팀", "T001", 1));
         positionRepository.save(position(POSITION_ID, "기존직급", "P001", 1));
 
         WorkbookRows rows =
                 new WorkbookRows(
-                        List.of(),
-                        List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "", "2", "ACTIVE")),
-                        List.of(new TeamRow(0, "", "한화시스템", "서비스개발부", "플랫폼개발팀", "", "3", "ACTIVE")),
-                        List.of(new PositionRow(0, "", "대리", "", "4", "ACTIVE")),
+                        List.of(new DepartmentRow(0, "", "서비스개발부", "2", "ACTIVE")),
+                        List.of(new TeamRow(0, "", "서비스개발부", "플랫폼개발팀", "3", "ACTIVE")),
+                        List.of(new PositionRow(0, "", "대리", "4", "ACTIVE")),
                         List.of());
 
         AdminOrganizationMembersExcelUseCase.ImportResult result =
@@ -411,10 +367,9 @@ class AdminOrganizationMembersExcelUseCaseTest {
 
     private WorkbookRows validWorkbook() {
         return new WorkbookRows(
-                List.of(new AffiliateRow(0, "", "한화시스템", "HSC", "ACTIVE")),
-                List.of(new DepartmentRow(0, "", "한화시스템", "서비스개발부", "DEV", "1", "ACTIVE")),
-                List.of(new TeamRow(0, "", "한화시스템", "서비스개발부", "플랫폼개발팀", "PLATFORM", "1", "ACTIVE")),
-                List.of(new PositionRow(0, "", "대리", "STAFF", "1", "ACTIVE")),
+                List.of(new DepartmentRow(0, "", "서비스개발부", "1", "ACTIVE")),
+                List.of(new TeamRow(0, "", "서비스개발부", "플랫폼개발팀", "1", "ACTIVE")),
+                List.of(new PositionRow(0, "", "대리", "1", "ACTIVE")),
                 List.of(
                         new UserRow(
                                 0,
@@ -422,17 +377,15 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                 "user01",
                                 "사용자",
                                 "user01@meetbowl.local",
-                                "한화시스템",
                                 "서비스개발부",
                                 "플랫폼개발팀",
                                 "대리",
-                                "USER",
                                 "ACTIVE")));
     }
 
     private AdminOrganizationMembersExcelUseCase.ImportCommand commandWithBytes(byte[] bytes) {
         return new AdminOrganizationMembersExcelUseCase.ImportCommand(
-                bytes, "organization-members.xlsx", ADMIN_ID, "Admin", "127.0.0.1", "JUnit");
+                bytes, "organization-members.xlsx", AFFILIATE_ID, ADMIN_ID, "Admin", "127.0.0.1", "JUnit");
     }
 
     private byte[] workbookBytes(WorkbookRows rows) {
@@ -466,7 +419,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
     }
 
     private Position position(UUID id, String name, String code, Integer sortOrder) {
-        return new Position(id, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
+        return new Position(id, AFFILIATE_ID, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
     }
 
     private User user(UUID id, String loginId, String email, UserRole role, UserStatus status) {
@@ -704,7 +657,14 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsByName(String name) {
+        public List<Position> findAllByAffiliateId(UUID affiliateId) {
+            return values.values().stream()
+                    .filter(item -> java.util.Objects.equals(item.affiliateId(), affiliateId))
+                    .toList();
+        }
+
+        @Override
+        public boolean existsByAffiliateIdAndName(UUID affiliateId, String name) {
             return false;
         }
 
@@ -714,7 +674,8 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsByNameAndIdNot(String name, UUID positionId) {
+        public boolean existsByAffiliateIdAndNameAndIdNot(
+                UUID affiliateId, String name, UUID positionId) {
             return false;
         }
 
@@ -724,12 +685,13 @@ class AdminOrganizationMembersExcelUseCaseTest {
         }
 
         @Override
-        public boolean existsBySortOrder(Integer sortOrder) {
+        public boolean existsByAffiliateIdAndSortOrder(UUID affiliateId, Integer sortOrder) {
             return false;
         }
 
         @Override
-        public boolean existsBySortOrderAndIdNot(Integer sortOrder, UUID positionId) {
+        public boolean existsByAffiliateIdAndSortOrderAndIdNot(
+                UUID affiliateId, Integer sortOrder, UUID positionId) {
             return false;
         }
     }

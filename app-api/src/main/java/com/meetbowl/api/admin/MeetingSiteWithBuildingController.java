@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meetbowl.api.common.ApiPaths;
 import com.meetbowl.api.common.BaseController;
+import com.meetbowl.api.common.auth.AuthenticatedUser;
+import com.meetbowl.api.common.auth.CurrentUser;
 import com.meetbowl.api.common.auth.RequireAdmin;
 import com.meetbowl.application.meetingroom.SiteBuildingRegisterUseCase;
 import com.meetbowl.common.response.ApiResponse;
@@ -35,10 +37,13 @@ public class MeetingSiteWithBuildingController extends BaseController {
     /** 사이트와 건물을 한 트랜잭션으로 함께 등록한다. 둘 중 하나라도 실패하면 전체 롤백된다. */
     @PostMapping
     public ResponseEntity<ApiResponse<SiteWithBuildingResponse>> registerSiteWithBuilding(
+            @CurrentUser AuthenticatedUser admin,
             @Valid @RequestBody SiteWithBuildingRequest request) {
         return created(
                 SiteWithBuildingResponse.from(
                         siteBuildingRegisterUseCase.execute(
-                                request.siteName(), request.buildingName())));
+                                admin.organizationId(),
+                                request.siteName(),
+                                request.buildingName())));
     }
 }

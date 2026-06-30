@@ -73,11 +73,11 @@ class AdminUserManagementUseCaseTest {
     @Test
     void createAdminUserSuccess() {
         AdminUserManagementUseCase useCase = useCase();
-        UUID affiliateId = UUID.randomUUID();
+        UUID adminAffiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
         UUID teamId = UUID.randomUUID();
         UUID positionId = UUID.randomUUID();
-        stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
+        stubOrganizationReferences(adminAffiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("admin01")).willReturn(false);
         given(userRepositoryPort.findByEmail("admin01@example.com")).willReturn(Optional.empty());
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
@@ -90,7 +90,7 @@ class AdminUserManagementUseCaseTest {
                                 "admin01@example.com",
                                 "ADMIN",
                                 "ACTIVE",
-                                affiliateId,
+                                adminAffiliateId,
                                 departmentId,
                                 teamId,
                                 positionId,
@@ -104,6 +104,7 @@ class AdminUserManagementUseCaseTest {
         ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
         verify(userRepositoryPort).save(savedUser.capture());
         assertEquals(UserRole.ADMIN, savedUser.getValue().role());
+        assertEquals(adminAffiliateId, savedUser.getValue().affiliateId());
         assertEquals(UserRole.ADMIN.name(), result.user().role());
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
         ArgumentCaptor<AdminAuditLog> logCaptor = ArgumentCaptor.forClass(AdminAuditLog.class);
@@ -116,11 +117,11 @@ class AdminUserManagementUseCaseTest {
     @Test
     void createUserSuccessReturnsTemporaryPasswordAndHash() {
         AdminUserManagementUseCase useCase = useCase();
-        UUID affiliateId = UUID.randomUUID();
+        UUID adminAffiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
         UUID teamId = UUID.randomUUID();
         UUID positionId = UUID.randomUUID();
-        stubOrganizationReferences(affiliateId, departmentId, teamId, positionId);
+        stubOrganizationReferences(adminAffiliateId, departmentId, teamId, positionId);
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
@@ -133,7 +134,7 @@ class AdminUserManagementUseCaseTest {
                                 "user01@example.com",
                                 "USER",
                                 "ACTIVE",
-                                affiliateId,
+                                adminAffiliateId,
                                 departmentId,
                                 teamId,
                                 positionId,
@@ -153,15 +154,16 @@ class AdminUserManagementUseCaseTest {
         assertTrue(savedUser.getValue().initialPasswordChangeRequired());
         assertEquals(UserRole.USER.name(), result.user().role());
         assertEquals(UserStatus.ACTIVE.name(), result.user().status());
+        assertEquals(adminAffiliateId, result.user().affiliateId());
     }
 
     @Test
     void createFailsWhenDepartmentBelongsToDifferentAffiliate() {
         AdminUserManagementUseCase useCase = useCase();
-        UUID affiliateId = UUID.randomUUID();
+        UUID adminAffiliateId = UUID.randomUUID();
         UUID otherAffiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
-        stubAffiliate(affiliateId, "Affiliate");
+        stubAffiliate(adminAffiliateId, "Affiliate");
         stubDepartment(departmentId, otherAffiliateId, "Department");
 
         BusinessException exception =
@@ -175,7 +177,7 @@ class AdminUserManagementUseCaseTest {
                                                 "user01@example.com",
                                                 "USER",
                                                 "ACTIVE",
-                                                affiliateId,
+                                                adminAffiliateId,
                                                 departmentId,
                                                 null,
                                                 null,
@@ -192,6 +194,7 @@ class AdminUserManagementUseCaseTest {
     @Test
     void updateFailsWhenTeamBelongsToDifferentDepartment() {
         AdminUserManagementUseCase useCase = useCase();
+        User current = createUser("current", "current@example.com", UserRole.USER);
         UUID affiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
         UUID otherDepartmentId = UUID.randomUUID();
@@ -199,6 +202,7 @@ class AdminUserManagementUseCaseTest {
         stubAffiliate(affiliateId, "Affiliate");
         stubDepartment(departmentId, affiliateId, "Department");
         stubTeam(teamId, otherDepartmentId, "Team");
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
 
         BusinessException exception =
                 assertThrows(
@@ -206,7 +210,7 @@ class AdminUserManagementUseCaseTest {
                         () ->
                                 useCase.update(
                                         new AdminUserManagementUseCase.UpdateCommand(
-                                                UUID.randomUUID(),
+                                                current.id(),
                                                 "Updated User",
                                                 "updated@example.com",
                                                 "USER",
@@ -227,11 +231,11 @@ class AdminUserManagementUseCaseTest {
     @Test
     void createSucceedsWithValidAffiliateDepartmentTeamCombination() {
         AdminUserManagementUseCase useCase = useCase();
-        UUID affiliateId = UUID.randomUUID();
+        UUID adminAffiliateId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
         UUID teamId = UUID.randomUUID();
-        stubAffiliate(affiliateId, "Affiliate");
-        stubDepartment(departmentId, affiliateId, "Department");
+        stubAffiliate(adminAffiliateId, "Affiliate");
+        stubDepartment(departmentId, adminAffiliateId, "Department");
         stubTeam(teamId, departmentId, "Team");
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com")).willReturn(Optional.empty());
@@ -245,7 +249,7 @@ class AdminUserManagementUseCaseTest {
                                 "user01@example.com",
                                 "USER",
                                 "ACTIVE",
-                                affiliateId,
+                                adminAffiliateId,
                                 departmentId,
                                 teamId,
                                 null,
@@ -260,8 +264,39 @@ class AdminUserManagementUseCaseTest {
     }
 
     @Test
+    void createFailsWhenAdminAffiliateIsMissing() {
+        AdminUserManagementUseCase useCase = useCase();
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.create(
+                                        new AdminUserManagementUseCase.CreateCommand(
+                                                "user01",
+                                                "User One",
+                                                "user01@example.com",
+                                                "USER",
+                                                "ACTIVE",
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                ACTIVE_FROM,
+                                                ACTIVE_UNTIL,
+                                                UUID.randomUUID(),
+                                                "Root Admin",
+                                                "127.0.0.1",
+                                                "JUnit")));
+
+        assertEquals(ErrorCode.COMMON_INVALID_REQUEST, exception.errorCode());
+    }
+
+    @Test
     void createFailsWhenLoginIdAlreadyExists() {
         AdminUserManagementUseCase useCase = useCase();
+        UUID affiliateId = UUID.randomUUID();
+        stubAffiliate(affiliateId, "Affiliate");
         given(userRepositoryPort.existsByLoginId("dup")).willReturn(true);
 
         BusinessException exception =
@@ -275,7 +310,7 @@ class AdminUserManagementUseCaseTest {
                                                 "dup@example.com",
                                                 "USER",
                                                 "ACTIVE",
-                                                null,
+                                                affiliateId,
                                                 null,
                                                 null,
                                                 null,
@@ -292,6 +327,8 @@ class AdminUserManagementUseCaseTest {
     @Test
     void createFailsWhenEmailAlreadyExists() {
         AdminUserManagementUseCase useCase = useCase();
+        UUID affiliateId = UUID.randomUUID();
+        stubAffiliate(affiliateId, "Affiliate");
         given(userRepositoryPort.existsByLoginId("user01")).willReturn(false);
         given(userRepositoryPort.findByEmail("user01@example.com"))
                 .willReturn(
@@ -308,7 +345,7 @@ class AdminUserManagementUseCaseTest {
                                                 "user01@example.com",
                                                 "USER",
                                                 "ACTIVE",
-                                                null,
+                                                affiliateId,
                                                 null,
                                                 null,
                                                 null,
@@ -406,6 +443,40 @@ class AdminUserManagementUseCaseTest {
         assertEquals("current", logCaptor.getValue().targetLoginId());
         assertEquals("Updated User", logCaptor.getValue().targetName());
         verifyUserReindexPublished("USER_UPDATED", current.id());
+    }
+
+    @Test
+    void updateUsesCurrentAffiliateWhenAffiliateIdIsOmitted() {
+        AdminUserManagementUseCase useCase = useCase();
+        User current = createUser("current", "current@example.com", UserRole.USER);
+        UUID departmentId = UUID.randomUUID();
+        UUID teamId = UUID.randomUUID();
+        UUID positionId = UUID.randomUUID();
+        stubOrganizationReferences(current.affiliateId(), departmentId, teamId, positionId);
+        given(userRepositoryPort.findById(current.id())).willReturn(Optional.of(current));
+        given(userRepositoryPort.findByEmail("updated@example.com")).willReturn(Optional.empty());
+        given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+        useCase.update(
+                new AdminUserManagementUseCase.UpdateCommand(
+                        current.id(),
+                        "Updated User",
+                        "updated@example.com",
+                        "USER",
+                        null,
+                        departmentId,
+                        teamId,
+                        positionId,
+                        ACTIVE_FROM,
+                        ACTIVE_UNTIL,
+                        UUID.randomUUID(),
+                        "Root Admin",
+                        "127.0.0.1",
+                        "JUnit"));
+
+        ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
+        verify(userRepositoryPort).save(savedUser.capture());
+        assertEquals(current.affiliateId(), savedUser.getValue().affiliateId());
     }
 
     @Test
@@ -772,7 +843,7 @@ class AdminUserManagementUseCaseTest {
         stubAffiliate(affiliateId, "Affiliate");
         stubDepartment(departmentId, affiliateId, "Department");
         stubTeam(teamId, departmentId, "Team");
-        stubPosition(positionId, "Position");
+        stubPosition(positionId, affiliateId, "Position");
     }
 
     private void stubOrganizationReferencesForUser(User user) {
@@ -807,7 +878,7 @@ class AdminUserManagementUseCaseTest {
                         users.stream()
                                 .map(User::positionId)
                                 .distinct()
-                                .map(id -> position(id, "Position-" + id))
+                                .map(id -> position(id, users.get(0).affiliateId(), "Position-" + id))
                                 .toList());
     }
 
@@ -826,10 +897,10 @@ class AdminUserManagementUseCaseTest {
                 .willReturn(Optional.of(team(teamId, departmentId, name)));
     }
 
-    private void stubPosition(UUID positionId, String name) {
+    private void stubPosition(UUID positionId, UUID affiliateId, String name) {
         if (positionId != null) {
             given(positionRepositoryPort.findById(positionId))
-                    .willReturn(Optional.of(position(positionId, name)));
+                    .willReturn(Optional.of(position(positionId, affiliateId, name)));
         }
     }
 
@@ -863,8 +934,15 @@ class AdminUserManagementUseCaseTest {
                 Instant.now());
     }
 
-    private Position position(UUID positionId, String name) {
+    private Position position(UUID positionId, UUID affiliateId, String name) {
         return new Position(
-                positionId, name, "POS", ReferenceStatus.ACTIVE, 1, Instant.now(), Instant.now());
+                positionId,
+                affiliateId,
+                name,
+                "POS",
+                ReferenceStatus.ACTIVE,
+                1,
+                Instant.now(),
+                Instant.now());
     }
 }

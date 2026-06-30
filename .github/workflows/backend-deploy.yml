@@ -128,6 +128,8 @@ jobs:
   build-and-push:
     name: Build And Push Image
     runs-on: ubuntu-latest
+    needs:
+      - test
     if: github.event_name != 'pull_request'
     permissions:
       id-token: write

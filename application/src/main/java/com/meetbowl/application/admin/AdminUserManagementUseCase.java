@@ -106,8 +106,9 @@ public class AdminUserManagementUseCase {
         validateEmail(command.email());
         UserRole role = parseRole(command.role());
         UserStatus status = parseStatus(command.status());
+        UUID affiliateId = requireAdminAffiliateId(command.adminAffiliateId());
         validateOrganizationReferences(
-                command.affiliateId(),
+                affiliateId,
                 command.departmentId(),
                 command.teamId(),
                 command.positionId());
@@ -125,7 +126,7 @@ public class AdminUserManagementUseCase {
                                 command.email(),
                                 role,
                                 status,
-                                command.affiliateId(),
+                                affiliateId,
                                 command.departmentId(),
                                 command.positionId(),
                                 command.teamId(),
@@ -159,10 +160,27 @@ public class AdminUserManagementUseCase {
      */
     @Transactional(readOnly = true)
     public PageResult search(SearchCommand command) {
+        return search(command, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult search(SearchCommand command, UUID adminAffiliateId) {
         // 검색어는 앞뒤 공백만 정리하고, 빈 값이면 기존 동작처럼 null로 넘겨 전체 조회를 유지한다.
         Paged<User> page =
-                userRepositoryPort.findPage(
-                        normalizeKeyword(command.keyword()), command.page(), command.size());
+                adminAffiliateId == null
+                        ? userRepositoryPort.findPage(
+                                normalizeKeyword(command.keyword()), command.page(), command.size())
+                        : userRepositoryPort.search(
+                                normalizeKeyword(command.keyword()),
+                                adminAffiliateId,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                command.page(),
+                                command.size());
         NameLookups lookups = loadNameLookups(page.content());
         List<UserSummary> items =
                 page.content().stream().map(user -> resolveSummary(user, lookups)).toList();
@@ -193,6 +211,14 @@ public class AdminUserManagementUseCase {
         return resolveSummary(getUserOrThrow(userId));
     }
 
+    @Transactional(readOnly = true)
+    public UserSummary get(UUID userId, UUID adminAffiliateId) {
+        User user = getUserOrThrow(userId);
+        ensureManagedUser(user);
+        ensureAccessibleToAdmin(user, adminAffiliateId);
+        return resolveSummary(user);
+    }
+
     /**
      * 회원 정보 수정 회원의 기본 정보를 수정합니다.
      *
@@ -201,16 +227,25 @@ public class AdminUserManagementUseCase {
      */
     @Transactional
     public UserSummary update(UpdateCommand command) {
+        return update(command, null);
+    }
+
+    @Transactional
+    public UserSummary update(UpdateCommand command, UUID adminAffiliateId) {
         validateEmail(command.email());
         UserRole role = parseRole(command.role());
+        User current = getUserOrThrow(command.userId());
+        ensureManagedUser(current);
+        ensureAccessibleToAdmin(current, adminAffiliateId);
+        UUID targetAffiliateId =
+                command.affiliateId() != null ? command.affiliateId() : current.affiliateId();
         validateOrganizationReferences(
-                command.affiliateId(),
+                targetAffiliateId,
                 command.departmentId(),
                 command.teamId(),
                 command.positionId());
 
-        User current = getUserOrThrow(command.userId());
-        ensureManagedUser(current);
+        ensureTargetAffiliateMatchesAdminScope(targetAffiliateId, adminAffiliateId);
         ensureEmailIsUnique(command.email(), current.id());
 
         User saved =
@@ -218,7 +253,7 @@ public class AdminUserManagementUseCase {
                         current.updateAdminProfile(
                                 command.name(),
                                 command.email(),
-                                command.affiliateId(),
+                                targetAffiliateId,
                                 command.departmentId(),
                                 command.positionId(),
                                 command.teamId(),
@@ -250,8 +285,14 @@ public class AdminUserManagementUseCase {
      */
     @Transactional
     public UserSummary updateStatus(UpdateStatusCommand command) {
+        return updateStatus(command, null);
+    }
+
+    @Transactional
+    public UserSummary updateStatus(UpdateStatusCommand command, UUID adminAffiliateId) {
         User current = getUserOrThrow(command.userId());
         ensureManagedUser(current);
+        ensureAccessibleToAdmin(current, adminAffiliateId);
         UserStatus status = parseManageableStatus(command.status());
         ensureNotSelfInactive(current.id(), command.adminId(), status);
         User saved = userRepositoryPort.save(current.changeStatus(status));
@@ -276,6 +317,11 @@ public class AdminUserManagementUseCase {
     /** 회원 삭제 API는 데이터 무결성을 위해 hard delete 대신 INACTIVE 처리로 동작한다. */
     @Transactional
     public UserSummary delete(DeleteCommand command) {
+        return delete(command, null);
+    }
+
+    @Transactional
+    public UserSummary delete(DeleteCommand command, UUID adminAffiliateId) {
         User current =
                 userRepositoryPort
                         .findByIdIncludingDeleted(command.userId())
@@ -286,6 +332,7 @@ public class AdminUserManagementUseCase {
                                     return new BusinessException(ErrorCode.USER_NOT_FOUND);
                                 });
         ensureManagedUser(current);
+        ensureAccessibleToAdmin(current, adminAffiliateId);
         ensureNotSelfDelete(command, current);
         ensureUserNotAlreadyDeleted(command, current);
 
@@ -488,7 +535,12 @@ public class AdminUserManagementUseCase {
         Team team = teamId == null ? null : loadTeam(teamId);
 
         if (positionId != null) {
-            loadPosition(positionId);
+            Position position = loadPosition(positionId);
+            if (affiliate != null && !Objects.equals(position.affiliateId(), affiliate.id())) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_INVALID_REQUEST,
+                        "Position does not belong to the selected affiliate.");
+            }
         }
         if (department != null
                 && affiliate != null
@@ -504,6 +556,20 @@ public class AdminUserManagementUseCase {
                     ErrorCode.COMMON_INVALID_REQUEST,
                     "Team does not belong to the selected department.");
         }
+    }
+
+    /**
+     * 관리자 회원 생성은 현재 로그인한 관리자의 계열사 범위 안에서만 허용한다.
+     * 인증 토큰에 계열사 정보가 없다면 조직 소속을 결정할 수 없으므로 요청 자체를 거절한다.
+     */
+    private UUID requireAdminAffiliateId(UUID adminAffiliateId) {
+        if (adminAffiliateId == null) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_INVALID_REQUEST,
+                    "Admin affiliate is required to create user.");
+        }
+        loadAffiliate(adminAffiliateId);
+        return adminAffiliateId;
     }
 
     /**
@@ -863,7 +929,7 @@ public class AdminUserManagementUseCase {
             String email,
             String role,
             String status,
-            UUID affiliateId,
+            UUID adminAffiliateId,
             UUID departmentId,
             UUID teamId,
             UUID positionId,
@@ -961,4 +1027,25 @@ public class AdminUserManagementUseCase {
     private record AuditTarget(String loginId, String name) {}
 
     private record FailureSnapshot(String message) {}
+
+    private void ensureAccessibleToAdmin(User user, UUID adminAffiliateId) {
+        if (adminAffiliateId == null) {
+            return;
+        }
+        if (!Objects.equals(user.affiliateId(), adminAffiliateId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "다른 계열사의 회원은 관리할 수 없습니다.");
+        }
+    }
+
+    private void ensureTargetAffiliateMatchesAdminScope(
+            UUID targetAffiliateId, UUID adminAffiliateId) {
+        if (adminAffiliateId == null || targetAffiliateId == null) {
+            return;
+        }
+        if (!Objects.equals(targetAffiliateId, adminAffiliateId)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_FORBIDDEN, "다른 계열사의 회원은 관리할 수 없습니다.");
+        }
+    }
 }

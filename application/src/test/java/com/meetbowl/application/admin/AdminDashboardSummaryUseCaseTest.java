@@ -157,7 +157,7 @@ class AdminDashboardSummaryUseCaseTest {
                         .orElseThrow()
                         .reservationCount());
         assertEquals(
-                1,
+                0,
                 result.meetingRoomSummary().timeSlotUsage().stream()
                         .filter(
                                 slot ->
@@ -169,6 +169,36 @@ class AdminDashboardSummaryUseCaseTest {
         assertEquals(
                 2,
                 result.meetingRoomSummary().timeSlotUsage().stream()
+                        .filter(
+                                slot ->
+                                        slot.slotStartAt()
+                                                .equals(Instant.parse("2026-06-13T01:00:00Z")))
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
+        assertEquals(
+                1,
+                result.meetingRoomSummary().timeSlotOccupancyUsage().stream()
+                        .filter(
+                                slot ->
+                                        slot.slotStartAt()
+                                                .equals(Instant.parse("2026-06-12T23:00:00Z")))
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
+        assertEquals(
+                1,
+                result.meetingRoomSummary().timeSlotOccupancyUsage().stream()
+                        .filter(
+                                slot ->
+                                        slot.slotStartAt()
+                                                .equals(Instant.parse("2026-06-13T00:00:00Z")))
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
+        assertEquals(
+                2,
+                result.meetingRoomSummary().timeSlotOccupancyUsage().stream()
                         .filter(
                                 slot ->
                                         slot.slotStartAt()
