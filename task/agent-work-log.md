@@ -1225,3 +1225,23 @@
 - Verification:
   Passed `./gradlew :app-api:test --tests com.meetbowl.api.notification.NotificationControllerTest --tests com.meetbowl.api.config.SecurityConfigTest --no-daemon`.
   Passed full `./gradlew test --no-daemon`.
+
+2026-06-30 seed admin account policy update
+
+- Purpose: restore the default seed policy to a single `admin` administrator and migrate away from the temporary `admin1`/`admin2` seed accounts on prod.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCaseTest.java`,
+  `app-api/src/main/resources/db/migration/V10__restore_single_seed_admin.sql`,
+  `README.md`,
+  `docs/api-spec.md`,
+  and this log.
+- Behavior:
+  Changed local/prod bootstrap back to `admin`, `user1`, and `user2` under one seed affiliate named `한화 시스템`.
+  The seed `admin` display name is now `한화 시스템 관리자`.
+  Added Flyway migration `V10` to rename the existing `admin` affiliate to `한화 시스템`, rename `admin` to `한화 시스템 관리자`, and delete existing `admin1`/`admin2` rows.
+  Kept seed password `1234`, seed users `user1`/`user2`, and the seed affiliate code `LOCAL-1`.
+- Excluded scope:
+  Did not merge or delete orphaned affiliate rows that may have been created by the temporary two-admin seed policy.
+- Verification:
+  Passed `./gradlew :application:test --tests com.meetbowl.application.auth.InitializeLocalAccountsUseCaseTest --no-daemon`.
