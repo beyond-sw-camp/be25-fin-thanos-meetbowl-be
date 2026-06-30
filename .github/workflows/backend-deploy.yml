@@ -258,7 +258,7 @@ jobs:
               --document-name AWS-RunShellScript \
               --comment "meetbowl-be api deploy ${IMAGE_TAG}" \
               --instance-ids ${INSTANCE_IDS} \
-              --parameters "commands=[\"set -euo pipefail\",\"cd ${API_DEPLOY_PATH}\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} ./scripts/deploy-be-api.sh\"]" \
+              --parameters "commands=[\"set -eu\",\"cd ${API_DEPLOY_PATH}\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} ./scripts/deploy-be-api.sh\"]" \
               --query 'Command.CommandId' \
               --output text
           )"
