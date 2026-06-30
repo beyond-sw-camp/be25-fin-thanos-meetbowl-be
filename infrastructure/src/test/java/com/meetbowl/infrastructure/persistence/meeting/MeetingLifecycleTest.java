@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -24,9 +25,11 @@ import com.meetbowl.application.meeting.CreateMeetingUseCase;
 import com.meetbowl.application.meeting.GetMeetingUseCase;
 import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingAttendeeOverlapGuard;
+import com.meetbowl.application.meeting.MeetingExternalInviteeSyncService;
 import com.meetbowl.application.meeting.MeetingListFilter;
 import com.meetbowl.application.meeting.MeetingResult;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
+import com.meetbowl.application.meeting.SendMeetingExternalInvitationMailUseCase;
 import com.meetbowl.application.meeting.UpdateMeetingCommand;
 import com.meetbowl.application.meeting.UpdateMeetingUseCase;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
@@ -557,11 +560,13 @@ class MeetingLifecycleTest {
         MeetingRoomJpaConfig.class,
         JpaMeetingRepositoryAdapter.class,
         JpaMeetingAttendeeRepositoryAdapter.class,
+        JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
         MeetingAttendeeOverlapGuard.class,
+        MeetingExternalInviteeSyncService.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
         GetMeetingUseCase.class,
@@ -574,6 +579,16 @@ class MeetingLifecycleTest {
         @Bean
         DispatchNotificationUseCase dispatchNotificationUseCase() {
             return mock(DispatchNotificationUseCase.class);
+        }
+
+        @Bean
+        SendMeetingExternalInvitationMailUseCase sendMeetingExternalInvitationMailUseCase() {
+            return mock(SendMeetingExternalInvitationMailUseCase.class);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
         }
     }
 }
