@@ -13,7 +13,7 @@ import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
 /**
  * 공유 자료 단건 메타데이터를 조회한다.
  *
- * <p>원본 파일 다운로드와 달리 JSON 메타데이터만 반환하지만, 같은 권한 경계를 적용해 워크스페이스 멤버만 파일 정보를 볼 수 있게 한다.
+ * <p>원본 파일 다운로드와 달리 JSON 메타데이터만 반환하지만, 같은 권한 경계를 적용한다. 전 직원 공개 워크스페이스는 같은 조직 사용자에게 읽기 권한을 허용한다.
  */
 @Service
 public class GetSharedWorkspaceFileUseCase {
@@ -29,8 +29,9 @@ public class GetSharedWorkspaceFileUseCase {
     }
 
     @Transactional(readOnly = true)
-    public SharedWorkspaceFileResult execute(UUID workspaceId, UUID fileId, UUID userId) {
-        accessGuard.requireActiveMember(workspaceId, userId);
+    public SharedWorkspaceFileResult execute(
+            UUID workspaceId, UUID fileId, UUID userId, UUID organizationId) {
+        accessGuard.requireReadable(workspaceId, userId, organizationId);
         SharedWorkspaceFile file =
                 fileRepositoryPort
                         .findById(fileId)
