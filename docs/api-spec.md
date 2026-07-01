@@ -717,7 +717,10 @@ DELETION_SCHEDULED
 
 - `meetingRoomSummary.timeSlotUsage`는 KST 기준 오늘 24개 시간 슬롯 각각에 대해 "해당 시간에 시작한 예약 건수"를 반환한다.
 - `meetingRoomSummary.timeSlotOccupancyUsage`는 KST 기준 오늘 24개 시간 슬롯 각각에 대해 "해당 시간 슬롯과 겹치는 점유 회의실 수"를 반환한다.
+- `meetingRoomSummary.weekdayReservationUsage`는 KST 기준 이번 주(월~일)에 "해당 요일에 시작한 예약 건수"를 요일별로 반환한다.
+- `meetingRoomSummary.inUseMeetingRoomCount`와 `meetingRoomSummary.siteBuildingUsage`는 현재 시각 기준 `IN_PROGRESS`뿐 아니라 `RESERVED`까지 포함한 "현재 시간대 점유 회의실" 기준으로 집계한다.
 - 프론트엔드는 두 시계열을 각각 `예약 시작 빈도`, `상세 점유 현황` 비교 그래프로 사용한다.
+- 프론트엔드는 `weekdayReservationUsage`를 `요일별 예약 분포` 막대 그래프로 사용한다.
 
 ### 14.2 메일 보관 정책 자동 적용
 

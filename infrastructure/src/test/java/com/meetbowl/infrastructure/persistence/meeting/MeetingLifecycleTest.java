@@ -41,6 +41,7 @@ import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaMeetingRoomRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaRoomBlockRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.MeetingRoomJpaConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaBuildingRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaSiteRepositoryAdapter;
@@ -562,6 +563,7 @@ class MeetingLifecycleTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaRoomBlockRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,

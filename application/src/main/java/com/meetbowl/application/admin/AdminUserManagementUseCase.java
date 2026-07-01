@@ -2,6 +2,7 @@ package com.meetbowl.application.admin;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import com.meetbowl.domain.user.UserStatus;
 /** 관리자 회원 관리 유스케이스 회원 생성, 조회, 수정, 상태 관리 기능을 제공합니다. 모든 관리 작업은 감사 로그(Audit Log)에 기록됩니다. */
 @Service
 public class AdminUserManagementUseCase {
+    private static final Instant DEFAULT_ACTIVE_UNTIL = Instant.parse("2999-12-31T00:00:00Z");
 
     private final UserRepositoryPort userRepositoryPort;
     private final AffiliateRepositoryPort affiliateRepositoryPort;
@@ -132,7 +134,7 @@ public class AdminUserManagementUseCase {
                                 command.teamId(),
                                 true,
                                 command.activeFrom(),
-                                command.activeUntil(),
+                                command.activeUntil() == null ? DEFAULT_ACTIVE_UNTIL : command.activeUntil(),
                                 now,
                                 now));
 
@@ -165,22 +167,22 @@ public class AdminUserManagementUseCase {
 
     @Transactional(readOnly = true)
     public PageResult search(SearchCommand command, UUID adminAffiliateId) {
+        UserStatus status = parseOptionalStatus(command.status());
+        Instant dayStart = todayStart();
+        Instant nextDayStart = dayStart.plusSeconds(24 * 60 * 60);
         // 검색어는 앞뒤 공백만 정리하고, 빈 값이면 기존 동작처럼 null로 넘겨 전체 조회를 유지한다.
         Paged<User> page =
-                adminAffiliateId == null
-                        ? userRepositoryPort.findPage(
-                                normalizeKeyword(command.keyword()), command.page(), command.size())
-                        : userRepositoryPort.search(
-                                normalizeKeyword(command.keyword()),
-                                adminAffiliateId,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                command.page(),
-                                command.size());
+                userRepositoryPort.search(
+                        normalizeKeyword(command.keyword()),
+                        adminAffiliateId,
+                        null,
+                        null,
+                        null,
+                        status,
+                        dayStart,
+                        nextDayStart,
+                        command.page(),
+                        command.size());
         NameLookups lookups = loadNameLookups(page.content());
         List<UserSummary> items =
                 page.content().stream().map(user -> resolveSummary(user, lookups)).toList();
@@ -198,6 +200,14 @@ public class AdminUserManagementUseCase {
         }
         // 관리자 목록 검색은 부분검색이므로 공백만 제거한 원문을 넘긴다.
         return keyword.trim();
+    }
+
+    private Instant todayStart() {
+        return Instant.now(clock)
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate()
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC);
     }
 
     /**
@@ -453,6 +463,13 @@ public class AdminUserManagementUseCase {
                     "LOCKED status cannot be set directly by admin.");
         }
         return parsedStatus;
+    }
+
+    private UserStatus parseOptionalStatus(String status) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) {
+            return null;
+        }
+        return parseManageableStatus(status.trim().toUpperCase());
     }
 
     /**
@@ -941,7 +958,7 @@ public class AdminUserManagementUseCase {
             String userAgent) {}
 
     /** 회원 검색 명령 */
-    public record SearchCommand(String keyword, int page, int size) {}
+    public record SearchCommand(String keyword, String status, int page, int size) {}
 
     /** 회원 수정 명령 */
     public record UpdateCommand(

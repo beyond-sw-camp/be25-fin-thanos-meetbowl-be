@@ -1,6 +1,7 @@
 package com.meetbowl.application.admin;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -26,6 +27,9 @@ public class AdminDashboardSummaryUseCase {
 
     private static final int RECENT_AUDIT_LOG_LIMIT = 5;
     private static final int HOURS_PER_DAY = 24;
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final List<String> WEEKDAY_LABELS =
+            List.of("월", "화", "수", "목", "금", "토", "일");
 
     private final AdminAuditLogQueryUseCase adminAuditLogQueryUseCase;
     private final MailRetentionPolicyUseCase mailRetentionPolicyUseCase;
@@ -53,6 +57,8 @@ public class AdminDashboardSummaryUseCase {
         Instant currentWindowEnd = now.plusSeconds(1);
         Instant todayStart = todayStart(now);
         Instant tomorrowStart = todayStart.plusSeconds(24L * 60L * 60L);
+        Instant weekStart = weekStart(now);
+        Instant nextWeekStart = weekStart.plusSeconds(7L * 24L * 60L * 60L);
 
         List<RoomStatusResult> roomStatuses =
                 getMeetingRoomStatusUseCase.execute(
@@ -60,6 +66,9 @@ public class AdminDashboardSummaryUseCase {
         List<Meeting> todayMeetings =
                 meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
                         todayStart, tomorrowStart);
+        List<Meeting> weekMeetings =
+                meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(
+                        weekStart, nextWeekStart);
 
         return new AdminDashboardSummaryResult(
                 recentAuditLogs(),
@@ -70,6 +79,7 @@ public class AdminDashboardSummaryUseCase {
                         availableMeetingRoomCount(roomStatuses),
                         reservationStartUsage(todayMeetings, todayStart),
                         timeSlotOccupancyUsage(todayMeetings, todayStart),
+                        weekdayReservationUsage(weekMeetings, weekStart, nextWeekStart),
                         siteBuildingUsage(roomStatuses)));
     }
 
@@ -116,7 +126,7 @@ public class AdminDashboardSummaryUseCase {
     private int inUseMeetingRoomCount(List<RoomStatusResult> roomStatuses) {
         return (int)
                 roomStatuses.stream()
-                        .filter(room -> room.status() == RoomAvailabilityStatus.IN_USE)
+                        .filter(room -> isCurrentlyOccupied(room.status()))
                         .count();
     }
 
@@ -173,6 +183,34 @@ public class AdminDashboardSummaryUseCase {
         return new AdminDashboardSummaryResult.TimeSlotUsageResult(slotStart, reservationCount);
     }
 
+    private List<AdminDashboardSummaryResult.WeekdayReservationUsageResult> weekdayReservationUsage(
+            List<Meeting> meetings, Instant weekStart, Instant nextWeekStart) {
+        // 요일별 분포는 "이번 주에 시작한 예약 수"를 월~일 순서로 고정해서 내려 프론트가 빈 요일도 안정적으로 그릴 수 있게 한다.
+        Map<Integer, Long> reservationCountByDay =
+                meetings.stream()
+                        .filter(meeting -> !meeting.scheduledAt().isBefore(weekStart))
+                        .filter(meeting -> meeting.scheduledAt().isBefore(nextWeekStart))
+                        .collect(
+                                Collectors.groupingBy(
+                                        meeting ->
+                                                meeting.scheduledAt()
+                                                        .atZone(KST)
+                                                        .getDayOfWeek()
+                                                        .getValue(),
+                                        Collectors.counting()));
+
+        return IntStream.rangeClosed(1, 7)
+                .mapToObj(
+                        dayOfWeek ->
+                                new AdminDashboardSummaryResult.WeekdayReservationUsageResult(
+                                        dayOfWeek,
+                                        WEEKDAY_LABELS.get(dayOfWeek - 1),
+                                        reservationCountByDay
+                                                .getOrDefault(dayOfWeek, 0L)
+                                                .intValue()))
+                .toList();
+    }
+
     private List<AdminDashboardSummaryResult.SiteBuildingUsageResult> siteBuildingUsage(
             List<RoomStatusResult> roomStatuses) {
         // 사용률은 현재 시점 상태 집계이므로 site/building 기준으로 먼저 묶은 뒤 계산한다.
@@ -207,7 +245,7 @@ public class AdminDashboardSummaryUseCase {
         int usedRooms =
                 (int)
                         rooms.stream()
-                                .filter(room -> room.status() == RoomAvailabilityStatus.IN_USE)
+                                .filter(room -> isCurrentlyOccupied(room.status()))
                                 .count();
         double usageRate = totalRooms == 0 ? 0.0 : (double) usedRooms / totalRooms;
         return new AdminDashboardSummaryResult.SiteBuildingUsageResult(
@@ -220,15 +258,26 @@ public class AdminDashboardSummaryUseCase {
                 usageRate);
     }
 
+    private boolean isCurrentlyOccupied(RoomAvailabilityStatus status) {
+        // 관리자 대시보드의 현재 분포는 "실제 회의가 진행 중" 뿐 아니라
+        // "현재 시간대에 예약이 걸려 점유 중인 회의실"까지 함께 보여준다.
+        return status == RoomAvailabilityStatus.IN_USE || status == RoomAvailabilityStatus.RESERVED;
+    }
+
     private boolean overlaps(Meeting meeting, Instant from, Instant to) {
         return meeting.scheduledAt().isBefore(to) && meeting.scheduledEndAt().isAfter(from);
     }
 
     private Instant todayStart(Instant now) {
         // 관리자 대시보드는 화면 기준 시각인 KST 자정 경계로 하루를 묶는다.
-        ZoneId kst = ZoneId.of("Asia/Seoul");
-        LocalDate today = now.atZone(kst).toLocalDate();
-        return today.atStartOfDay(kst).toInstant();
+        LocalDate today = now.atZone(KST).toLocalDate();
+        return today.atStartOfDay(KST).toInstant();
+    }
+
+    private Instant weekStart(Instant now) {
+        LocalDate today = now.atZone(KST).toLocalDate();
+        LocalDate monday = today.with(DayOfWeek.MONDAY);
+        return monday.atStartOfDay(KST).toInstant();
     }
 
     private record SiteBuildingKey(
