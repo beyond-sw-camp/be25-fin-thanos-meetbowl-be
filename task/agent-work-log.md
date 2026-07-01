@@ -1381,8 +1381,8 @@
   `.github/workflows/backend-deploy.yml`,
   and this log.
 - Behavior:
-  Added `git config --global --add safe.directory ${API_DEPLOY_PATH}` before the remote `git fetch` command in the API ASG SSM deploy step.
-  This keeps the existing root-run SSM command flow but allows Git to trust the deployment checkout path.
+  Added `git -c safe.directory=${API_DEPLOY_PATH}` to the remote `git fetch`, `git pull`, and `git rev-parse` commands in the API ASG SSM deploy step.
+  This keeps the existing root-run SSM command flow but allows Git to trust the deployment checkout path without requiring a `$HOME` value for global Git config.
 - Excluded scope:
   Did not change the SSM execution user or the blue/green listener switching logic.
 - Verification:
