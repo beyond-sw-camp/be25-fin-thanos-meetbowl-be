@@ -1439,3 +1439,17 @@
   Did not change ASG, target group, or listener resources directly in AWS.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be weighted listener active target detection fix
+
+- Purpose: fix blue/green deploy target resolution failing when a weighted listener does not use exactly `Weight == 100` for the active target group.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  Active target detection now selects the target group with the maximum listener weight using `max_by(@, &Weight)` instead of requiring weight `100`.
+  If neither resolved target group matches configured blue/green secrets, the workflow prints the listener default actions JSON for diagnosis before failing.
+- Excluded scope:
+  Did not change listener switch weights; successful switches still write active `100` and inactive `0`.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.
