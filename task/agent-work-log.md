@@ -1387,4 +1387,55 @@
   Did not change the SSM execution user or the blue/green listener switching logic.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be mail notification creation
+
+- Purpose: fix mail-related notifications not appearing after refresh because mail send flows created mailbox entries but did not create notification rows.
+- Changed files:
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationType.java`,
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationResourceType.java`,
+  `application/src/main/java/com/meetbowl/application/mail/MailNotificationService.java`,
+  `application/src/main/java/com/meetbowl/application/mail/SendMailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/DispatchInternalMailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/SendAnnouncementUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/mail/MailNotificationServiceTest.java`,
+  related mail use case tests,
+  and this log.
+- Behavior:
+  Added `MAIL_RECEIVED` and `MAIL_SHARED` notification types and `MAIL` notification resource type.
+  General, announcement, and internal mail send flows now create recipient notifications after mail and mailbox entries are saved.
+  Minutes-share mail is classified as `MAIL_SHARED`; other mail is classified as `MAIL_RECEIVED`.
+- Excluded scope:
+  Did not change SSE distribution behavior across multiple API instances; this change only ensures notification rows are created so refresh/list lookup works.
+- Verification:
+  Passed `./gradlew :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
+  Passed `./gradlew :app-api:compileJava :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
+
+2026-07-01 meetbowl-be blue/green target group health diagnostics
+
+- Purpose: make failed blue/green deployments diagnosable when the inactive target group does not become healthy before the ALB listener switch.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  The verify step now prints target group health check settings and target health details before and after the `target-in-service` waiter.
+  If the waiter still fails, the workflow preserves the failure but includes target ID, port, state, reason, and description in the Actions log.
+- Excluded scope:
+  Did not change target group health check thresholds or switch behavior.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.
   Pending: targeted admin dashboard application test and compile checks.
+
+2026-07-01 meetbowl-be weighted blue/green listener switch
+
+- Purpose: keep both API blue and green target groups attached to the ALB listener so the inactive target group remains health-checkable and does not fall back to `unused` after a deployment.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  The blue/green resolver now reads the active target group from the listener's weighted forward config by selecting the target group with `Weight == 100`, while retaining compatibility with the previous single-target listener shape.
+  The listener switch step now writes both target groups back to the listener and changes only weights: target color gets `100`, inactive color gets `0`.
+- Excluded scope:
+  Did not change ASG, target group, or listener resources directly in AWS.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.

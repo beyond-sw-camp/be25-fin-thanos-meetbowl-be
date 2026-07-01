@@ -3,6 +3,7 @@ package com.meetbowl.application.mail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -32,6 +33,7 @@ class SendMailUseCaseTest {
         UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
         com.meetbowl.domain.storage.ObjectStoragePort objectStorage =
                 mock(com.meetbowl.domain.storage.ObjectStoragePort.class);
+        MailNotificationService mailNotificationService = mock(MailNotificationService.class);
         Instant now = Instant.parse("2099-01-01T00:00:00Z");
         UUID organizationId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
@@ -83,6 +85,7 @@ class SendMailUseCaseTest {
                         mailboxRepository,
                         userRepository,
                         objectStorage,
+                        mailNotificationService,
                         Clock.fixed(now, ZoneOffset.UTC));
 
         SendMailResult result =
@@ -108,6 +111,9 @@ class SendMailUseCaseTest {
         assertEquals(
                 List.of(MailboxType.SENT, MailboxType.INBOX),
                 captor.getValue().stream().map(MailboxEntry::mailboxType).toList());
+        ArgumentCaptor<Mail> notificationMailCaptor = ArgumentCaptor.forClass(Mail.class);
+        verify(mailNotificationService).notifyRecipients(notificationMailCaptor.capture());
+        assertEquals(mailId, notificationMailCaptor.getValue().id());
     }
 
     @Test
@@ -117,6 +123,7 @@ class SendMailUseCaseTest {
         UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
         com.meetbowl.domain.storage.ObjectStoragePort objectStorage =
                 mock(com.meetbowl.domain.storage.ObjectStoragePort.class);
+        MailNotificationService mailNotificationService = mock(MailNotificationService.class);
         Instant now = Instant.parse("2099-01-01T00:00:00Z");
         UUID organizationId = UUID.randomUUID();
         UUID senderId = UUID.randomUUID();
@@ -162,6 +169,7 @@ class SendMailUseCaseTest {
                         mailboxRepository,
                         userRepository,
                         objectStorage,
+                        mailNotificationService,
                         Clock.fixed(now, ZoneOffset.UTC));
 
         useCase.execute(

@@ -33,24 +33,33 @@ public class SendAnnouncementUseCase {
     private final MailRepositoryPort mailRepositoryPort;
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
+    private final MailNotificationService mailNotificationService;
     private final Clock clock;
 
     @Autowired
     public SendAnnouncementUseCase(
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
-            UserRepositoryPort userRepositoryPort) {
-        this(mailRepositoryPort, mailboxEntryRepositoryPort, userRepositoryPort, Clock.systemUTC());
+            UserRepositoryPort userRepositoryPort,
+            MailNotificationService mailNotificationService) {
+        this(
+                mailRepositoryPort,
+                mailboxEntryRepositoryPort,
+                userRepositoryPort,
+                mailNotificationService,
+                Clock.systemUTC());
     }
 
     SendAnnouncementUseCase(
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
+            MailNotificationService mailNotificationService,
             Clock clock) {
         this.mailRepositoryPort = mailRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
+        this.mailNotificationService = mailNotificationService;
         this.clock = clock;
     }
 
@@ -91,6 +100,7 @@ public class SendAnnouncementUseCase {
         recipientIds.forEach(
                 recipientId -> entries.add(MailboxEntry.inbox(saved.id(), recipientId)));
         mailboxEntryRepositoryPort.saveAll(entries);
+        mailNotificationService.notifyRecipients(saved);
 
         return new SendMailResult(saved.id(), saved.deliveryStatus().name(), saved.requestedAt());
     }

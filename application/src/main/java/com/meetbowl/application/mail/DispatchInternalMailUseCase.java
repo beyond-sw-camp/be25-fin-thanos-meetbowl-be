@@ -40,6 +40,7 @@ public class DispatchInternalMailUseCase {
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
     private final MailDeliveryEventPort mailDeliveryEventPort;
+    private final MailNotificationService mailNotificationService;
     private final Clock clock;
 
     @Autowired
@@ -47,12 +48,14 @@ public class DispatchInternalMailUseCase {
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
-            MailDeliveryEventPort mailDeliveryEventPort) {
+            MailDeliveryEventPort mailDeliveryEventPort,
+            MailNotificationService mailNotificationService) {
         this(
                 mailRepositoryPort,
                 mailboxEntryRepositoryPort,
                 userRepositoryPort,
                 mailDeliveryEventPort,
+                mailNotificationService,
                 Clock.systemUTC());
     }
 
@@ -61,11 +64,13 @@ public class DispatchInternalMailUseCase {
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
             MailDeliveryEventPort mailDeliveryEventPort,
+            MailNotificationService mailNotificationService,
             Clock clock) {
         this.mailRepositoryPort = mailRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
         this.mailDeliveryEventPort = mailDeliveryEventPort;
+        this.mailNotificationService = mailNotificationService;
         this.clock = clock;
     }
 
@@ -113,6 +118,7 @@ public class DispatchInternalMailUseCase {
                             recipientId ->
                                     entries.add(MailboxEntry.inbox(saved.id(), recipientId)));
             mailboxEntryRepositoryPort.saveAll(entries);
+            mailNotificationService.notifyRecipients(saved);
         } catch (RuntimeException exception) {
             // 검증을 통과한 뒤의 저장 단계 장애만 발송 실패로 보고 재처리 가능하도록 알린다.
             mailDeliveryEventPort.publishFailed(
