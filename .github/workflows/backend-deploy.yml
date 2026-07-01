@@ -238,7 +238,7 @@ jobs:
           WEIGHTED_TARGET_GROUP_ARN="$(
             aws elbv2 describe-listeners \
               --listener-arns "$API_LISTENER_ARN" \
-              --query 'Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups[?Weight==`100`].TargetGroupArn | [0]' \
+              --query 'Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups | max_by(@, &Weight).TargetGroupArn' \
               --output text
           )"
 
@@ -261,6 +261,10 @@ jobs:
             TARGET_DEPLOY_PATH="$BLUE_DEPLOY_PATH"
             TARGET_GROUP_ARN="$BLUE_TARGET_GROUP_ARN"
           else
+            aws elbv2 describe-listeners \
+              --listener-arns "$API_LISTENER_ARN" \
+              --query 'Listeners[0].DefaultActions' \
+              --output json
             echo "active listener target group is neither blue nor green: ${ACTIVE_TARGET_GROUP_ARN}" >&2
             exit 1
           fi
