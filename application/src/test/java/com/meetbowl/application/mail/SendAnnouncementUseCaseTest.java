@@ -33,13 +33,15 @@ class SendAnnouncementUseCaseTest {
     private final MailboxEntryRepositoryPort mailboxRepository =
             mock(MailboxEntryRepositoryPort.class);
     private final UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
+    private final MailNotificationService mailNotificationService = mock(MailNotificationService.class);
     private final Instant now = Instant.parse("2099-01-01T00:00:00Z");
     private final SendAnnouncementUseCase useCase =
             new SendAnnouncementUseCase(
-                    mailRepository,
-                    mailboxRepository,
-                    userRepository,
-                    Clock.fixed(now, ZoneOffset.UTC));
+                mailRepository,
+                mailboxRepository,
+                userRepository,
+                mailNotificationService,
+                Clock.fixed(now, ZoneOffset.UTC));
 
     @Test
     void announcementGoesToActiveOrgMembersExceptSenderAndSystem() {
@@ -87,6 +89,9 @@ class SendAnnouncementUseCaseTest {
         assertEquals(
                 List.of(MailboxType.SENT, MailboxType.INBOX),
                 entryCaptor.getValue().stream().map(MailboxEntry::mailboxType).toList());
+        ArgumentCaptor<Mail> notificationMailCaptor = ArgumentCaptor.forClass(Mail.class);
+        verify(mailNotificationService).notifyRecipients(notificationMailCaptor.capture());
+        assertEquals(mailId, notificationMailCaptor.getValue().id());
     }
 
     @Test

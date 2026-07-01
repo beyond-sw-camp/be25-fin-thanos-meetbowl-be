@@ -53,6 +53,7 @@ class DispatchInternalMailUseCaseTest {
             mock(MailboxEntryRepositoryPort.class);
     private final UserRepositoryPort userRepository = mock(UserRepositoryPort.class);
     private final MailDeliveryEventPort deliveryEventPort = mock(MailDeliveryEventPort.class);
+    private final MailNotificationService mailNotificationService = mock(MailNotificationService.class);
 
     private final DispatchInternalMailUseCase useCase =
             new DispatchInternalMailUseCase(
@@ -60,6 +61,7 @@ class DispatchInternalMailUseCaseTest {
                     mailboxRepository,
                     userRepository,
                     deliveryEventPort,
+                    mailNotificationService,
                     Clock.fixed(now, ZoneOffset.UTC));
 
     private DispatchInternalMailCommand command() {
@@ -118,6 +120,9 @@ class DispatchInternalMailUseCaseTest {
         verify(deliveryEventPort).publishSent(eventCaptor.capture());
         assertEquals(result.mailId(), eventCaptor.getValue().mailId());
         assertEquals(List.of(recipientId), eventCaptor.getValue().recipientUserIds());
+        ArgumentCaptor<Mail> notificationMailCaptor = ArgumentCaptor.forClass(Mail.class);
+        verify(mailNotificationService).notifyRecipients(notificationMailCaptor.capture());
+        assertEquals(result.mailId(), notificationMailCaptor.getValue().id());
         verify(deliveryEventPort, never()).publishFailed(any());
     }
 
@@ -182,6 +187,7 @@ class DispatchInternalMailUseCaseTest {
 
         assertEquals(mailId, result.mailId());
         verify(mailRepository, never()).save(any());
+        verify(mailNotificationService, never()).notifyRecipients(any());
         verify(deliveryEventPort, never()).publishSent(any());
         verify(deliveryEventPort, never()).publishFailed(any());
     }

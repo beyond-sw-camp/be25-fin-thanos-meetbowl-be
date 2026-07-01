@@ -229,12 +229,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          ACTIVE_TARGET_GROUP_ARN="$(
+          DIRECT_TARGET_GROUP_ARN="$(
             aws elbv2 describe-listeners \
               --listener-arns "$API_LISTENER_ARN" \
               --query 'Listeners[0].DefaultActions[0].TargetGroupArn' \
               --output text
           )"
+          WEIGHTED_TARGET_GROUP_ARN="$(
+            aws elbv2 describe-listeners \
+              --listener-arns "$API_LISTENER_ARN" \
+              --query 'Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups[?Weight==`100`].TargetGroupArn | [0]' \
+              --output text
+          )"
+
+          if [ "$WEIGHTED_TARGET_GROUP_ARN" != "None" ] && [ -n "$WEIGHTED_TARGET_GROUP_ARN" ]; then
+            ACTIVE_TARGET_GROUP_ARN="$WEIGHTED_TARGET_GROUP_ARN"
+          else
+            ACTIVE_TARGET_GROUP_ARN="$DIRECT_TARGET_GROUP_ARN"
+          fi
 
           if [ "$ACTIVE_TARGET_GROUP_ARN" = "$BLUE_TARGET_GROUP_ARN" ]; then
             PREVIOUS_COLOR="blue"
@@ -349,19 +361,39 @@ jobs:
         run: |
           set -euo pipefail
 
-          aws elbv2 wait target-in-service \
-            --target-group-arn "$API_TARGET_GROUP_ARN"
+          aws elbv2 describe-target-groups \
+            --target-group-arns "$API_TARGET_GROUP_ARN" \
+            --query 'TargetGroups[*].{TargetGroupName:TargetGroupName,Port:Port,Protocol:Protocol,HealthCheckProtocol:HealthCheckProtocol,HealthCheckPort:HealthCheckPort,HealthCheckPath:HealthCheckPath,Matcher:Matcher.HttpCode}' \
+            --output table
 
+          echo "Target health before wait:"
           aws elbv2 describe-target-health \
             --target-group-arn "$API_TARGET_GROUP_ARN" \
-            --query 'TargetHealthDescriptions[*].[Target.Id,TargetHealth.State,TargetHealth.Reason]' \
+            --query 'TargetHealthDescriptions[*].[Target.Id,Target.Port,TargetHealth.State,TargetHealth.Reason,TargetHealth.Description]' \
             --output table
+
+          set +e
+          aws elbv2 wait target-in-service \
+            --target-group-arn "$API_TARGET_GROUP_ARN"
+          WAIT_EXIT=$?
+          set -e
+
+          echo "Target health after wait:"
+          aws elbv2 describe-target-health \
+            --target-group-arn "$API_TARGET_GROUP_ARN" \
+            --query 'TargetHealthDescriptions[*].[Target.Id,Target.Port,TargetHealth.State,TargetHealth.Reason,TargetHealth.Description]' \
+            --output table
+
+          if [ "$WAIT_EXIT" -ne 0 ]; then
+            exit "$WAIT_EXIT"
+          fi
 
       - name: Switch API ALB listener
         if: steps.deploy-mode.outputs.value == 'split'
         env:
           API_LISTENER_ARN: ${{ secrets.MEETBOWL_API_LISTENER_ARN }}
-          API_TARGET_GROUP_ARN: ${{ steps.api-target.outputs.target_group_arn }}
+          BLUE_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_BLUE_TARGET_GROUP_ARN }}
+          GREEN_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_GREEN_TARGET_GROUP_ARN }}
           TARGET_COLOR: ${{ steps.api-target.outputs.target_color }}
           PREVIOUS_COLOR: ${{ steps.api-target.outputs.previous_color }}
         run: |
@@ -369,9 +401,26 @@ jobs:
 
           echo "Switching API listener from ${PREVIOUS_COLOR} to ${TARGET_COLOR}"
 
+          if [ "$TARGET_COLOR" = "blue" ]; then
+            BLUE_WEIGHT=100
+            GREEN_WEIGHT=0
+          elif [ "$TARGET_COLOR" = "green" ]; then
+            BLUE_WEIGHT=0
+            GREEN_WEIGHT=100
+          else
+            echo "unknown target color: ${TARGET_COLOR}" >&2
+            exit 1
+          fi
+
+          DEFAULT_ACTIONS="$(
+            printf '[{"Type":"forward","ForwardConfig":{"TargetGroups":[{"TargetGroupArn":"%s","Weight":%s},{"TargetGroupArn":"%s","Weight":%s}]}}]' \
+              "$BLUE_TARGET_GROUP_ARN" "$BLUE_WEIGHT" \
+              "$GREEN_TARGET_GROUP_ARN" "$GREEN_WEIGHT"
+          )"
+
           aws elbv2 modify-listener \
             --listener-arn "$API_LISTENER_ARN" \
-            --default-actions Type=forward,TargetGroupArn="$API_TARGET_GROUP_ARN" \
+            --default-actions "$DEFAULT_ACTIONS" \
             --output json
 
           aws elbv2 describe-listeners \

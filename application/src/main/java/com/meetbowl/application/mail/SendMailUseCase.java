@@ -41,6 +41,7 @@ public class SendMailUseCase {
     private final MailboxEntryRepositoryPort mailboxEntryRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
     private final ObjectStoragePort objectStoragePort;
+    private final MailNotificationService mailNotificationService;
     private final Clock clock;
 
     @Autowired
@@ -48,12 +49,14 @@ public class SendMailUseCase {
             MailRepositoryPort mailRepositoryPort,
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
-            ObjectStoragePort objectStoragePort) {
+            ObjectStoragePort objectStoragePort,
+            MailNotificationService mailNotificationService) {
         this(
                 mailRepositoryPort,
                 mailboxEntryRepositoryPort,
                 userRepositoryPort,
                 objectStoragePort,
+                mailNotificationService,
                 Clock.systemUTC());
     }
 
@@ -62,11 +65,13 @@ public class SendMailUseCase {
             MailboxEntryRepositoryPort mailboxEntryRepositoryPort,
             UserRepositoryPort userRepositoryPort,
             ObjectStoragePort objectStoragePort,
+            MailNotificationService mailNotificationService,
             Clock clock) {
         this.mailRepositoryPort = mailRepositoryPort;
         this.mailboxEntryRepositoryPort = mailboxEntryRepositoryPort;
         this.userRepositoryPort = userRepositoryPort;
         this.objectStoragePort = objectStoragePort;
+        this.mailNotificationService = mailNotificationService;
         this.clock = clock;
     }
 
@@ -107,6 +112,7 @@ public class SendMailUseCase {
         command.recipientUserIds()
                 .forEach(recipientId -> entries.add(MailboxEntry.inbox(saved.id(), recipientId)));
         mailboxEntryRepositoryPort.saveAll(entries);
+        mailNotificationService.notifyRecipients(saved);
         return result(saved);
     }
 
