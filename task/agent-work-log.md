@@ -1372,4 +1372,19 @@
   `meetingRoomSummary.inUseMeetingRoomCount` and `meetingRoomSummary.siteBuildingUsage` now include both `IN_USE` and `RESERVED` room statuses at the current moment.
   The dashboard's current room distribution now reflects rooms blocked by meetings in the current time window even when the meeting status is still `SCHEDULED`.
 - Verification:
+  Passed `./gradlew :app-api:compileJava`.
+
+2026-07-01 meetbowl-be blue/green SSM git safe directory fix
+
+- Purpose: fix BE blue/green API deployment failing in GitHub Actions when SSM runs `git fetch` as root against an infra checkout owned by `ubuntu`.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  Added `git config --global --add safe.directory ${API_DEPLOY_PATH}` before the remote `git fetch` command in the API ASG SSM deploy step.
+  This keeps the existing root-run SSM command flow but allows Git to trust the deployment checkout path.
+- Excluded scope:
+  Did not change the SSM execution user or the blue/green listener switching logic.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.
   Pending: targeted admin dashboard application test and compile checks.
