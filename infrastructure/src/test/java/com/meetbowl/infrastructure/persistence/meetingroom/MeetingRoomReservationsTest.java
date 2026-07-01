@@ -27,8 +27,11 @@ import com.meetbowl.application.meeting.MeetingAttendeeWriter;
 import com.meetbowl.application.meeting.MeetingExternalInviteeSyncService;
 import com.meetbowl.application.meeting.MeetingRoomReservationGuard;
 import com.meetbowl.application.meeting.SendMeetingExternalInvitationMailUseCase;
+import com.meetbowl.application.meetingroom.CreateRoomBlockCommand;
 import com.meetbowl.application.meetingroom.GetRoomReservationsUseCase;
 import com.meetbowl.application.meetingroom.ReservationItemResult;
+import com.meetbowl.application.meetingroom.RoomBlockAdminUseCase;
+import com.meetbowl.application.meetingroom.RoomBlockResult;
 import com.meetbowl.application.meetingroom.RoomReservationsResult;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
@@ -36,6 +39,8 @@ import com.meetbowl.domain.meetingroom.Building;
 import com.meetbowl.domain.meetingroom.BuildingRepositoryPort;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
+import com.meetbowl.domain.meetingroom.RoomBlock;
+import com.meetbowl.domain.meetingroom.RoomBlockRepositoryPort;
 import com.meetbowl.domain.meetingroom.Site;
 import com.meetbowl.domain.meetingroom.SiteRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
@@ -68,6 +73,8 @@ class MeetingRoomReservationsTest {
     @Autowired private MeetingRoomRepositoryPort meetingRoomRepositoryPort;
     @Autowired private BuildingRepositoryPort buildingRepositoryPort;
     @Autowired private SiteRepositoryPort siteRepositoryPort;
+    @Autowired private RoomBlockRepositoryPort roomBlockRepositoryPort;
+    @Autowired private RoomBlockAdminUseCase roomBlockAdminUseCase;
 
     private UUID buildingId;
 
@@ -147,6 +154,84 @@ class MeetingRoomReservationsTest {
         assertThat(exception.errorCode()).isEqualTo(ErrorCode.COMMON_INVALID_REQUEST);
     }
 
+    // ─── 시간대 차단(RoomBlock) ───
+
+    private void givenBlock(UUID roomId, Instant start, Instant end, String reason) {
+        roomBlockRepositoryPort.save(RoomBlock.create(roomId, start, end, reason));
+    }
+
+    @Test
+    void blockedSlotRejectsOverlappingReservation() {
+        UUID roomId = givenRoom("대 회의실");
+        givenBlock(roomId, SLOT_START, SLOT_END, "시설 점검"); // 01:00~02:00 차단
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () -> reserve(roomId, UUID.randomUUID(), SLOT_START, SLOT_END, null));
+        assertThat(exception.errorCode()).isEqualTo(ErrorCode.MEETING_ROOM_BLOCKED);
+    }
+
+    @Test
+    void reservationOutsideBlockIsAllowed() {
+        UUID roomId = givenRoom("대 회의실");
+        givenBlock(roomId, SLOT_START, SLOT_END, "시설 점검"); // 01:00~02:00 차단
+
+        // 03:00~04:00은 차단 밖이라 정상 예약된다.
+        reserve(
+                roomId,
+                UUID.randomUUID(),
+                Instant.parse("2099-06-01T03:00:00Z"),
+                Instant.parse("2099-06-01T04:00:00Z"),
+                null);
+
+        RoomReservationsResult room =
+                getRoomReservationsUseCase
+                        .getReservationBoard(DAY_START, DAY_END, null, null)
+                        .get(0);
+        assertThat(room.reservations()).hasSize(1);
+    }
+
+    @Test
+    void boardIncludesRoomBlocks() {
+        UUID roomId = givenRoom("대 회의실");
+        givenBlock(roomId, SLOT_START, SLOT_END, "시설 점검");
+
+        RoomReservationsResult room =
+                getRoomReservationsUseCase
+                        .getReservationBoard(DAY_START, DAY_END, null, null)
+                        .get(0);
+        assertThat(room.blocks()).hasSize(1);
+        assertThat(room.blocks().get(0).reason()).isEqualTo("시설 점검");
+        assertThat(room.blocks().get(0).startAt()).isEqualTo(SLOT_START);
+    }
+
+    @Test
+    void blockRejectedWhenActiveReservationOverlaps() {
+        UUID roomId = givenRoom("대 회의실");
+        reserve(roomId, UUID.randomUUID(), SLOT_START, SLOT_END, null); // 01:00~02:00 예약
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                roomBlockAdminUseCase.create(
+                                        new CreateRoomBlockCommand(
+                                                roomId, SLOT_START, SLOT_END, "시설 점검")));
+        assertThat(exception.errorCode()).isEqualTo(ErrorCode.MEETING_ROOM_ALREADY_RESERVED);
+    }
+
+    @Test
+    void blockCreatedWhenNoReservationOverlaps() {
+        UUID roomId = givenRoom("대 회의실");
+
+        RoomBlockResult result =
+                roomBlockAdminUseCase.create(
+                        new CreateRoomBlockCommand(roomId, SLOT_START, SLOT_END, "시설 점검"));
+
+        assertThat(result.blockId()).isNotNull();
+    }
+
     // ─── ①② 내 예약 / 참석할 회의 ───
 
     @Test
@@ -210,6 +295,7 @@ class MeetingRoomReservationsTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaRoomBlockRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
@@ -217,7 +303,8 @@ class MeetingRoomReservationsTest {
         MeetingExternalInviteeSyncService.class,
         MeetingAttendeeWriter.class,
         CreateMeetingUseCase.class,
-        GetRoomReservationsUseCase.class
+        GetRoomReservationsUseCase.class,
+        RoomBlockAdminUseCase.class
     })
     static class TestApplication {
 

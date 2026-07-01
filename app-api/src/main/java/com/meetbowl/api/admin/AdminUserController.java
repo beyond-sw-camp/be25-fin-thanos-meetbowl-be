@@ -120,13 +120,14 @@ public class AdminUserController extends BaseController {
             @CurrentUser AuthenticatedUser admin,
             @RequestParam(defaultValue = "1") @Min(1) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword) {
         requireAdmin(admin);
         return ok(
                 AdminUserListResponse.from(
                         adminUserManagementUseCase.search(
                                 new AdminUserManagementUseCase.SearchCommand(
-                                        keyword, page, size),
+                                        keyword, status, page, size),
                                 admin.organizationId())));
     }
 

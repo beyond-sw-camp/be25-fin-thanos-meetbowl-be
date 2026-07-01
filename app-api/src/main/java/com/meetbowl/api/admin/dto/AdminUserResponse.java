@@ -23,6 +23,7 @@ public record AdminUserResponse(
         Instant activeFrom,
         Instant activeUntil,
         Instant createdAt,
+        Instant updatedAt,
         boolean initialPasswordChangeRequired) {
 
     public static AdminUserResponse from(AdminUserManagementUseCase.UserSummary summary) {
@@ -44,6 +45,7 @@ public record AdminUserResponse(
                 summary.activeFrom(),
                 summary.activeUntil(),
                 summary.createdAt(),
+                summary.updatedAt(),
                 summary.initialPasswordChangeRequired());
     }
 }

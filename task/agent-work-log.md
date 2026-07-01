@@ -1205,156 +1205,172 @@
   Passed targeted admin dashboard summary test.
   Passed full `./gradlew test --no-daemon`.
 
-2026-06-30 notification SSE error response content-type fix
+2026-06-28 admin user update affiliate fallback and attendee chip shape polish
 
-- Purpose: diagnose and fix `No converter for [class com.meetbowl.common.response.ApiResponse] with preset Content-Type 'text/event-stream'` during notification SSE subscription failures.
+- Purpose:
+  Prevent admin user update from failing when the request omits `affiliateId`, and make attendee chips visually match the external invite chips more closely.
 - Changed files:
-  `app-api/src/main/java/com/meetbowl/api/common/GlobalExceptionHandler.java`,
-  `app-api/src/test/java/com/meetbowl/api/notification/NotificationControllerTest.java`,
-  `app-api/src/test/java/com/meetbowl/api/config/SecurityConfigTest.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminUserManagementUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminUserManagementUseCaseTest.java`,
+  `../meetbowl-fe/src/components/rooms/UserSearchPicker.vue`,
   and this log.
 - Behavior:
-  Forced all common exception-handler responses to `application/json` so an exception raised after an SSE handler mapping is selected does not try to serialize `ApiResponse` as `text/event-stream`.
-  Added a regression test proving `/api/v1/notifications/subscribe` authentication failure returns the common JSON error instead of failing message conversion.
-  Added a security/CORS regression test proving the SSE endpoint accepts `?token=` access tokens and returns the expected CORS header for the default local frontend origin.
-- Findings:
-  The frontend already opens SSE with `new EventSource('/api/v1/notifications/subscribe?token=...')`, which matches the backend query-token resolver.
-  Default backend CORS allows only `http://localhost:*` and `http://127.0.0.1:*`; deployed frontend origins still require `MEETBOWL_CORS_ALLOWED_ORIGIN_PATTERNS`.
-- Excluded scope:
-  Did not change the SSE event payload format or token refresh behavior for long-lived EventSource connections.
+  Admin user update now falls back to the target user's current affiliate when `affiliateId` is absent instead of attempting to save a null affiliate.
+  Update validation now checks managed-account/access-scope rules before organization reference validation so SYSTEM-account protection and affiliate scope errors are preserved.
+  Attendee chips now use the same pill-like radius, inline metadata flow, and padding feel as the external invite chips while still showing `이름 · 부서 · 직급`.
 - Verification:
-  Passed `./gradlew :app-api:test --tests com.meetbowl.api.notification.NotificationControllerTest --tests com.meetbowl.api.config.SecurityConfigTest --no-daemon`.
-  Passed full `./gradlew test --no-daemon`.
+  Passed `npm run build` in `meetbowl-fe`.
+ Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminUserManagementUseCaseTest --no-daemon --console=plain`.
 
-2026-06-30 seed admin account policy update
+2026-06-28 admin organization members excel scoped by affiliate
 
-- Purpose: restore the default seed policy to a single `admin` administrator and migrate away from the temporary `admin1`/`admin2` seed accounts on prod.
+- Purpose:
+  Make the organization/member Excel export and import operate as a single-affiliate file instead of a cross-affiliate workbook.
 - Changed files:
-  `application/src/main/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCase.java`,
-  `application/src/test/java/com/meetbowl/application/auth/InitializeLocalAccountsUseCaseTest.java`,
-  `app-api/src/main/resources/db/migration/V10__restore_single_seed_admin.sql`,
-  `README.md`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/AdminOrganizationMembersExcelController.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Excel download now filters departments, teams, positions, and users to the current admin affiliate only, and the downloaded filename is suffixed with the affiliate code.
+  The workbook template no longer asks for `affiliateName` in department/team/position/member rows; the affiliate sheet was removed and scope now comes from the logged-in admin's affiliate.
+  Import validation now rejects workbooks that try to mix multiple affiliates and resolves all downstream organization references inside the file's single affiliate scope.
+- Verification:
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest --no-daemon --console=plain`.
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :app-api:compileJava --no-daemon --console=plain`.
+
+2026-06-28 admin organization members excel remove affiliate input from workbook
+
+- Purpose:
+  Remove affiliate entry columns and the affiliate sheet from the organization/member Excel template so the workbook is always scoped by the logged-in admin's affiliate.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelRows.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  The workbook now contains only `부서`, `팀`, `직급`, and `회원` sheets.
+  Department/team/position/member rows no longer expose `affiliateName` or any affiliate input column.
+  Import continues to resolve scope from the admin's affiliate ID passed in from the API layer.
+- Verification:
+  Pending: `:application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest`
+  Pending: `:app-api:compileJava`
+
+2026-06-28 admin organization members excel simplify workbook to user-only names
+
+- Purpose:
+  Remove manager/admin handling from the Excel template, and drop code entry columns so admins only edit names and status values.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelRows.java`,
+  `application/src/main/java/com/meetbowl/application/admin/excel/OrganizationMembersExcelWorkbookMapper.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  The workbook now exports only `USER` accounts.
+  Department/team/position sheets no longer expose code input columns.
+  The user sheet no longer exposes a role column; imported members are forced to `USER`, and admin accounts are rejected if someone tries to hand-edit them into the file.
+  Header cells now use colored fills so required fields and read-only IDs are visually distinct.
+- Verification:
+ Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest --no-daemon --console=plain`
+  Passed `GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :app-api:compileJava --no-daemon --console=plain`
+
+2026-06-29 local minutes sample seed for frontend verification
+
+- Purpose:
+  Prepare a local-only sample meeting and minutes payload so the minutes frontend can be checked without manual API calls.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/minutes/InitializeLocalMinutesUseCase.java`,
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  and this log.
+- Behavior:
+  When the `local` profile boots, the app now creates a sample ended meeting with attendees and a draft minutes document if they do not already exist.
+  The sample content includes markdown headings and bullet lists so the minutes detail UI can be validated with realistic text.
+- Verification:
+ Pending: compile/run check for the new local initializer and sample minutes seed.
+
+2026-06-29 local/dev minutes sample seed expanded for user1 visibility
+
+- Purpose:
+  Make the sample minutes data available in both `local` and `dev` profiles so `user1` can see a minute item immediately in the frontend.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  and this log.
+- Behavior:
+  The sample account/minutes bootstrap now runs under `local | dev` instead of local only.
+  This keeps the frontend verification path usable even when the backend is launched with the dev profile.
+- Verification:
+  Pending: compile/run check after profile change.
+
+2026-06-30 admin dashboard timeslot summary contract split for reservation starts vs occupancy
+
+- Purpose:
+  Fix the admin dashboard comparison graph so the backend returns separate time-series for reservation start counts and room occupancy counts instead of overloading one field with overlap-based counts.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryResult.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/dto/AdminDashboardSummaryResponse.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `app-api/src/test/java/com/meetbowl/api/admin/AdminDashboardSummaryControllerTest.java`,
   `docs/api-spec.md`,
   and this log.
 - Behavior:
-  Changed local/prod bootstrap back to `admin`, `user1`, and `user2` under one seed affiliate named `한화 시스템`.
-  The seed `admin` display name is now `한화 시스템 관리자`.
-  Added Flyway migration `V10` to rename the existing `admin` affiliate to `한화 시스템`, rename `admin` to `한화 시스템 관리자`, and delete existing `admin1`/`admin2` rows.
-  Kept seed password `1234`, seed users `user1`/`user2`, and the seed affiliate code `LOCAL-1`.
-- Excluded scope:
-  Did not merge or delete orphaned affiliate rows that may have been created by the temporary two-admin seed policy.
+  `meetingRoomSummary.timeSlotUsage` now means the number of meetings that start within each KST hourly slot.
+  `meetingRoomSummary.timeSlotOccupancyUsage` was added and now means the number of meetings overlapping each KST hourly slot.
+  The admin dashboard frontend can now bind the blue "예약 시작 빈도" line and orange "상세 점유 현황" line to genuinely different datasets.
 - Verification:
-  Passed `./gradlew :application:test --tests com.meetbowl.application.auth.InitializeLocalAccountsUseCaseTest --no-daemon`.
+  Pending: `:application:test` for `AdminDashboardSummaryUseCaseTest`
+  Pending: `:app-api:test` for `AdminDashboardSummaryControllerTest`
 
-2026-06-30 meetbowl-be role split and split deploy workflow
+2026-06-30 remove local sample minutes seed
 
-- Purpose: keep the existing single-image rollback path while allowing `meetbowl-be` to run in split `api` / `worker` roles and align the backend deployment workflow with that runtime shape.
+- Purpose:
+  Drop the temporary local/dev sample minutes bootstrap because it is no longer needed for frontend verification and should not stay wired into backend startup.
 - Changed files:
-  `app-api/src/main/java/com/meetbowl/api/config/ConditionalOnMeetbowlAppRole.java`,
-  `app-api/src/main/java/com/meetbowl/api/config/MeetbowlAppRole.java`,
-  `app-api/src/main/java/com/meetbowl/api/config/MeetbowlAppRoleCondition.java`,
-  `app-api/src/main/java/com/meetbowl/api/config/UserSearchIndexStartupInitializer.java`,
-  `app-api/src/main/java/com/meetbowl/api/config/ProdSeedDataInitializer.java`,
-  `app-api/src/main/java/com/meetbowl/api/mail/MailRetentionScheduler.java`,
-  `app-api/src/main/java/com/meetbowl/api/messaging/MeetingEndedOutboxScheduler.java`,
-  `app-api/src/main/java/com/meetbowl/api/messaging/TranscriptFinalCreatedListener.java`,
-  `app-api/src/main/java/com/meetbowl/api/messaging/UserSearchReindexRequestedListener.java`,
-  `app-api/src/main/java/com/meetbowl/api/minutes/RabbitMinutesGeneratedEventListener.java`,
-  `app-api/src/main/java/com/meetbowl/api/notification/NotificationReminderScheduler.java`,
-  `app-api/src/main/resources/application.properties`,
-  `infrastructure/src/main/java/com/meetbowl/infrastructure/search/user/UserSearchIndexInitializer.java`,
-  `.env.example`,
-  `README.md`,
-  `.github/workflows/backend-deploy.yml`,
+  `app-api/src/main/java/com/meetbowl/api/config/LocalDataInitializer.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/InitializeLocalMinutesUseCase.java`,
   and this log.
 - Behavior:
-  Added `MEETBOWL_APP_ROLE` with `all`, `api`, `worker` modes. Missing or unknown values fall back to `all`.
-  Restricted scheduler, RabbitMQ listener, prod seed, and user-search startup work to `all` or `worker`, so `api` mode can serve HTTP traffic without duplicate background execution.
-  Moved the user-search startup trigger into `app-api` so the `infrastructure` module no longer owns application startup wiring.
-  Updated the GitHub Actions deploy job so API deploys target the API ASG through AWS SSM and Worker deploys target the dedicated worker EC2 through SSH.
-  The workflow now records the API desired image tag into SSM so API instances can read the same tag at boot through `/meetbowl/prod/be-api/MEETBOWL_BE_IMAGE_TAG`.
-  Manual `workflow_dispatch` fallback deployment in `all` mode now assumes a dedicated fallback EC2.
-- Excluded scope:
-  Did not add new domain behavior for scheduler idempotency beyond the existing queue/listener contracts.
-  Did not execute the remote EC2 deployment path from this workspace.
- - Verification:
-  Passed `./gradlew :app-api:compileJava :infrastructure:compileJava --no-daemon`.
-  Passed `./gradlew :app-api:test --tests com.meetbowl.api.config.LocalDataInitializerTest --no-daemon`.
-
-2026-07-01 meetbowl-be RabbitMQ URI override for managed broker migration
-
-- Purpose: allow production BE instances to connect to Amazon MQ with a single `amqps://...` environment variable instead of splitting broker host, port, credentials, and vhost across multiple SSM keys.
-- Changed files:
-  `app-api/src/main/resources/application.properties`,
-  `.env.example`,
-  and this log.
-- Behavior:
-  Added `spring.rabbitmq.addresses=${MEETBOWL_RABBITMQ_URI:}` so Spring Boot uses a full broker URI when present and falls back to the existing host/port/username/password/vhost settings when it is absent.
-  Documented the new optional `MEETBOWL_RABBITMQ_URI` variable in the local environment example.
-- Excluded scope:
-  Did not remove the legacy split RabbitMQ variables because existing local and rollback environments still depend on them.
+  Backend startup now seeds only the local Swagger test accounts again.
+  No sample meeting/minutes data is created automatically in `local` or `dev`.
 - Verification:
-  Configuration-only change; runtime validation remains to be done on the production worker/API instances against the target Amazon MQ broker.
+  Pending: compile check after removing the sample seed wiring.
 
-2026-07-01 meetbowl-be datasource pool default lowered to 5
+2026-06-30 admin dashboard weekday reservation usage contract added
 
-- Purpose: reduce the default Hikari connection pool size from the library default 10 to 5 so newly started BE instances consume fewer MariaDB connections unless an environment override is explicitly provided.
+- Purpose:
+  Fix the admin dashboard weekday bar chart so the backend returns real per-weekday reservation counts instead of leaving the frontend with an empty fallback dataset.
 - Changed files:
-  `app-api/src/main/resources/application.properties`,
-  `.env.example`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryResult.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `app-api/src/main/java/com/meetbowl/api/admin/dto/AdminDashboardSummaryResponse.java`,
+  `app-api/src/test/java/com/meetbowl/api/admin/AdminDashboardSummaryControllerTest.java`,
+  `docs/api-spec.md`,
   and this log.
 - Behavior:
-  Added `spring.datasource.hikari.maximum-pool-size=${MEETBOWL_DB_MAX_POOL_SIZE:5}` as the common default for every runtime profile.
-  Added `MEETBOWL_DB_MAX_POOL_SIZE=5` to the example environment file.
-- Excluded scope:
-  Did not tune `minimumIdle` or other Hikari timings; only the maximum pool size default changed.
+  The admin dashboard summary API now includes `meetingRoomSummary.weekdayReservationUsage` with Monday-through-Sunday labels and reservation counts for the current KST week.
+  The frontend weekday bar chart can now render real API data from the same dashboard summary payload as the other charts.
 - Verification:
-  Configuration-only change; no local Gradle rerun was performed in this workspace after the update.
+  Pending: targeted admin dashboard application/API tests and compile checks.
 
-2026-07-01 meetbowl-be internal error logging for login/runtime diagnosis
+2026-06-30 admin dashboard current room distribution includes reserved overlaps
 
-- Purpose: make unexpected `500 COMMON_INTERNAL_ERROR` responses diagnosable in production by logging the underlying exception instead of swallowing it silently in the global handler.
+- Purpose:
+  Align the admin dashboard room distribution with user expectations by counting rooms that are currently time-overlapping with a reservation even if the meeting has not been explicitly started yet.
 - Changed files:
-  `app-api/src/main/java/com/meetbowl/api/common/GlobalExceptionHandler.java`,
+  `application/src/main/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminDashboardSummaryUseCaseTest.java`,
+  `docs/api-spec.md`,
   and this log.
 - Behavior:
-  The catch-all `@ExceptionHandler(Exception.class)` now writes an error log with HTTP method, request URI, query string, and full exception stack trace before returning the existing common 500 response body.
-  Client-facing error contracts are unchanged.
-- Excluded scope:
-  Did not alter business-exception handling or introduce new error response fields.
-  Did not yet identify the exact production login failure cause because the deployed instance must be restarted with this code first.
-- Verification:
-  Attempted `./gradlew :app-api:compileJava`, but local execution was blocked by a Gradle wrapper lock-file permission error under `~/.gradle/wrapper/dists`.
-
-2026-07-01 meetbowl-be Redis TLS environment toggle
-
-- Purpose: allow production instances to connect to TLS-only managed Redis endpoints such as ElastiCache serverless without custom code branches.
-- Changed files:
-  `app-api/src/main/resources/application-prod.properties`,
-  `app-api/src/main/resources/application-local.properties`,
-  `.env.example`,
-  and this log.
-- Behavior:
-  Added `spring.data.redis.ssl.enabled=${MEETBOWL_REDIS_SSL_ENABLED:false}` so Redis TLS can be turned on by environment variable in both local and production profiles.
-  Documented `MEETBOWL_REDIS_SSL_ENABLED` in the example environment file.
-- Excluded scope:
-  Did not add Redis username/password properties because the current target issue was TLS transport, not Redis AUTH.
-- Verification:
-  Configuration-only change; no separate Gradle rerun was needed because property resolution is handled by Spring Boot configuration binding.
-
-2026-07-01 meetbowl-be Redis TLS/auth production wiring
-
-- Purpose: finish the managed Redis migration wiring after finding that the new TLS flag was not actually passed into BE containers and that production may also require Redis AUTH credentials.
-- Changed files:
-  `app-api/src/main/resources/application-prod.properties`,
-  `app-api/src/main/resources/application-local.properties`,
-  `.env.example`,
-  and this log.
-- Behavior:
-  Added optional `MEETBOWL_REDIS_USERNAME` / `MEETBOWL_REDIS_PASSWORD` bindings through Spring Boot Redis properties.
-  This keeps local/default environments unchanged when credentials are blank, while allowing ElastiCache-authenticated environments to connect without code forks.
-- Excluded scope:
-  Did not hard-require Redis credentials because some environments may still use unauthenticated local Redis.
+  `meetingRoomSummary.inUseMeetingRoomCount` and `meetingRoomSummary.siteBuildingUsage` now include both `IN_USE` and `RESERVED` room statuses at the current moment.
+  The dashboard's current room distribution now reflects rooms blocked by meetings in the current time window even when the meeting status is still `SCHEDULED`.
 - Verification:
   Passed `./gradlew :app-api:compileJava`.
 
@@ -1371,3 +1387,4 @@
   Did not change the SSM execution user or the blue/green listener switching logic.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+  Pending: targeted admin dashboard application test and compile checks.
