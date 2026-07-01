@@ -1387,4 +1387,27 @@
   Did not change the SSM execution user or the blue/green listener switching logic.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be mail notification creation
+
+- Purpose: fix mail-related notifications not appearing after refresh because mail send flows created mailbox entries but did not create notification rows.
+- Changed files:
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationType.java`,
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationResourceType.java`,
+  `application/src/main/java/com/meetbowl/application/mail/MailNotificationService.java`,
+  `application/src/main/java/com/meetbowl/application/mail/SendMailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/DispatchInternalMailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/SendAnnouncementUseCase.java`,
+  `application/src/test/java/com/meetbowl/application/mail/MailNotificationServiceTest.java`,
+  related mail use case tests,
+  and this log.
+- Behavior:
+  Added `MAIL_RECEIVED` and `MAIL_SHARED` notification types and `MAIL` notification resource type.
+  General, announcement, and internal mail send flows now create recipient notifications after mail and mailbox entries are saved.
+  Minutes-share mail is classified as `MAIL_SHARED`; other mail is classified as `MAIL_RECEIVED`.
+- Excluded scope:
+  Did not change SSE distribution behavior across multiple API instances; this change only ensures notification rows are created so refresh/list lookup works.
+- Verification:
+  Passed `./gradlew :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
+  Passed `./gradlew :app-api:compileJava :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
   Pending: targeted admin dashboard application test and compile checks.
