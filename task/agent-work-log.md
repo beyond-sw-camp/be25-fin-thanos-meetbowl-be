@@ -1468,3 +1468,17 @@
   HTTP listeners that only redirect to HTTPS should not be added to the additional listener secret.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be mail notification enum migration
+
+- Purpose: fix mail send failing with `Data truncated for column 'resource_type'` when inserting mail notification rows into MariaDB.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V12__add_mail_notification_types.sql`,
+  and this log.
+- Behavior:
+  Added a Flyway migration that expands `notification.resource_type` to include `MAIL`.
+  The same migration expands `notification.type` to include `MAIL_RECEIVED` and `MAIL_SHARED`, preventing the next enum truncation failure after `resource_type` is fixed.
+- Excluded scope:
+  Did not modify the already-applied `V1__baseline.sql`; existing environments are updated through V12.
+- Verification:
+  Passed `./gradlew :app-api:processResources :app-api:compileJava :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
