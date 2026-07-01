@@ -93,7 +93,9 @@ public class SharedWorkspaceFileController extends BaseController {
     public ApiResponse<List<SharedWorkspaceFileResponse>> getFiles(
             @CurrentUser AuthenticatedUser user, @PathVariable UUID spaceId) {
         List<SharedWorkspaceFileResponse> files =
-                getSharedWorkspaceFilesUseCase.execute(spaceId, user.userId()).stream()
+                getSharedWorkspaceFilesUseCase
+                        .execute(spaceId, user.userId(), user.organizationId())
+                        .stream()
                         .map(SharedWorkspaceFileResponse::from)
                         .toList();
         return ok(files);
@@ -124,7 +126,8 @@ public class SharedWorkspaceFileController extends BaseController {
             @PathVariable UUID fileId) {
         return ok(
                 SharedWorkspaceFileResponse.from(
-                        getSharedWorkspaceFileUseCase.execute(spaceId, fileId, user.userId())));
+                        getSharedWorkspaceFileUseCase.execute(
+                                spaceId, fileId, user.userId(), user.organizationId())));
     }
 
     @GetMapping("/{fileId}/download")
@@ -133,7 +136,8 @@ public class SharedWorkspaceFileController extends BaseController {
             @PathVariable UUID spaceId,
             @PathVariable UUID fileId) {
         SharedWorkspaceFileDownloadResult result =
-                downloadSharedWorkspaceFileUseCase.execute(spaceId, fileId, user.userId());
+                downloadSharedWorkspaceFileUseCase.execute(
+                        spaceId, fileId, user.userId(), user.organizationId());
         return fileResponse(result, ContentDisposition.attachment());
     }
 
@@ -143,7 +147,8 @@ public class SharedWorkspaceFileController extends BaseController {
             @PathVariable UUID spaceId,
             @PathVariable UUID fileId) {
         SharedWorkspaceFileDownloadResult result =
-                downloadSharedWorkspaceFileUseCase.execute(spaceId, fileId, user.userId());
+                downloadSharedWorkspaceFileUseCase.execute(
+                        spaceId, fileId, user.userId(), user.organizationId());
         return fileResponse(result, ContentDisposition.inline());
     }
 
@@ -189,7 +194,7 @@ public class SharedWorkspaceFileController extends BaseController {
             @PathVariable UUID fileId) {
         List<SharedWorkspaceFileVersionResponse> versions =
                 getSharedWorkspaceFileVersionsUseCase
-                        .execute(spaceId, fileId, user.userId())
+                        .execute(spaceId, fileId, user.userId(), user.organizationId())
                         .stream()
                         .map(SharedWorkspaceFileVersionResponse::from)
                         .toList();

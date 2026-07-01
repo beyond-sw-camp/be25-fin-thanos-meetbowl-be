@@ -35,6 +35,7 @@ class DefaultChatSharedWorkspaceAccessAdapterTest {
         UUID accessibleId = UUID.randomUUID();
         UUID deletedId = UUID.randomUUID();
         UUID otherOrganizationId = UUID.randomUUID();
+        UUID organizationVisibleId = UUID.randomUUID();
 
         when(memberRepositoryPort.findActiveByUserId(userId))
                 .thenReturn(
@@ -53,9 +54,17 @@ class DefaultChatSharedWorkspaceAccessAdapterTest {
                                         Instant.parse("2026-06-11T00:00:00Z"))));
         when(workspaceRepositoryPort.findById(otherOrganizationId))
                 .thenReturn(Optional.of(workspace(otherOrganizationId, UUID.randomUUID(), null)));
+        when(workspaceRepositoryPort.findOrganizationVisible(organizationId))
+                .thenReturn(
+                        List.of(
+                                workspace(
+                                        organizationVisibleId,
+                                        organizationId,
+                                        null,
+                                        SharedWorkspaceVisibility.ORGANIZATION)));
 
         assertThat(adapter.findAccessibleSharedWorkspaceIds(userId, organizationId))
-                .isEqualTo(Set.of(accessibleId));
+                .isEqualTo(Set.of(accessibleId, organizationVisibleId));
     }
 
     private SharedWorkspaceMember member(UUID workspaceId, UUID userId) {
@@ -64,13 +73,22 @@ class DefaultChatSharedWorkspaceAccessAdapterTest {
     }
 
     private SharedWorkspace workspace(UUID workspaceId, UUID organizationId, Instant deletedAt) {
+        return workspace(
+                workspaceId, organizationId, deletedAt, SharedWorkspaceVisibility.MEMBERS_ONLY);
+    }
+
+    private SharedWorkspace workspace(
+            UUID workspaceId,
+            UUID organizationId,
+            Instant deletedAt,
+            SharedWorkspaceVisibility visibility) {
         return SharedWorkspace.of(
                 workspaceId,
                 organizationId,
                 UUID.randomUUID(),
                 "workspace",
                 null,
-                SharedWorkspaceVisibility.MEMBERS_ONLY,
+                visibility,
                 Instant.parse("2026-06-01T00:00:00Z"),
                 deletedAt);
     }
