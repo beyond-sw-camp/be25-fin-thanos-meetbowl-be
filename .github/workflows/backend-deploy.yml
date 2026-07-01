@@ -310,7 +310,7 @@ jobs:
               --document-name AWS-RunShellScript \
               --comment "meetbowl-be api deploy ${IMAGE_TAG}" \
               --instance-ids ${INSTANCE_IDS} \
-              --parameters "commands=[\"set -eu\",\"git config --global --add safe.directory ${API_DEPLOY_PATH}\",\"cd ${API_DEPLOY_PATH}\",\"git fetch --all --prune\",\"git pull --ff-only\",\"git rev-parse HEAD\",\"grep -n MEETBOWL_REDIS_SSL_ENABLED be-api/compose.prod.yml\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} bash scripts/deploy-be-api.sh\",\"chown -R ubuntu:ubuntu ${API_DEPLOY_PATH}/.runtime || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_REDIS || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_STT_BASE_URL || true\",\"curl -fsS http://127.0.0.1/healthz\",\"curl -fsS http://127.0.0.1/api/v1/health\"]" \
+              --parameters "commands=[\"set -eu\",\"cd ${API_DEPLOY_PATH}\",\"git -c safe.directory=${API_DEPLOY_PATH} fetch --all --prune\",\"git -c safe.directory=${API_DEPLOY_PATH} pull --ff-only\",\"git -c safe.directory=${API_DEPLOY_PATH} rev-parse HEAD\",\"grep -n MEETBOWL_REDIS_SSL_ENABLED be-api/compose.prod.yml\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} bash scripts/deploy-be-api.sh\",\"chown -R ubuntu:ubuntu ${API_DEPLOY_PATH}/.runtime || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_REDIS || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_STT_BASE_URL || true\",\"curl -fsS http://127.0.0.1/healthz\",\"curl -fsS http://127.0.0.1/api/v1/health\"]" \
               --query 'Command.CommandId' \
               --output text
           )"
