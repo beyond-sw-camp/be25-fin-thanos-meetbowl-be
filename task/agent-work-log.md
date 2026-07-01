@@ -1453,3 +1453,18 @@
   Did not change listener switch weights; successful switches still write active `100` and inactive `0`.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be multi-listener blue/green switch
+
+- Purpose: switch both API ALB listeners, such as HTTP 80 and HTTPS 443, during blue/green deployments when both listeners forward to API target groups.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  The listener switch step now keeps `MEETBOWL_API_LISTENER_ARN` as the primary listener and optionally appends whitespace-separated `MEETBOWL_API_ADDITIONAL_LISTENER_ARNS`.
+  It applies the same weighted blue/green default action to every configured listener ARN.
+- Excluded scope:
+  Did not change active target detection; it still uses the primary listener as the source of truth.
+  HTTP listeners that only redirect to HTTPS should not be added to the additional listener secret.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.

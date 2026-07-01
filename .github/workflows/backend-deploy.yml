@@ -396,6 +396,7 @@ jobs:
         if: steps.deploy-mode.outputs.value == 'split'
         env:
           API_LISTENER_ARN: ${{ secrets.MEETBOWL_API_LISTENER_ARN }}
+          API_ADDITIONAL_LISTENER_ARNS: ${{ secrets.MEETBOWL_API_ADDITIONAL_LISTENER_ARNS }}
           BLUE_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_BLUE_TARGET_GROUP_ARN }}
           GREEN_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_GREEN_TARGET_GROUP_ARN }}
           TARGET_COLOR: ${{ steps.api-target.outputs.target_color }}
@@ -422,15 +423,24 @@ jobs:
               "$GREEN_TARGET_GROUP_ARN" "$GREEN_WEIGHT"
           )"
 
-          aws elbv2 modify-listener \
-            --listener-arn "$API_LISTENER_ARN" \
-            --default-actions "$DEFAULT_ACTIONS" \
-            --output json
+          LISTENER_ARNS="$API_LISTENER_ARN"
+          if [ -n "${API_ADDITIONAL_LISTENER_ARNS:-}" ]; then
+            LISTENER_ARNS="${LISTENER_ARNS} ${API_ADDITIONAL_LISTENER_ARNS}"
+          fi
 
-          aws elbv2 describe-listeners \
-            --listener-arns "$API_LISTENER_ARN" \
-            --query 'Listeners[0].DefaultActions' \
-            --output json
+          for LISTENER_ARN in $LISTENER_ARNS; do
+            echo "Switching listener ${LISTENER_ARN}"
+
+            aws elbv2 modify-listener \
+              --listener-arn "$LISTENER_ARN" \
+              --default-actions "$DEFAULT_ACTIONS" \
+              --output json
+
+            aws elbv2 describe-listeners \
+              --listener-arns "$LISTENER_ARN" \
+              --query 'Listeners[0].DefaultActions' \
+              --output json
+          done
 
       - name: Deploy worker on EC2
         if: steps.deploy-mode.outputs.value == 'split'
