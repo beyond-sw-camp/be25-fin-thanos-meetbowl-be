@@ -1453,3 +1453,32 @@
   Did not change listener switch weights; successful switches still write active `100` and inactive `0`.
 - Verification:
   Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be multi-listener blue/green switch
+
+- Purpose: switch both API ALB listeners, such as HTTP 80 and HTTPS 443, during blue/green deployments when both listeners forward to API target groups.
+- Changed files:
+  `.github/workflows/backend-deploy.yml`,
+  and this log.
+- Behavior:
+  The listener switch step now keeps `MEETBOWL_API_LISTENER_ARN` as the primary listener and optionally appends whitespace-separated `MEETBOWL_API_ADDITIONAL_LISTENER_ARNS`.
+  It applies the same weighted blue/green default action to every configured listener ARN.
+- Excluded scope:
+  Did not change active target detection; it still uses the primary listener as the source of truth.
+  HTTP listeners that only redirect to HTTPS should not be added to the additional listener secret.
+- Verification:
+  Passed workflow YAML parse validation with Ruby YAML loader.
+
+2026-07-01 meetbowl-be mail notification enum migration
+
+- Purpose: fix mail send failing with `Data truncated for column 'resource_type'` when inserting mail notification rows into MariaDB.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V12__add_mail_notification_types.sql`,
+  and this log.
+- Behavior:
+  Added a Flyway migration that expands `notification.resource_type` to include `MAIL`.
+  The same migration expands `notification.type` to include `MAIL_RECEIVED` and `MAIL_SHARED`, preventing the next enum truncation failure after `resource_type` is fixed.
+- Excluded scope:
+  Did not modify the already-applied `V1__baseline.sql`; existing environments are updated through V12.
+- Verification:
+  Passed `./gradlew :app-api:processResources :app-api:compileJava :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
