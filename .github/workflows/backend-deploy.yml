@@ -215,11 +215,63 @@ jobs:
             --overwrite \
             --value "${IMAGE_TAG}"
 
+      - name: Resolve API blue/green target
+        id: api-target
+        if: steps.deploy-mode.outputs.value == 'split'
+        env:
+          API_LISTENER_ARN: ${{ secrets.MEETBOWL_API_LISTENER_ARN }}
+          BLUE_ASG_NAME: ${{ secrets.MEETBOWL_API_BLUE_ASG_NAME }}
+          BLUE_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_BLUE_DEPLOY_PATH }}
+          BLUE_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_BLUE_TARGET_GROUP_ARN }}
+          GREEN_ASG_NAME: ${{ secrets.MEETBOWL_API_GREEN_ASG_NAME }}
+          GREEN_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_GREEN_DEPLOY_PATH }}
+          GREEN_TARGET_GROUP_ARN: ${{ secrets.MEETBOWL_API_GREEN_TARGET_GROUP_ARN }}
+        run: |
+          set -euo pipefail
+
+          ACTIVE_TARGET_GROUP_ARN="$(
+            aws elbv2 describe-listeners \
+              --listener-arns "$API_LISTENER_ARN" \
+              --query 'Listeners[0].DefaultActions[0].TargetGroupArn' \
+              --output text
+          )"
+
+          if [ "$ACTIVE_TARGET_GROUP_ARN" = "$BLUE_TARGET_GROUP_ARN" ]; then
+            PREVIOUS_COLOR="blue"
+            TARGET_COLOR="green"
+            TARGET_ASG_NAME="$GREEN_ASG_NAME"
+            TARGET_DEPLOY_PATH="$GREEN_DEPLOY_PATH"
+            TARGET_GROUP_ARN="$GREEN_TARGET_GROUP_ARN"
+          elif [ "$ACTIVE_TARGET_GROUP_ARN" = "$GREEN_TARGET_GROUP_ARN" ]; then
+            PREVIOUS_COLOR="green"
+            TARGET_COLOR="blue"
+            TARGET_ASG_NAME="$BLUE_ASG_NAME"
+            TARGET_DEPLOY_PATH="$BLUE_DEPLOY_PATH"
+            TARGET_GROUP_ARN="$BLUE_TARGET_GROUP_ARN"
+          else
+            echo "active listener target group is neither blue nor green: ${ACTIVE_TARGET_GROUP_ARN}" >&2
+            exit 1
+          fi
+
+          echo "active_color=${PREVIOUS_COLOR}"
+          echo "deploy_color=${TARGET_COLOR}"
+          echo "deploy_asg=${TARGET_ASG_NAME}"
+          echo "deploy_target_group=${TARGET_GROUP_ARN}"
+
+          {
+            echo "previous_color=${PREVIOUS_COLOR}"
+            echo "previous_target_group_arn=${ACTIVE_TARGET_GROUP_ARN}"
+            echo "target_color=${TARGET_COLOR}"
+            echo "asg_name=${TARGET_ASG_NAME}"
+            echo "deploy_path=${TARGET_DEPLOY_PATH}"
+            echo "target_group_arn=${TARGET_GROUP_ARN}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy API on ASG instances via SSM
         if: steps.deploy-mode.outputs.value == 'split'
         env:
-          API_ASG_NAME: ${{ secrets.MEETBOWL_API_BLUE_ASG_NAME }}
-          API_DEPLOY_PATH: ${{ secrets.MEETBOWL_API_BLUE_DEPLOY_PATH }}
+          API_ASG_NAME: ${{ steps.api-target.outputs.asg_name }}
+          API_DEPLOY_PATH: ${{ steps.api-target.outputs.deploy_path }}
         run: |
           set -euo pipefail
 
@@ -258,7 +310,7 @@ jobs:
               --document-name AWS-RunShellScript \
               --comment "meetbowl-be api deploy ${IMAGE_TAG}" \
               --instance-ids ${INSTANCE_IDS} \
-              --parameters "commands=[\"set -eu\",\"cd ${API_DEPLOY_PATH}\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} ./scripts/deploy-be-api.sh\"]" \
+              --parameters "commands=[\"set -eu\",\"cd ${API_DEPLOY_PATH}\",\"git fetch --all --prune\",\"git pull --ff-only\",\"git rev-parse HEAD\",\"grep -n MEETBOWL_REDIS_SSL_ENABLED be-api/compose.prod.yml\",\"AWS_REGION=${AWS_REGION} ECR_REPOSITORY=${ECR_REPOSITORY} bash scripts/deploy-be-api.sh\",\"chown -R ubuntu:ubuntu ${API_DEPLOY_PATH}/.runtime || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_REDIS || true\",\"docker inspect meetbowl-be-api | grep MEETBOWL_STT_BASE_URL || true\",\"curl -fsS http://127.0.0.1/healthz\",\"curl -fsS http://127.0.0.1/api/v1/health\"]" \
               --query 'Command.CommandId' \
               --output text
           )"
@@ -289,6 +341,43 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Verify inactive API target group
+        if: steps.deploy-mode.outputs.value == 'split'
+        env:
+          API_TARGET_GROUP_ARN: ${{ steps.api-target.outputs.target_group_arn }}
+        run: |
+          set -euo pipefail
+
+          aws elbv2 wait target-in-service \
+            --target-group-arn "$API_TARGET_GROUP_ARN"
+
+          aws elbv2 describe-target-health \
+            --target-group-arn "$API_TARGET_GROUP_ARN" \
+            --query 'TargetHealthDescriptions[*].[Target.Id,TargetHealth.State,TargetHealth.Reason]' \
+            --output table
+
+      - name: Switch API ALB listener
+        if: steps.deploy-mode.outputs.value == 'split'
+        env:
+          API_LISTENER_ARN: ${{ secrets.MEETBOWL_API_LISTENER_ARN }}
+          API_TARGET_GROUP_ARN: ${{ steps.api-target.outputs.target_group_arn }}
+          TARGET_COLOR: ${{ steps.api-target.outputs.target_color }}
+          PREVIOUS_COLOR: ${{ steps.api-target.outputs.previous_color }}
+        run: |
+          set -euo pipefail
+
+          echo "Switching API listener from ${PREVIOUS_COLOR} to ${TARGET_COLOR}"
+
+          aws elbv2 modify-listener \
+            --listener-arn "$API_LISTENER_ARN" \
+            --default-actions Type=forward,TargetGroupArn="$API_TARGET_GROUP_ARN" \
+            --output json
+
+          aws elbv2 describe-listeners \
+            --listener-arns "$API_LISTENER_ARN" \
+            --query 'Listeners[0].DefaultActions' \
+            --output json
 
       - name: Deploy worker on EC2
         if: steps.deploy-mode.outputs.value == 'split'
