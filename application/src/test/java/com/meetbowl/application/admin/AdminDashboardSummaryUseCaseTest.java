@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.verify;
 
 import java.time.Clock;
@@ -116,27 +117,68 @@ class AdminDashboardSummaryUseCaseTest {
                                         "Building B",
                                         RoomAvailabilityStatus.RESERVED)));
         // 날짜 경계 계산 자체는 아래 verify에서 검증하고, stub은 반환값 제공에만 집중시켜 strict stubbing 오탐을 줄인다.
-        given(meetingRepositoryPort.findNonCancelledRoomMeetingsOverlapping(any(), any()))
-                .willReturn(
-                        List.of(
-                                meeting(
-                                        UUID.randomUUID(),
-                                        ROOM_A_ID,
-                                        Instant.parse("2026-06-13T01:15:00Z"),
-                                        Instant.parse("2026-06-13T02:15:00Z"),
-                                        MeetingStatus.SCHEDULED),
-                                meeting(
-                                        UUID.randomUUID(),
-                                        ROOM_B_ID,
-                                        Instant.parse("2026-06-13T01:45:00Z"),
-                                        Instant.parse("2026-06-13T03:00:00Z"),
-                                        MeetingStatus.ENDED),
-                                meeting(
-                                        UUID.randomUUID(),
-                                        ROOM_C_ID,
-                                        Instant.parse("2026-06-12T23:30:00Z"),
-                                        Instant.parse("2026-06-13T00:30:00Z"),
-                                        MeetingStatus.ENDED)));
+        List<Meeting> todayMeetings =
+                List.of(
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_A_ID,
+                                Instant.parse("2026-06-13T01:15:00Z"),
+                                Instant.parse("2026-06-13T02:15:00Z"),
+                                MeetingStatus.SCHEDULED),
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_B_ID,
+                                Instant.parse("2026-06-13T01:45:00Z"),
+                                Instant.parse("2026-06-13T03:00:00Z"),
+                                MeetingStatus.ENDED),
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_C_ID,
+                                Instant.parse("2026-06-12T23:30:00Z"),
+                                Instant.parse("2026-06-13T00:30:00Z"),
+                                MeetingStatus.ENDED));
+        List<Meeting> weekMeetings =
+                List.of(
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_A_ID,
+                                Instant.parse("2026-06-08T01:00:00Z"),
+                                Instant.parse("2026-06-08T02:00:00Z"),
+                                MeetingStatus.SCHEDULED),
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_B_ID,
+                                Instant.parse("2026-06-09T03:00:00Z"),
+                                Instant.parse("2026-06-09T04:00:00Z"),
+                                MeetingStatus.SCHEDULED),
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_C_ID,
+                                Instant.parse("2026-06-12T23:30:00Z"),
+                                Instant.parse("2026-06-13T00:30:00Z"),
+                                MeetingStatus.ENDED),
+                        meeting(
+                                UUID.randomUUID(),
+                                ROOM_D_ID,
+                                Instant.parse("2026-06-13T01:45:00Z"),
+                                Instant.parse("2026-06-13T03:00:00Z"),
+                                MeetingStatus.ENDED));
+        willAnswer(
+                        invocation -> {
+                            Instant from = invocation.getArgument(0);
+                            Instant to = invocation.getArgument(1);
+                            if (Instant.parse("2026-06-12T15:00:00Z").equals(from)
+                                    && Instant.parse("2026-06-13T15:00:00Z").equals(to)) {
+                                return todayMeetings;
+                            }
+                            if (Instant.parse("2026-06-07T15:00:00Z").equals(from)
+                                    && Instant.parse("2026-06-14T15:00:00Z").equals(to)) {
+                                return weekMeetings;
+                            }
+                            return List.of();
+                        })
+                .given(meetingRepositoryPort)
+                .findNonCancelledRoomMeetingsOverlapping(any(), any());
 
         AdminDashboardSummaryResult result = useCase.get();
 
@@ -144,7 +186,7 @@ class AdminDashboardSummaryUseCaseTest {
         assertEquals(AUDIT_LOG_ID, result.recentAuditLogs().get(0).auditLogId());
         assertEquals(365, result.mailRetentionPolicy().retentionDays());
         assertEquals(3, result.meetingRoomSummary().todayReservationCount());
-        assertEquals(2, result.meetingRoomSummary().inUseMeetingRoomCount());
+        assertEquals(3, result.meetingRoomSummary().inUseMeetingRoomCount());
         assertEquals(1, result.meetingRoomSummary().availableMeetingRoomCount());
         assertEquals(
                 1,
@@ -214,6 +256,35 @@ class AdminDashboardSummaryUseCaseTest {
                         .findFirst()
                         .orElseThrow()
                         .usageRate());
+        assertEquals(
+                1.0,
+                result.meetingRoomSummary().siteBuildingUsage().stream()
+                        .filter(item -> item.buildingId().equals(BUILDING_B_ID))
+                        .findFirst()
+                        .orElseThrow()
+                        .usageRate());
+        assertEquals(7, result.meetingRoomSummary().weekdayReservationUsage().size());
+        assertEquals(
+                1,
+                result.meetingRoomSummary().weekdayReservationUsage().stream()
+                        .filter(item -> item.dayOfWeek() == 1)
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
+        assertEquals(
+                2,
+                result.meetingRoomSummary().weekdayReservationUsage().stream()
+                        .filter(item -> item.dayOfWeek() == 6)
+                        .findFirst()
+                        .orElseThrow()
+                        .reservationCount());
+        assertEquals(
+                "토",
+                result.meetingRoomSummary().weekdayReservationUsage().stream()
+                        .filter(item -> item.dayOfWeek() == 6)
+                        .findFirst()
+                        .orElseThrow()
+                        .weekdayLabel());
 
         ArgumentCaptor<AdminAuditLogSearchCommand> auditCaptor =
                 ArgumentCaptor.forClass(AdminAuditLogSearchCommand.class);
@@ -230,6 +301,10 @@ class AdminDashboardSummaryUseCaseTest {
                 .findNonCancelledRoomMeetingsOverlapping(
                         eq(Instant.parse("2026-06-12T15:00:00Z")),
                         eq(Instant.parse("2026-06-13T15:00:00Z")));
+        verify(meetingRepositoryPort)
+                .findNonCancelledRoomMeetingsOverlapping(
+                        eq(Instant.parse("2026-06-07T15:00:00Z")),
+                        eq(Instant.parse("2026-06-14T15:00:00Z")));
     }
 
     private RoomStatusResult roomStatus(

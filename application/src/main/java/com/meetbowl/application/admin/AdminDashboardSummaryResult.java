@@ -25,9 +25,13 @@ public record AdminDashboardSummaryResult(
             int availableMeetingRoomCount,
             List<TimeSlotUsageResult> timeSlotUsage,
             List<TimeSlotUsageResult> timeSlotOccupancyUsage,
+            List<WeekdayReservationUsageResult> weekdayReservationUsage,
             List<SiteBuildingUsageResult> siteBuildingUsage) {}
 
     public record TimeSlotUsageResult(java.time.Instant slotStartAt, int reservationCount) {}
+
+    public record WeekdayReservationUsageResult(
+            int dayOfWeek, String weekdayLabel, int reservationCount) {}
 
     public record SiteBuildingUsageResult(
             UUID siteId,

@@ -59,6 +59,7 @@ public record AdminDashboardSummaryResponse(
             int availableMeetingRoomCount,
             List<TimeSlotUsageResponse> timeSlotUsage,
             List<TimeSlotUsageResponse> timeSlotOccupancyUsage,
+            List<WeekdayReservationUsageResponse> weekdayReservationUsage,
             List<SiteBuildingUsageResponse> siteBuildingUsage) {
 
         static MeetingRoomSummaryResponse from(
@@ -71,6 +72,9 @@ public record AdminDashboardSummaryResponse(
                     result.timeSlotOccupancyUsage().stream()
                             .map(TimeSlotUsageResponse::from)
                             .toList(),
+                    result.weekdayReservationUsage().stream()
+                            .map(WeekdayReservationUsageResponse::from)
+                            .toList(),
                     result.siteBuildingUsage().stream()
                             .map(SiteBuildingUsageResponse::from)
                             .toList());
@@ -81,6 +85,16 @@ public record AdminDashboardSummaryResponse(
 
         static TimeSlotUsageResponse from(AdminDashboardSummaryResult.TimeSlotUsageResult result) {
             return new TimeSlotUsageResponse(result.slotStartAt(), result.reservationCount());
+        }
+    }
+
+    public record WeekdayReservationUsageResponse(
+            int dayOfWeek, String weekdayLabel, int reservationCount) {
+
+        static WeekdayReservationUsageResponse from(
+                AdminDashboardSummaryResult.WeekdayReservationUsageResult result) {
+            return new WeekdayReservationUsageResponse(
+                    result.dayOfWeek(), result.weekdayLabel(), result.reservationCount());
         }
     }
 

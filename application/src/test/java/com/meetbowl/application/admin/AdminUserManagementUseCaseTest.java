@@ -364,19 +364,40 @@ class AdminUserManagementUseCaseTest {
         AdminUserManagementUseCase useCase = useCase();
         User first = createUser("first", "first@example.com", UserRole.USER);
         User second = createUser("second", "second@example.com", UserRole.ADMIN);
-        given(userRepositoryPort.findPage("name", 1, 1))
+        given(userRepositoryPort.search(
+                        org.mockito.ArgumentMatchers.eq("name"),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.eq(1),
+                        org.mockito.ArgumentMatchers.eq(1)))
                 .willReturn(new Paged<>(List.of(first, second), 2));
         stubBatchOrganizationReferences(List.of(first, second));
 
         AdminUserManagementUseCase.PageResult result =
-                useCase.search(new AdminUserManagementUseCase.SearchCommand(" name ", 1, 1));
+                useCase.search(new AdminUserManagementUseCase.SearchCommand(" name ", null, 1, 1));
 
         assertEquals(2, result.items().size());
         assertEquals(2, result.totalElements());
         assertEquals(2, result.totalPages());
         assertEquals("first", result.items().get(0).loginId());
         assertEquals("ADMIN", result.items().get(1).role());
-        verify(userRepositoryPort).findPage("name", 1, 1);
+        verify(userRepositoryPort)
+                .search(
+                        org.mockito.ArgumentMatchers.eq("name"),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.eq(1),
+                        org.mockito.ArgumentMatchers.eq(1));
         verify(affiliateRepositoryPort).findAllByIds(any());
         verify(departmentRepositoryPort).findAllByIds(any());
         verify(teamRepositoryPort).findAllByIds(any());
