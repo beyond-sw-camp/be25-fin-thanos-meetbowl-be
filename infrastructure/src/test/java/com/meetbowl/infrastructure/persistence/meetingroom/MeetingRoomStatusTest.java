@@ -202,6 +202,7 @@ class MeetingRoomStatusTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaRoomBlockRepositoryAdapter.class,
         JpaBuildingRepositoryAdapter.class,
         JpaSiteRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,

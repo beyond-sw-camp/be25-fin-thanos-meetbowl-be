@@ -40,6 +40,7 @@ import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
 import com.meetbowl.infrastructure.config.InfrastructureConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.JpaMeetingRoomRepositoryAdapter;
+import com.meetbowl.infrastructure.persistence.meetingroom.JpaRoomBlockRepositoryAdapter;
 import com.meetbowl.infrastructure.persistence.meetingroom.MeetingRoomJpaConfig;
 import com.meetbowl.infrastructure.persistence.meetingroom.SpringDataMeetingRoomRepository;
 
@@ -189,6 +190,7 @@ class MeetingReservationConcurrencyTest {
         JpaMeetingAttendeeRepositoryAdapter.class,
         JpaMeetingExternalInviteeRepositoryAdapter.class,
         JpaMeetingRoomRepositoryAdapter.class,
+        JpaRoomBlockRepositoryAdapter.class,
         MeetingRoomReservationGuard.class,
         MeetingAttendeeOverlapGuard.class,
         MeetingExternalInviteeSyncService.class,

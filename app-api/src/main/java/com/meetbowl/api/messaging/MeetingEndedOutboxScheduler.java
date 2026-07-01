@@ -3,10 +3,13 @@ package com.meetbowl.api.messaging;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.meetbowl.api.config.ConditionalOnMeetbowlAppRole;
+import com.meetbowl.api.config.MeetbowlAppRole;
 import com.meetbowl.application.meeting.PublishMeetingEndedOutboxUseCase;
 
 /** DB에 저장된 meeting.ended Outbox를 짧은 주기로 RabbitMQ에 전달한다. */
 @Component
+@ConditionalOnMeetbowlAppRole({MeetbowlAppRole.ALL, MeetbowlAppRole.WORKER})
 public class MeetingEndedOutboxScheduler {
 
     private final PublishMeetingEndedOutboxUseCase publishUseCase;

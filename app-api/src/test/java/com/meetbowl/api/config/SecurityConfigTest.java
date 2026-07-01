@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -95,6 +96,19 @@ class SecurityConfigTest {
                                 .header("Origin", "http://localhost:5173")
                                 .header("Access-Control-Request-Method", "POST"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
+    }
+
+    @Test
+    void sseSubscribeAcceptsQueryTokenAndCorsForLocalFrontend() throws Exception {
+        String accessToken = createAccessToken("USER");
+
+        mockMvc.perform(
+                        get("/api/v1/notifications/subscribe")
+                                .param("token", accessToken)
+                                .header("Origin", "http://localhost:5173"))
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
 

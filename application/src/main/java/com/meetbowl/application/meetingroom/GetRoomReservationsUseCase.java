@@ -27,6 +27,8 @@ import com.meetbowl.domain.meetingroom.Building;
 import com.meetbowl.domain.meetingroom.BuildingRepositoryPort;
 import com.meetbowl.domain.meetingroom.MeetingRoom;
 import com.meetbowl.domain.meetingroom.MeetingRoomRepositoryPort;
+import com.meetbowl.domain.meetingroom.RoomBlock;
+import com.meetbowl.domain.meetingroom.RoomBlockRepositoryPort;
 import com.meetbowl.domain.meetingroom.Site;
 import com.meetbowl.domain.meetingroom.SiteRepositoryPort;
 
@@ -46,18 +48,21 @@ public class GetRoomReservationsUseCase {
     private final MeetingRoomRepositoryPort meetingRoomRepositoryPort;
     private final BuildingRepositoryPort buildingRepositoryPort;
     private final SiteRepositoryPort siteRepositoryPort;
+    private final RoomBlockRepositoryPort roomBlockRepositoryPort;
 
     public GetRoomReservationsUseCase(
             MeetingRepositoryPort meetingRepositoryPort,
             MeetingAttendeeRepositoryPort meetingAttendeeRepositoryPort,
             MeetingRoomRepositoryPort meetingRoomRepositoryPort,
             BuildingRepositoryPort buildingRepositoryPort,
-            SiteRepositoryPort siteRepositoryPort) {
+            SiteRepositoryPort siteRepositoryPort,
+            RoomBlockRepositoryPort roomBlockRepositoryPort) {
         this.meetingRepositoryPort = meetingRepositoryPort;
         this.meetingAttendeeRepositoryPort = meetingAttendeeRepositoryPort;
         this.meetingRoomRepositoryPort = meetingRoomRepositoryPort;
         this.buildingRepositoryPort = buildingRepositoryPort;
         this.siteRepositoryPort = siteRepositoryPort;
+        this.roomBlockRepositoryPort = roomBlockRepositoryPort;
     }
 
     /**
@@ -129,6 +134,10 @@ public class GetRoomReservationsUseCase {
         Map<UUID, List<Meeting>> byRoom =
                 meetingRepositoryPort.findActiveOverlapsInRooms(roomIds, from, to).stream()
                         .collect(Collectors.groupingBy(Meeting::meetingRoomId));
+        // 관리자가 막아둔 차단 구간도 같은 시간대로 묶어 회의실별로 함께 내려준다(타임라인 회색 렌더용).
+        Map<UUID, List<RoomBlock>> blocksByRoom =
+                roomBlockRepositoryPort.findByRoomIdInAndRange(roomIds, from, to).stream()
+                        .collect(Collectors.groupingBy(RoomBlock::roomId));
 
         return rooms.stream()
                 .map(
@@ -137,7 +146,8 @@ public class GetRoomReservationsUseCase {
                                         room,
                                         buildings,
                                         sites,
-                                        byRoom.getOrDefault(room.id(), List.of())))
+                                        byRoom.getOrDefault(room.id(), List.of()),
+                                        blocksByRoom.getOrDefault(room.id(), List.of())))
                 .toList();
     }
 
@@ -145,7 +155,8 @@ public class GetRoomReservationsUseCase {
             MeetingRoom room,
             Map<UUID, Building> buildings,
             Map<UUID, Site> sites,
-            List<Meeting> meetings) {
+            List<Meeting> meetings,
+            List<RoomBlock> roomBlocks) {
         Building building = buildings.get(room.buildingId());
         Site site = building == null ? null : sites.get(building.siteId());
 
@@ -162,6 +173,18 @@ public class GetRoomReservationsUseCase {
                                                 meeting.hostUserId()))
                         .toList();
 
+        List<RoomReservationsResult.Block> blocks =
+                roomBlocks.stream()
+                        .sorted(Comparator.comparing(RoomBlock::startAt))
+                        .map(
+                                block ->
+                                        new RoomReservationsResult.Block(
+                                                block.id(),
+                                                block.startAt(),
+                                                block.endAt(),
+                                                block.reason()))
+                        .toList();
+
         return new RoomReservationsResult(
                 room.id(),
                 room.name(),
@@ -171,7 +194,8 @@ public class GetRoomReservationsUseCase {
                 site == null ? null : site.name(),
                 room.buildingId(),
                 building == null ? null : building.name(),
-                reservations);
+                reservations,
+                blocks);
     }
 
     private ReservationItemResult toItem(Meeting meeting, Map<UUID, MeetingRoom> rooms) {

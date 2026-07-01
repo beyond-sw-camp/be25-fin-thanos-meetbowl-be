@@ -1,11 +1,9 @@
 package com.meetbowl.infrastructure.search.user;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 @Component
-public class UserSearchIndexInitializer implements ApplicationRunner {
+public class UserSearchIndexInitializer {
 
     private final ElasticsearchUserSearchAdapter elasticsearchUserSearchAdapter;
 
@@ -14,8 +12,7 @@ public class UserSearchIndexInitializer implements ApplicationRunner {
         this.elasticsearchUserSearchAdapter = elasticsearchUserSearchAdapter;
     }
 
-    @Override
-    public void run(ApplicationArguments args) {
+    public void prepare() {
         elasticsearchUserSearchAdapter.prepareIndexIfPossible();
     }
 }

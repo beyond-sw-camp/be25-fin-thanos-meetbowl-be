@@ -3,7 +3,11 @@ package com.meetbowl.api.common;
 import java.util.List;
 
 import jakarta.validation.ConstraintViolationException;
+import jakarta.servlet.http.HttpServletRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
@@ -26,11 +30,13 @@ import com.meetbowl.common.response.ErrorDetail;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     /** UseCase와 Domain에서 발생시킨 의도된 업무 실패를 그대로 클라이언트 계약으로 변환한다. */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
         ErrorCode errorCode = exception.errorCode();
-        return ResponseEntity.status(errorCode.httpStatus())
+        return failureResponse(errorCode)
                 .body(ApiResponse.fail(errorCode, exception.getMessage(), exception.details()));
     }
 
@@ -46,8 +52,7 @@ public class GlobalExceptionHandler {
                         .toList();
 
         ErrorCode errorCode = ErrorCode.VALIDATION_FAILED;
-        return ResponseEntity.status(errorCode.httpStatus())
-                .body(ApiResponse.fail(errorCode, details));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode, details));
     }
 
     /** Query parameter, form binding 등 body 외 입력값 검증 실패를 처리한다. */
@@ -59,8 +64,7 @@ public class GlobalExceptionHandler {
                         .toList();
 
         ErrorCode errorCode = ErrorCode.VALIDATION_FAILED;
-        return ResponseEntity.status(errorCode.httpStatus())
-                .body(ApiResponse.fail(errorCode, details));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode, details));
     }
 
     /**
@@ -79,8 +83,7 @@ public class GlobalExceptionHandler {
                         .toList();
 
         ErrorCode errorCode = ErrorCode.VALIDATION_FAILED;
-        return ResponseEntity.status(errorCode.httpStatus())
-                .body(ApiResponse.fail(errorCode, details));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode, details));
     }
 
     /** JSON 파싱 오류, 필수 파라미터 누락, 타입 변환 실패는 모두 잘못된 요청으로 통일한다. */
@@ -91,14 +94,14 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleInvalidRequestException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_INVALID_REQUEST;
-        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
     }
 
     /** 만료·폐기·위조된 JWT는 공통 401 응답으로 변환한다. */
     @ExceptionHandler(JwtException.class)
     public ResponseEntity<ApiResponse<Void>> handleJwtException(JwtException exception) {
         ErrorCode errorCode = ErrorCode.COMMON_UNAUTHORIZED;
-        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
     }
 
     /**
@@ -108,7 +111,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAuthorizationDeniedException(
             AuthorizationDeniedException exception) {
         ErrorCode errorCode = ErrorCode.COMMON_FORBIDDEN;
-        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
     }
 
     /** 매핑되지 않은 URL 또는 정적 리소스 요청은 공통 404 응답으로 변환한다. */
@@ -118,13 +121,27 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(Exception exception) {
         ErrorCode errorCode = ErrorCode.COMMON_NOT_FOUND;
-        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
     }
 
     /** 예상하지 못한 예외의 내부 상세는 클라이언트에 노출하지 않는다. */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleException(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleException(
+            Exception exception, HttpServletRequest request) {
+        // 운영 장애를 추적할 수 있도록 요청 경로와 예외 스택은 서버 로그에 남기고,
+        // 클라이언트에는 기존 계약대로 공통 500 응답만 반환한다.
+        log.error(
+                "Unhandled exception: method={}, uri={}, query={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getQueryString(),
+                exception);
         ErrorCode errorCode = ErrorCode.COMMON_INTERNAL_ERROR;
-        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.fail(errorCode));
+        return failureResponse(errorCode).body(ApiResponse.fail(errorCode));
+    }
+
+    private ResponseEntity.BodyBuilder failureResponse(ErrorCode errorCode) {
+        // SSE처럼 handler mapping의 produces가 먼저 선택된 요청에서도 공통 실패 본문은 JSON으로 내려야 한다.
+        return ResponseEntity.status(errorCode.httpStatus()).contentType(MediaType.APPLICATION_JSON);
     }
 }
