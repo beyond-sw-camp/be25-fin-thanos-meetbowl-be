@@ -1482,3 +1482,24 @@
   Did not modify the already-applied `V1__baseline.sql`; existing environments are updated through V12.
 - Verification:
   Passed `./gradlew :app-api:processResources :app-api:compileJava :application:test --tests 'com.meetbowl.application.mail.*' --no-daemon`.
+
+2026-07-01 meetbowl-be shared workspace read access and chatbot scope fix
+
+- Purpose: fix two production authorization issues: organization-visible shared workspace files were unreadable by non-members, and chatbot shared-workspace scope ignored organization-visible workspaces.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/sharedworkspace/SharedWorkspaceFileController.java`,
+  `application/src/main/java/com/meetbowl/application/sharedworkspace/GetSharedWorkspaceFilesUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/sharedworkspace/GetSharedWorkspaceFileUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/sharedworkspace/DownloadSharedWorkspaceFileUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/sharedworkspace/GetSharedWorkspaceFileVersionsUseCase.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/chatbot/DefaultChatSharedWorkspaceAccessAdapter.java`,
+  related tests, and this log.
+- Behavior:
+  Shared file list/detail/download/preview/version-list reads now use `requireReadable`, so active members and same-organization users can read `ORGANIZATION` visibility workspaces.
+  Shared file mutations still require active membership.
+  Chatbot shared workspace scope now includes both active memberships and same-organization organization-visible workspaces.
+- Excluded scope:
+  Did not change multi-file upload behavior, Nginx upload limits, or write permissions for shared workspace files.
+- Verification:
+  Passed `./gradlew :application:test --tests 'com.meetbowl.application.sharedworkspace.SharedWorkspaceReadUseCaseTest'`.
+  Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.chatbot.DefaultChatSharedWorkspaceAccessAdapterTest'`.

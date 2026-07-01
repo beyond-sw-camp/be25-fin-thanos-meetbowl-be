@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.meetbowl.domain.sharedworkspace.SharedWorkspaceFileRepositoryPort;
 
-/** 공유 자료 목록을 조회한다. 자료 접근은 멤버 권한을 요구하며, 삭제된 자료는 Repository 조회에서 제외된다. */
+/** 공유 자료 목록을 조회한다. 전 직원 공개 워크스페이스는 같은 조직 사용자에게 읽기 권한을 허용한다. */
 @Service
 public class GetSharedWorkspaceFilesUseCase {
 
@@ -23,8 +23,9 @@ public class GetSharedWorkspaceFilesUseCase {
     }
 
     @Transactional(readOnly = true)
-    public List<SharedWorkspaceFileResult> execute(UUID workspaceId, UUID userId) {
-        accessGuard.requireActiveMember(workspaceId, userId);
+    public List<SharedWorkspaceFileResult> execute(
+            UUID workspaceId, UUID userId, UUID organizationId) {
+        accessGuard.requireReadable(workspaceId, userId, organizationId);
         return fileRepositoryPort.findActiveByWorkspaceId(workspaceId).stream()
                 .map(SharedWorkspaceFileResult::from)
                 .toList();

@@ -30,8 +30,8 @@ public class GetSharedWorkspaceFileVersionsUseCase {
 
     @Transactional(readOnly = true)
     public List<SharedWorkspaceFileVersionResult> execute(
-            UUID workspaceId, UUID fileId, UUID userId) {
-        accessGuard.requireActiveMember(workspaceId, userId);
+            UUID workspaceId, UUID fileId, UUID userId, UUID organizationId) {
+        accessGuard.requireReadable(workspaceId, userId, organizationId);
 
         fileRepositoryPort
                 .findById(fileId)
