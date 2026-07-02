@@ -9,12 +9,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.meeting.AttendanceStatus;
+import com.meetbowl.domain.meeting.AttendeeRole;
+import com.meetbowl.domain.meeting.MeetingAttendee;
+import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesFavorite;
 import com.meetbowl.domain.minutes.MinutesFavoriteRepositoryPort;
@@ -44,7 +49,10 @@ class MinutesFavoriteUseCaseTest {
                                         "프로덕트팀")));
         GetMinutesListUseCase useCase =
                 new GetMinutesListUseCase(
-                        fixture.repository, fixture.favoriteRepository, metadataAssembler);
+                        fixture.repository,
+                        fixture.favoriteRepository,
+                        fixture.attendeeRepository,
+                        metadataAssembler);
 
         List<MinutesListItemResult> results =
                 useCase.execute(fixture.reviewerUserId, fixture.organizationId, null);
@@ -54,6 +62,23 @@ class MinutesFavoriteUseCaseTest {
         assertEquals(true, results.get(0).favorite());
         assertEquals("주간 회의", results.get(0).meetingTitle());
         assertEquals("검토자", results.get(0).reviewerName());
+    }
+
+    @Test
+    void getMinutesListExcludesMeetingsWhereUserIsNotAttendee() {
+        Fixture fixture = new Fixture();
+        fixture.attendeeRepository.attendeeMeetingIds = List.of(UUID.randomUUID());
+        GetMinutesListUseCase useCase =
+                new GetMinutesListUseCase(
+                        fixture.repository,
+                        fixture.favoriteRepository,
+                        fixture.attendeeRepository,
+                        mock(MinutesMeetingMetadataAssembler.class));
+
+        List<MinutesListItemResult> results =
+                useCase.execute(fixture.reviewerUserId, fixture.organizationId, null);
+
+        assertEquals(0, results.size());
     }
 
     @Test
@@ -110,6 +135,61 @@ class MinutesFavoriteUseCaseTest {
                                 null));
         private final FakeMinutesFavoriteRepository favoriteRepository =
                 new FakeMinutesFavoriteRepository();
+        private final FakeMeetingAttendeeRepository attendeeRepository =
+                new FakeMeetingAttendeeRepository(meetingId);
+    }
+
+    private static class FakeMeetingAttendeeRepository implements MeetingAttendeeRepositoryPort {
+
+        private List<UUID> attendeeMeetingIds;
+
+        private FakeMeetingAttendeeRepository(UUID meetingId) {
+            this.attendeeMeetingIds = List.of(meetingId);
+        }
+
+        @Override
+        public MeetingAttendee save(MeetingAttendee attendee) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> saveAll(List<MeetingAttendee> attendees) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
+            return List.of();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return List.of();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByUserId(UUID userId) {
+            return attendeeMeetingIds.stream()
+                    .map(
+                            meetingId ->
+                                    MeetingAttendee.of(
+                                            UUID.randomUUID(),
+                                            meetingId,
+                                            userId,
+                                            AttendeeRole.PARTICIPANT,
+                                            AttendanceStatus.ACCEPTED))
+                    .toList();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void deleteByMeetingId(UUID meetingId) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private static class FakeMinutesRepository implements MinutesRepositoryPort {
@@ -146,12 +226,28 @@ class MinutesFavoriteUseCaseTest {
         }
 
         @Override
+        public List<Minutes> findByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds) {
+            return findByOrganizationId(organizationId).stream()
+                    .filter(value -> meetingIds.contains(value.meetingId()))
+                    .toList();
+        }
+
+        @Override
         public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
             return findByOrganizationId(organizationId).stream()
                     .filter(
                             value ->
                                     value.summary().contains(keyword)
                                             || value.content().contains(keyword))
+                    .toList();
+        }
+
+        @Override
+        public List<Minutes> searchByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds, String keyword) {
+            return searchByOrganizationId(organizationId, keyword).stream()
+                    .filter(value -> meetingIds.contains(value.meetingId()))
                     .toList();
         }
 

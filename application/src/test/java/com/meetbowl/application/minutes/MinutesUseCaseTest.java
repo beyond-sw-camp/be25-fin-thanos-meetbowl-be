@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,10 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.document.DocumentIndexRequestedEvent;
 import com.meetbowl.domain.document.DocumentIndexRequestedEventPort;
 import com.meetbowl.domain.document.MeetingMinutesAccessScopePort;
+import com.meetbowl.domain.meeting.AttendanceStatus;
+import com.meetbowl.domain.meeting.AttendeeRole;
+import com.meetbowl.domain.meeting.MeetingAttendee;
+import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesStatus;
@@ -207,15 +212,59 @@ class MinutesUseCaseTest {
                                 fixture.reviewerUserId,
                                 "검토자",
                                 "프로덕트팀"));
-        GetMinutesUseCase useCase = new GetMinutesUseCase(fixture.repository, metadataAssembler);
+        GetMinutesUseCase useCase =
+                new GetMinutesUseCase(
+                        fixture.repository, fixture.attendeeRepository, metadataAssembler);
 
-        MinutesResult result = useCase.get(fixture.meetingId, fixture.organizationId);
+        MinutesResult result =
+                useCase.get(
+                        fixture.meetingId,
+                        fixture.reviewerUserId,
+                        fixture.organizationId,
+                        false);
 
         assertEquals("DRAFT", result.status());
         assertEquals("회의 요약", result.summary());
         assertEquals("회의록 본문", result.content());
         assertEquals("주간 회의", result.meetingTitle());
         assertEquals("검토자", result.reviewerName());
+    }
+
+    @Test
+    void nonParticipantCannotGetMinutes() {
+        Fixture fixture = new Fixture();
+        GetMinutesUseCase useCase =
+                new GetMinutesUseCase(
+                        fixture.repository, fixture.attendeeRepository, fixture.metadataAssembler);
+
+        BusinessException exception =
+                assertThrows(
+                        BusinessException.class,
+                        () ->
+                                useCase.get(
+                                        fixture.meetingId,
+                                        UUID.randomUUID(),
+                                        fixture.organizationId,
+                                        false));
+
+        assertEquals(ErrorCode.COMMON_FORBIDDEN, exception.errorCode());
+    }
+
+    @Test
+    void adminCanGetMinutesWithoutParticipation() {
+        Fixture fixture = new Fixture();
+        GetMinutesUseCase useCase =
+                new GetMinutesUseCase(
+                        fixture.repository, fixture.attendeeRepository, fixture.metadataAssembler);
+
+        MinutesResult result =
+                useCase.get(
+                        fixture.meetingId,
+                        UUID.randomUUID(),
+                        fixture.organizationId,
+                        true);
+
+        assertEquals("DRAFT", result.status());
     }
 
     @Test
@@ -369,7 +418,8 @@ class MinutesUseCaseTest {
         }
     }
 
-    private static class FakeMeetingAttendeeRepository implements MeetingMinutesAccessScopePort {
+    private static class FakeMeetingAttendeeRepository
+            implements MeetingMinutesAccessScopePort, MeetingAttendeeRepositoryPort {
 
         private List<UUID> attendees;
 
@@ -380,6 +430,51 @@ class MinutesUseCaseTest {
         @Override
         public List<UUID> findReadableUserIds(UUID meetingId) {
             return List.copyOf(attendees);
+        }
+
+        @Override
+        public MeetingAttendee save(MeetingAttendee attendee) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> saveAll(List<MeetingAttendee> attendees) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingId(UUID meetingId) {
+            return attendees.stream()
+                    .map(
+                            userId ->
+                                    MeetingAttendee.of(
+                                            UUID.randomUUID(),
+                                            meetingId,
+                                            userId,
+                                            AttendeeRole.PARTICIPANT,
+                                            AttendanceStatus.ACCEPTED))
+                    .toList();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByMeetingIds(java.util.Collection<UUID> meetingIds) {
+            return meetingIds.stream().flatMap(meetingId -> findByMeetingId(meetingId).stream())
+                    .toList();
+        }
+
+        @Override
+        public List<MeetingAttendee> findByUserId(UUID userId) {
+            return List.of();
+        }
+
+        @Override
+        public Optional<UUID> findReviewerUserId(UUID meetingId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void deleteByMeetingId(UUID meetingId) {
+            throw new UnsupportedOperationException();
         }
     }
 
@@ -433,12 +528,28 @@ class MinutesUseCaseTest {
         }
 
         @Override
+        public List<Minutes> findByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds) {
+            return findByOrganizationId(organizationId).stream()
+                    .filter(value -> meetingIds.contains(value.meetingId()))
+                    .toList();
+        }
+
+        @Override
         public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
             return findByOrganizationId(organizationId).stream()
                     .filter(
                             value ->
                                     value.summary().contains(keyword)
                                             || value.content().contains(keyword))
+                    .toList();
+        }
+
+        @Override
+        public List<Minutes> searchByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds, String keyword) {
+            return searchByOrganizationId(organizationId, keyword).stream()
+                    .filter(value -> meetingIds.contains(value.meetingId()))
                     .toList();
         }
     }
