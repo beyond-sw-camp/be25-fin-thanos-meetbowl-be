@@ -2,6 +2,7 @@ package com.meetbowl.infrastructure.persistence.minutes;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
@@ -51,8 +52,36 @@ public class JpaMinutesRepositoryAdapter implements MinutesRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Minutes> findByOrganizationIdAndMeetingIds(
+            UUID organizationId, Set<UUID> meetingIds) {
+        if (meetingIds.isEmpty()) {
+            return List.of();
+        }
+        return springDataMinutesRepository
+                .findByOrganizationIdAndMeetingIdInOrderByCreatedAtDesc(organizationId, meetingIds)
+                .stream()
+                .map(MinutesEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
         return springDataMinutesRepository.searchByOrganizationId(organizationId, keyword).stream()
+                .map(MinutesEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Minutes> searchByOrganizationIdAndMeetingIds(
+            UUID organizationId, Set<UUID> meetingIds, String keyword) {
+        if (meetingIds.isEmpty()) {
+            return List.of();
+        }
+        return springDataMinutesRepository
+                .searchByOrganizationIdAndMeetingIds(organizationId, meetingIds, keyword)
+                .stream()
                 .map(MinutesEntity::toDomain)
                 .toList();
     }

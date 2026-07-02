@@ -2,7 +2,7 @@ package com.meetbowl.application.user;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +32,7 @@ import com.meetbowl.domain.user.UserStatus;
 
 @Service
 public class UserDirectoryUseCase {
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
 
     private final UserRepositoryPort userRepositoryPort;
     private final AffiliateRepositoryPort affiliateRepositoryPort;
@@ -109,6 +110,10 @@ public class UserDirectoryUseCase {
                 user.email(),
                 user.role().name(),
                 user.effectiveStatusAt(Instant.now(clock)).name(),
+                user.affiliateId(),
+                user.departmentId(),
+                user.teamId(),
+                user.positionId(),
                 lookups.affiliateNames().get(user.affiliateId()),
                 lookups.departmentNames().get(user.departmentId()),
                 lookups.teamNames().get(user.teamId()),
@@ -117,10 +122,10 @@ public class UserDirectoryUseCase {
 
     private Instant todayStart() {
         return Instant.now(clock)
-                .atZone(ZoneOffset.UTC)
+                .atZone(BUSINESS_ZONE)
                 .toLocalDate()
-                .atStartOfDay()
-                .toInstant(ZoneOffset.UTC);
+                .atStartOfDay(BUSINESS_ZONE)
+                .toInstant();
     }
 
     // 검색 결과 전체에서 조직 ID를 모아 한 번씩만 조회해 조직명 매핑 시 N+1을 피한다.
@@ -220,6 +225,10 @@ public class UserDirectoryUseCase {
             String email,
             String role,
             String status,
+            UUID affiliateId,
+            UUID departmentId,
+            UUID teamId,
+            UUID positionId,
             String affiliate,
             String department,
             String team,

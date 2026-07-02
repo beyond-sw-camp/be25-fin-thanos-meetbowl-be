@@ -49,7 +49,10 @@ public class MinutesController extends BaseController {
     @GetMapping
     public ApiResponse<MinutesResponse> get(
             @CurrentUser AuthenticatedUser user, @PathVariable UUID meetingId) {
-        return ok(MinutesResponse.from(getMinutesUseCase.get(meetingId, user.organizationId())));
+        return ok(
+                MinutesResponse.from(
+                        getMinutesUseCase.get(
+                                meetingId, user.userId(), user.organizationId(), user.isAdmin())));
     }
 
     @PatchMapping

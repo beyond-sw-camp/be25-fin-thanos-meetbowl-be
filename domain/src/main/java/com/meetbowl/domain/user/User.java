@@ -2,13 +2,15 @@ package com.meetbowl.domain.user;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 
 public class User {
+
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
 
     private final UUID id;
     private final String loginId;
@@ -161,7 +163,7 @@ public class User {
         if (now == null) {
             throw new BusinessException(ErrorCode.COMMON_INVALID_REQUEST, "湲곗? ?쒓컙? ?꾩닔?낅땲??");
         }
-        Instant dayStart = toUtcDate(now).atStartOfDay().toInstant(ZoneOffset.UTC);
+        Instant dayStart = toBusinessDate(now).atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant nextDayStart = dayStart.plusSeconds(24 * 60 * 60);
         boolean afterStart = activeFrom == null || activeFrom.isBefore(nextDayStart);
         boolean beforeEnd = activeUntil == null || !activeUntil.isBefore(dayStart);
@@ -393,8 +395,8 @@ public class User {
                 updatedAt);
     }
 
-    private LocalDate toUtcDate(Instant instant) {
-        return instant.atZone(ZoneOffset.UTC).toLocalDate();
+    private LocalDate toBusinessDate(Instant instant) {
+        return instant.atZone(BUSINESS_ZONE).toLocalDate();
     }
 
     public UUID id() {

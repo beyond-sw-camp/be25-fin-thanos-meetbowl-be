@@ -4,13 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,8 +37,6 @@ class GetPostDetailUseCaseTest {
     @Mock private PostRepositoryPort postRepositoryPort;
     @Mock private CommunityPostQueryPort communityPostQueryPort;
     @Mock private PostLikeRepositoryPort postLikeRepositoryPort;
-    @Mock private CommunityAliasDisplayResolver aliasDisplayResolver;
-
     @Captor private ArgumentCaptor<Post> savedPostCaptor;
 
     @BeforeEach
@@ -50,7 +46,7 @@ class GetPostDetailUseCaseTest {
                         postRepositoryPort,
                         communityPostQueryPort,
                         postLikeRepositoryPort,
-                        aliasDisplayResolver);
+                        new CommunityAliasPolicy());
     }
 
     @Test
@@ -77,7 +73,6 @@ class GetPostDetailUseCaseTest {
                                         2L,
                                         3L,
                                         Instant.now())));
-        given(aliasDisplayResolver.displayNames(anyCollection())).willReturn(Map.of(author, "익명4"));
         given(postLikeRepositoryPort.existsByPostIdAndUserId(postId, viewer)).willReturn(true);
 
         PostDetailResult result = getPostDetailUseCase.execute(postId, viewer);
@@ -89,7 +84,7 @@ class GetPostDetailUseCaseTest {
         assertEquals(6L, result.viewCount());
         assertEquals(2L, result.likeCount());
         assertEquals(3L, result.commentCount());
-        assertEquals("익명4", result.authorAlias());
+        assertEquals(CommunityAliasPolicy.POST_AUTHOR_ALIAS, result.authorAlias());
         assertTrue(result.liked());
         // 작성자(author)와 조회자(viewer)가 다르므로 mine은 false다.
         assertFalse(result.mine());

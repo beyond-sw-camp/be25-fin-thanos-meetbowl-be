@@ -12,8 +12,12 @@ package com.meetbowl.domain.notification;
  *       §14에 아직 없어 추가가 필요하다(PR 리뷰 시 합의 후 보강).
  *   <li>{@link #MINUTES_REVIEW_REQUEST} — AI 회의록 1차 요약 완료 시 지정된 검토자에게 검토 요청.
  *   <li>{@link #MINUTES_REVIEW_REMINDER} — 검토자가 기한 내 검토하지 않을 때 보내는 추가(재)알림.
+<<<<<<< HEAD
  *   <li>{@link #MAIL_RECEIVED} — 일반/공지/내부 메일이 수신자의 받은함에 도착했을 때 발송.
  *   <li>{@link #MAIL_SHARED} — 회의록 승인 등으로 메일을 통해 자료가 공유됐을 때 발송.
+ *   <li>{@link #COMMUNITY_POST_COMMENTED} — 내 글에 다른 사람이 댓글을 달았을 때 발송.
+ *   <li>{@link #COMMUNITY_POST_LIKED} — 내 글에 다른 사람이 좋아요를 눌렀을 때 발송.
+ *   <li>{@link #COMMUNITY_COMMENT_LIKED} — 내 댓글에 다른 사람이 좋아요를 눌렀을 때 발송.
  * </ul>
  */
 public enum NotificationType {
@@ -23,5 +27,8 @@ public enum NotificationType {
     MINUTES_REVIEW_REQUEST,
     MINUTES_REVIEW_REMINDER,
     MAIL_RECEIVED,
-    MAIL_SHARED
+    MAIL_SHARED,
+    COMMUNITY_POST_COMMENTED,
+    COMMUNITY_POST_LIKED,
+    COMMUNITY_COMMENT_LIKED
 }

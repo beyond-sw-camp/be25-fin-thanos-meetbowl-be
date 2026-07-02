@@ -30,17 +30,17 @@ public class GetPostDetailUseCase {
     private final PostRepositoryPort postRepositoryPort;
     private final CommunityPostQueryPort communityPostQueryPort;
     private final PostLikeRepositoryPort postLikeRepositoryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommunityAliasPolicy communityAliasPolicy;
 
     public GetPostDetailUseCase(
             PostRepositoryPort postRepositoryPort,
             CommunityPostQueryPort communityPostQueryPort,
             PostLikeRepositoryPort postLikeRepositoryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver) {
+            CommunityAliasPolicy communityAliasPolicy) {
         this.postRepositoryPort = postRepositoryPort;
         this.communityPostQueryPort = communityPostQueryPort;
         this.postLikeRepositoryPort = postLikeRepositoryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.communityAliasPolicy = communityAliasPolicy;
     }
 
     @Transactional
@@ -64,15 +64,9 @@ public class GetPostDetailUseCase {
                                         new BusinessException(
                                                 ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다."));
 
-        String authorAlias =
-                aliasDisplayResolver
-                        .displayNames(Set.of(detail.authorUserId()))
-                        .getOrDefault(
-                                detail.authorUserId(),
-                                CommunityAliasDisplayResolver.FALLBACK_DISPLAY_NAME);
         boolean liked = postLikeRepositoryPort.existsByPostIdAndUserId(postId, requesterId);
         boolean mine = detail.authorUserId().equals(requesterId);
 
-        return PostDetailResult.of(detail, authorAlias, mine, liked);
+        return PostDetailResult.of(detail, communityAliasPolicy.postAuthorAlias(), mine, liked);
     }
 }

@@ -1,7 +1,5 @@
 package com.meetbowl.application.community;
 
-import java.util.Set;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,17 +23,17 @@ public class UpdatePostUseCase {
     private final PostRepositoryPort postRepositoryPort;
     private final PostLikeRepositoryPort postLikeRepositoryPort;
     private final CommentRepositoryPort commentRepositoryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommunityAliasPolicy communityAliasPolicy;
 
     public UpdatePostUseCase(
             PostRepositoryPort postRepositoryPort,
             PostLikeRepositoryPort postLikeRepositoryPort,
             CommentRepositoryPort commentRepositoryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver) {
+            CommunityAliasPolicy communityAliasPolicy) {
         this.postRepositoryPort = postRepositoryPort;
         this.postLikeRepositoryPort = postLikeRepositoryPort;
         this.commentRepositoryPort = commentRepositoryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.communityAliasPolicy = communityAliasPolicy;
     }
 
     @Transactional
@@ -64,14 +62,7 @@ public class UpdatePostUseCase {
         // 좋아요/댓글 수는 수정으로 바뀌지 않는다. 응답 표시용으로 현재 값만 읽는다.
         long likeCount = postLikeRepositoryPort.countByPostId(saved.id());
         long commentCount = commentRepositoryPort.countByPostId(saved.id());
-        // 작성자는 글을 쓴 적이 있으므로 별칭이 이미 존재한다(첫 활동 시 발급됨).
-        String authorAlias =
-                aliasDisplayResolver
-                        .displayNames(Set.of(command.requesterId()))
-                        .getOrDefault(
-                                command.requesterId(),
-                                CommunityAliasDisplayResolver.FALLBACK_DISPLAY_NAME);
-
-        return PostResult.of(saved, authorAlias, likeCount, commentCount);
+        return PostResult.of(
+                saved, communityAliasPolicy.postAuthorAlias(), likeCount, commentCount);
     }
 }

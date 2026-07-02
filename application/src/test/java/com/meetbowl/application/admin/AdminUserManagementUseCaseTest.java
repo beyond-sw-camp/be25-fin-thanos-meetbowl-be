@@ -158,6 +158,40 @@ class AdminUserManagementUseCaseTest {
     }
 
     @Test
+    void createUserIgnoresInactiveRequestStatus() {
+        AdminUserManagementUseCase useCase = useCase();
+        UUID adminAffiliateId = UUID.randomUUID();
+        stubAffiliate(adminAffiliateId, "Affiliate");
+        given(userRepositoryPort.existsByLoginId("user02")).willReturn(false);
+        given(userRepositoryPort.findByEmail("user02@example.com")).willReturn(Optional.empty());
+        given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+        AdminUserManagementUseCase.CreateResult result =
+                useCase.create(
+                        new AdminUserManagementUseCase.CreateCommand(
+                                "user02",
+                                "User Two",
+                                "user02@example.com",
+                                "USER",
+                                "INACTIVE",
+                                adminAffiliateId,
+                                null,
+                                null,
+                                null,
+                                ACTIVE_FROM,
+                                ACTIVE_UNTIL,
+                                UUID.randomUUID(),
+                                "Root Admin",
+                                "127.0.0.1",
+                                "JUnit"));
+
+        ArgumentCaptor<User> savedUser = ArgumentCaptor.forClass(User.class);
+        verify(userRepositoryPort).save(savedUser.capture());
+        assertEquals(UserStatus.ACTIVE, savedUser.getValue().status());
+        assertEquals(UserStatus.ACTIVE.name(), result.user().status());
+    }
+
+    @Test
     void createFailsWhenDepartmentBelongsToDifferentAffiliate() {
         AdminUserManagementUseCase useCase = useCase();
         UUID adminAffiliateId = UUID.randomUUID();

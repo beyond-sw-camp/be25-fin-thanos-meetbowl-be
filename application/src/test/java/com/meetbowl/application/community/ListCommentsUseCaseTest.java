@@ -12,7 +12,6 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -39,7 +38,6 @@ class ListCommentsUseCaseTest {
 
     @Mock private PostRepositoryPort postRepositoryPort;
     @Mock private CommunityCommentQueryPort communityCommentQueryPort;
-    @Mock private CommunityAliasDisplayResolver aliasDisplayResolver;
     @Mock private CommentLikeRepositoryPort commentLikeRepositoryPort;
 
     @BeforeEach
@@ -48,7 +46,7 @@ class ListCommentsUseCaseTest {
                 new ListCommentsUseCase(
                         postRepositoryPort,
                         communityCommentQueryPort,
-                        aliasDisplayResolver,
+                        new CommunityAliasPolicy(),
                         commentLikeRepositoryPort);
     }
 
@@ -77,8 +75,6 @@ class ListCommentsUseCaseTest {
                                         comment1Id, requester, "댓글1", 2L, Instant.now()),
                                 new CommunityCommentListItem(
                                         comment2Id, author2, "댓글2", 0L, Instant.now())));
-        given(aliasDisplayResolver.displayNames(anyCollection()))
-                .willReturn(Map.of(requester, "익명1", author2, "익명2"));
         // 요청자는 둘째 댓글에만 좋아요를 눌렀다.
         given(commentLikeRepositoryPort.findLikedCommentIds(eq(requester), anyCollection()))
                 .willReturn(Set.of(comment2Id));

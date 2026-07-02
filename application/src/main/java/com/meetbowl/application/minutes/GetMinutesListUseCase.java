@@ -9,36 +9,45 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.meetbowl.domain.meeting.MeetingAttendee;
+import com.meetbowl.domain.meeting.MeetingAttendeeRepositoryPort;
 import com.meetbowl.domain.minutes.Minutes;
 import com.meetbowl.domain.minutes.MinutesFavoriteRepositoryPort;
 import com.meetbowl.domain.minutes.MinutesRepositoryPort;
 
-/** 사용자가 속한 조직의 회의록 목록을 조회하고, 사용자별 즐겨찾기 여부를 함께 계산한다. */
+/** 사용자가 접근할 수 있는 회의록 목록을 조회하고, 사용자별 즐겨찾기 여부를 함께 계산한다. */
 @Service
 public class GetMinutesListUseCase {
 
     private final MinutesRepositoryPort minutesRepositoryPort;
     private final MinutesFavoriteRepositoryPort favoriteRepositoryPort;
+    private final MeetingAttendeeRepositoryPort attendeeRepositoryPort;
     private final MinutesMeetingMetadataAssembler metadataAssembler;
 
     public GetMinutesListUseCase(
             MinutesRepositoryPort minutesRepositoryPort,
             MinutesFavoriteRepositoryPort favoriteRepositoryPort,
+            MeetingAttendeeRepositoryPort attendeeRepositoryPort,
             MinutesMeetingMetadataAssembler metadataAssembler) {
         this.minutesRepositoryPort = minutesRepositoryPort;
         this.favoriteRepositoryPort = favoriteRepositoryPort;
+        this.attendeeRepositoryPort = attendeeRepositoryPort;
         this.metadataAssembler = metadataAssembler;
     }
 
     @Transactional(readOnly = true)
     public List<MinutesListItemResult> execute(
             UUID actorUserId, UUID actorOrganizationId, String keyword) {
-        // 회의록 접근 권한은 현재 단계에서 조직 경계로 제한한다. 개인별 상태인 즐겨찾기는 별도 조회해 응답에 합성한다.
+        Set<UUID> accessibleMeetingIds =
+                attendeeRepositoryPort.findByUserId(actorUserId).stream()
+                        .map(MeetingAttendee::meetingId)
+                        .collect(Collectors.toSet());
         List<Minutes> minutes =
                 hasKeyword(keyword)
-                        ? minutesRepositoryPort.searchByOrganizationId(
-                                actorOrganizationId, keyword.trim())
-                        : minutesRepositoryPort.findByOrganizationId(actorOrganizationId);
+                        ? minutesRepositoryPort.searchByOrganizationIdAndMeetingIds(
+                                actorOrganizationId, accessibleMeetingIds, keyword.trim())
+                        : minutesRepositoryPort.findByOrganizationIdAndMeetingIds(
+                                actorOrganizationId, accessibleMeetingIds);
         Set<UUID> favoriteMinutesIds =
                 favoriteRepositoryPort.findByUserId(actorUserId).stream()
                         .map(favorite -> favorite.minutesId())
@@ -48,6 +57,7 @@ public class GetMinutesListUseCase {
                         minutes.stream().map(Minutes::meetingId).toList(), actorOrganizationId);
 
         return minutes.stream()
+                .filter(item -> MinutesAccessValidator.canRead(item, actorUserId))
                 .map(
                         item ->
                                 MinutesListItemResult.from(

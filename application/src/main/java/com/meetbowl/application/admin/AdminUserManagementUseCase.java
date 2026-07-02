@@ -2,7 +2,7 @@ package com.meetbowl.application.admin;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +44,7 @@ import com.meetbowl.domain.user.UserStatus;
 @Service
 public class AdminUserManagementUseCase {
     private static final Instant DEFAULT_ACTIVE_UNTIL = Instant.parse("2999-12-31T00:00:00Z");
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Seoul");
 
     private final UserRepositoryPort userRepositoryPort;
     private final AffiliateRepositoryPort affiliateRepositoryPort;
@@ -107,7 +108,8 @@ public class AdminUserManagementUseCase {
         validateLoginId(command.loginId());
         validateEmail(command.email());
         UserRole role = parseRole(command.role());
-        UserStatus status = parseStatus(command.status());
+        // 신규 등록은 기본적으로 활성 상태로 저장한다. 비활성은 상태 변경 API에서만 다룬다.
+        UserStatus status = UserStatus.ACTIVE;
         UUID affiliateId = requireAdminAffiliateId(command.adminAffiliateId());
         validateOrganizationReferences(
                 affiliateId,
@@ -204,10 +206,10 @@ public class AdminUserManagementUseCase {
 
     private Instant todayStart() {
         return Instant.now(clock)
-                .atZone(ZoneOffset.UTC)
+                .atZone(BUSINESS_ZONE)
                 .toLocalDate()
-                .atStartOfDay()
-                .toInstant(ZoneOffset.UTC);
+                .atStartOfDay(BUSINESS_ZONE)
+                .toInstant();
     }
 
     /**
