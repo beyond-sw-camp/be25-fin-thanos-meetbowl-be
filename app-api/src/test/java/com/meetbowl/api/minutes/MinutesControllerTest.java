@@ -2,6 +2,7 @@ package com.meetbowl.api.minutes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,7 +63,7 @@ class MinutesControllerTest {
 
     @Test
     void getMinutes() throws Exception {
-        given(getMinutesUseCase.get(any(), any()))
+        given(getMinutesUseCase.get(any(), any(), any(), anyBoolean()))
                 .willReturn(result("DRAFT", "Meeting summary", "{\"type\":\"doc\"}", null));
 
         mockMvc.perform(
@@ -75,6 +76,8 @@ class MinutesControllerTest {
                 .andExpect(jsonPath("$.data.status").value("DRAFT"))
                 .andExpect(jsonPath("$.data.summary").value("Meeting summary"))
                 .andExpect(jsonPath("$.data.content").value("{\"type\":\"doc\"}"));
+
+        verify(getMinutesUseCase).get(MEETING_ID, USER_ID, ORGANIZATION_ID, false);
     }
 
     @Test

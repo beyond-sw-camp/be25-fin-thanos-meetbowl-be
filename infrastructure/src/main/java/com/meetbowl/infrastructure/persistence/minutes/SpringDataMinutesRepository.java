@@ -2,6 +2,7 @@ package com.meetbowl.infrastructure.persistence.minutes;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,9 @@ interface SpringDataMinutesRepository extends JpaRepository<MinutesEntity, UUID>
     Optional<MinutesEntity> findByMeetingId(UUID meetingId);
 
     List<MinutesEntity> findByOrganizationIdOrderByCreatedAtDesc(UUID organizationId);
+
+    List<MinutesEntity> findByOrganizationIdAndMeetingIdInOrderByCreatedAtDesc(
+            UUID organizationId, Set<UUID> meetingIds);
 
     @Query(
             """
@@ -28,6 +32,23 @@ interface SpringDataMinutesRepository extends JpaRepository<MinutesEntity, UUID>
             """)
     List<MinutesEntity> searchByOrganizationId(
             @Param("organizationId") UUID organizationId, @Param("keyword") String keyword);
+
+    @Query(
+            """
+            select minutes
+            from MinutesEntity minutes
+            where minutes.organizationId = :organizationId
+              and minutes.meetingId in :meetingIds
+              and (
+                lower(minutes.summary) like lower(concat('%', :keyword, '%'))
+                or lower(minutes.content) like lower(concat('%', :keyword, '%'))
+              )
+            order by minutes.createdAt desc
+            """)
+    List<MinutesEntity> searchByOrganizationIdAndMeetingIds(
+            @Param("organizationId") UUID organizationId,
+            @Param("meetingIds") Set<UUID> meetingIds,
+            @Param("keyword") String keyword);
 
     boolean existsByMeetingId(UUID meetingId);
 }

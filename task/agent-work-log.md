@@ -1426,6 +1426,28 @@
   Passed workflow YAML parse validation with Ruby YAML loader.
   Pending: targeted admin dashboard application test and compile checks.
 
+2026-07-01 meetbowl-be minutes read access restriction
+
+- Purpose: prevent users from seeing minutes for meetings they did not participate in.
+- Changed files:
+  `app-api/src/main/java/com/meetbowl/api/minutes/MinutesController.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/GetMinutesUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/GetMinutesListUseCase.java`,
+  `domain/src/main/java/com/meetbowl/domain/minutes/MinutesRepositoryPort.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/minutes/JpaMinutesRepositoryAdapter.java`,
+  `infrastructure/src/main/java/com/meetbowl/infrastructure/persistence/minutes/SpringDataMinutesRepository.java`,
+  related tests, and this log.
+- Behavior:
+  `GET /api/v1/minutes` now queries only minutes whose meeting id is attached to the current user through `meeting_attendee`.
+  `GET /api/v1/meetings/{meetingId}/minutes` now rejects non-admin users who are not meeting attendees.
+  Admin detail access remains allowed, matching the existing API contract.
+- Excluded scope:
+  Did not change minutes revision, approval, sharing, or favorite mutation authorization.
+- Verification:
+  Passed `./gradlew :application:test --tests 'com.meetbowl.application.minutes.*' :app-api:test --tests 'com.meetbowl.api.minutes.*' :infrastructure:compileJava --no-daemon`.
+  Passed `./gradlew :app-api:test --no-daemon`.
+  Passed `./gradlew test --no-daemon`.
+
 2026-07-01 meetbowl-be weighted blue/green listener switch
 
 - Purpose: keep both API blue and green target groups attached to the ALB listener so the inactive target group remains health-checkable and does not fall back to `unused` after a deployment.

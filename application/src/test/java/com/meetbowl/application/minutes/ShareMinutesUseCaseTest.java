@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -245,8 +246,22 @@ class ShareMinutesUseCaseTest {
         }
 
         @Override
+        public List<Minutes> findByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds) {
+            return findByOrganizationId(organizationId).stream()
+                    .filter(value -> meetingIds.contains(value.meetingId()))
+                    .toList();
+        }
+
+        @Override
         public List<Minutes> searchByOrganizationId(UUID organizationId, String keyword) {
             return findByOrganizationId(organizationId);
+        }
+
+        @Override
+        public List<Minutes> searchByOrganizationIdAndMeetingIds(
+                UUID organizationId, Set<UUID> meetingIds, String keyword) {
+            return findByOrganizationIdAndMeetingIds(organizationId, meetingIds);
         }
     }
 }
