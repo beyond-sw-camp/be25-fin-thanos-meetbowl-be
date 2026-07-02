@@ -1525,3 +1525,83 @@
 - Verification:
   Passed `./gradlew :application:test --tests 'com.meetbowl.application.sharedworkspace.SharedWorkspaceReadUseCaseTest'`.
   Passed `./gradlew :infrastructure:test --tests 'com.meetbowl.infrastructure.chatbot.DefaultChatSharedWorkspaceAccessAdapterTest'`.
+
+2026-07-02 community alias policy and mail notification sync adjustments
+
+- Purpose:
+  Start the cross-feature UX fix bundle by aligning community anonymous labels with per-post numbering, sending community/mail notifications through the existing bell flow, and clearing mail-related notifications as soon as the recipient reads the mail.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/community/CommunityAliasPolicy.java`,
+  `application/src/main/java/com/meetbowl/application/community/CreatePostUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/UpdatePostUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/ListPostUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/GetHotPostsUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/GetPostDetailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/ListCommentsUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/CreateCommentUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/UpdateCommentUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/community/TogglePostLikeUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/SendMailUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/mail/ChangeMailReadStatusUseCase.java`,
+  `application/src/main/java/com/meetbowl/application/minutes/ApproveMinutesUseCase.java`,
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationType.java`,
+  `domain/src/main/java/com/meetbowl/domain/notification/NotificationResourceType.java`,
+  and this log.
+- Behavior:
+  Community posts now render the author as `글쓴이`, and comment aliases are recalculated per post in first-commenter order instead of reusing a user-global anonymous number.
+  When someone else comments on or likes a user's community post, the backend now creates bell notifications linked to the community post.
+  Internal mail sends now create `MAIL_RECEIVED` notifications linked to the mail resource, and marking a mail as read also marks the linked unread mail notifications as read in the backend.
+  Automatic approved-minutes share mail now sends only the minutes route link body (`/app/minutes/{meetingId}`) instead of embedding summary/body text.
+- Verification:
+  Passed: `bash ./gradlew :application:compileJava :app-api:compileJava --no-daemon --console=plain`
+
+2026-07-02 notification enum migration for community and mail bell events
+
+- Purpose:
+  Fix the server-side 500 that occurred when post-like/comment/mail notification code tried to persist new notification enum values into a database schema that still allowed only the original notification enum set.
+- Changed files:
+  `app-api/src/main/resources/db/migration/V12__extend_notification_enums.sql`,
+  and this log.
+- Behavior:
+  Flyway now expands the `notification.type` enum to include `COMMUNITY_POST_COMMENTED`, `COMMUNITY_POST_LIKED`, and `MAIL_RECEIVED`.
+  Flyway also expands `notification.resource_type` to include `COMMUNITY_POST` and `MAIL`, so bell notifications for community activity and mail reads can be stored without SQL enum failures.
+- Verification:
+  Passed: `/bin/zsh -lc "GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :app-api:compileJava --no-daemon --console=plain"`
+
+2026-07-02 organization-members excel import affiliate-scope fix
+
+- Purpose:
+  Investigate why department/team/position rows uploaded from the organization-position Excel screen sometimes did not appear in the current admin view even though the import flow completed.
+- Changed files:
+  `application/src/main/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelApplyService.java`,
+  `application/src/test/java/com/meetbowl/application/admin/AdminOrganizationMembersExcelUseCaseTest.java`,
+  and this log.
+- Behavior:
+  The Excel apply service previously preloaded existing departments, teams, and positions across every affiliate before matching rows by name, so same-named references in another affiliate could be reused during import.
+  Because the admin screen only reloads the current affiliate's master data after import, those cross-affiliate matches could make the upload look like it "did not attach" to the current organization/position screen.
+  The import matcher now limits existing-reference preload and id matching to the current admin affiliate scope, and the added test covers a case where another affiliate already has the same department, team, and position names.
+- Verification:
+  Passed: `/bin/zsh -lc "GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:compileJava --no-daemon --console=plain"`
+  Blocked: `/bin/zsh -lc "GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:test --tests com.meetbowl.application.admin.AdminOrganizationMembersExcelUseCaseTest --no-daemon --console=plain"` currently fails before the target test runs because unrelated existing test sources in `application/mail` and `application/community` no longer match their updated constructor signatures.
+
+2026-07-02 mail and community test fixture alignment
+
+- Purpose:
+  Finish the remaining stabilization work after the mail-notification and community-alias feature changes by bringing outdated application test fixtures up to the current constructor contracts and alias policy.
+- Changed files:
+  `application/src/test/java/com/meetbowl/application/mail/ChangeMailReadStatusUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/mail/SendMailUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/GetPostDetailUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/CreateCommentUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/UpdateCommentUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/UpdatePostUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/GetHotPostsUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/ListCommentsUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/TogglePostLikeUseCaseTest.java`,
+  `application/src/test/java/com/meetbowl/application/community/ToggleCommentLikeUseCaseTest.java`,
+  and this log.
+- Behavior:
+  Mail read-status tests now provide the notification repository dependency introduced by mail-bell synchronization, and send-mail tests now provide the notification dispatcher used for inbox bell events.
+  Community tests now follow the current anonymous display policy: posts expect `글쓴이`, comments use per-post alias numbering, and like/comment use cases include the notification dispatch dependency required by the latest implementation.
+- Verification:
+  Passed: `/bin/zsh -lc "GRADLE_USER_HOME=/Users/leetrue801/Project/Meetbowl/.gradle-local bash ./gradlew :application:compileTestJava :app-api:compileTestJava --no-daemon --console=plain"`
