@@ -5,6 +5,7 @@ import java.util.UUID;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.minutes.Minutes;
+import com.meetbowl.domain.minutes.MinutesStatus;
 
 /** 회원/회의 테이블이 없는 현재 단계에서 JWT 조직과 회의록 조직의 경계를 검증한다. */
 final class MinutesAccessValidator {
@@ -20,5 +21,26 @@ final class MinutesAccessValidator {
         if (actorOrganizationId == null || !minutes.organizationId().equals(actorOrganizationId)) {
             throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "다른 조직의 회의록은 처리할 수 없습니다.");
         }
+    }
+
+    static void ensureReadable(Minutes minutes, UUID actorUserId, UUID actorOrganizationId) {
+        ensureSameOrganization(minutes, actorOrganizationId);
+        if (canRead(minutes, actorUserId)) {
+            return;
+        }
+        throw new BusinessException(
+                ErrorCode.COMMON_FORBIDDEN, "회의록은 검토자 승인 후부터 열람할 수 있습니다.");
+    }
+
+    static boolean canRead(Minutes minutes, UUID actorUserId) {
+        if (minutes == null || actorUserId == null) {
+            return false;
+        }
+        if (minutes.reviewerUserId().equals(actorUserId)) {
+            return true;
+        }
+        return minutes.status() == MinutesStatus.APPROVED
+                || minutes.status() == MinutesStatus.SHARED
+                || minutes.status() == MinutesStatus.DELETION_SCHEDULED;
     }
 }

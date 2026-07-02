@@ -8,5 +8,6 @@ package com.meetbowl.domain.notification;
 public enum NotificationResourceType {
     MEETING,
     MEETING_MINUTES,
-    MAIL
+    MAIL,
+    COMMUNITY_POST
 }

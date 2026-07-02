@@ -5,11 +5,16 @@ import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
+import com.meetbowl.application.notification.DispatchNotificationCommand;
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
+import com.meetbowl.domain.community.Post;
 import com.meetbowl.domain.community.PostLike;
 import com.meetbowl.domain.community.PostLikeRepositoryPort;
 import com.meetbowl.domain.community.PostRepositoryPort;
+import com.meetbowl.domain.notification.NotificationResourceType;
+import com.meetbowl.domain.notification.NotificationType;
 
 /**
  * 게시글 좋아요 토글 UseCase다. 한 사용자는 한 게시글에 좋아요를 한 번만 누를 수 있고, 이미 누른 상태에서 다시 요청하면 취소된다.
@@ -28,18 +33,25 @@ public class TogglePostLikeUseCase {
 
     private final PostRepositoryPort postRepositoryPort;
     private final PostLikeRepositoryPort postLikeRepositoryPort;
+    private final DispatchNotificationUseCase dispatchNotificationUseCase;
 
     public TogglePostLikeUseCase(
-            PostRepositoryPort postRepositoryPort, PostLikeRepositoryPort postLikeRepositoryPort) {
+            PostRepositoryPort postRepositoryPort,
+            PostLikeRepositoryPort postLikeRepositoryPort,
+            DispatchNotificationUseCase dispatchNotificationUseCase) {
         this.postRepositoryPort = postRepositoryPort;
         this.postLikeRepositoryPort = postLikeRepositoryPort;
+        this.dispatchNotificationUseCase = dispatchNotificationUseCase;
     }
 
     public LikeToggleResult execute(UUID postId, UUID userId) {
-        // 게시글이 없거나 삭제됐으면 좋아요를 누를 수 없다.
-        if (postRepositoryPort.findById(postId).isEmpty()) {
-            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다.");
-        }
+        Post post =
+                postRepositoryPort
+                        .findById(postId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다."));
 
         boolean liked;
         if (postLikeRepositoryPort.existsByPostIdAndUserId(postId, userId)) {
@@ -52,6 +64,17 @@ public class TogglePostLikeUseCase {
                 // 같은 사용자의 동시 좋아요로 유니크 제약 충돌 → 한 행만 남는다. 결과는 '좋아요됨' 상태.
             }
             liked = true;
+        }
+
+        if (liked && !post.authorUserId().equals(userId)) {
+            dispatchNotificationUseCase.execute(
+                    new DispatchNotificationCommand(
+                            post.authorUserId(),
+                            NotificationType.COMMUNITY_POST_LIKED.name(),
+                            "내 글에 좋아요가 추가되었습니다.",
+                            post.title(),
+                            NotificationResourceType.COMMUNITY_POST.name(),
+                            post.id()));
         }
 
         long likeCount = postLikeRepositoryPort.countByPostId(postId);

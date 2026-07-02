@@ -1,6 +1,5 @@
 package com.meetbowl.application.community;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,15 +24,15 @@ import com.meetbowl.domain.community.PostLikeRepositoryPort;
 public class ListPostUseCase {
 
     private final CommunityPostQueryPort communityPostQueryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommunityAliasPolicy communityAliasPolicy;
     private final PostLikeRepositoryPort postLikeRepositoryPort;
 
     public ListPostUseCase(
             CommunityPostQueryPort communityPostQueryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver,
+            CommunityAliasPolicy communityAliasPolicy,
             PostLikeRepositoryPort postLikeRepositoryPort) {
         this.communityPostQueryPort = communityPostQueryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.communityAliasPolicy = communityAliasPolicy;
         this.postLikeRepositoryPort = postLikeRepositoryPort;
     }
 
@@ -58,13 +57,6 @@ public class ListPostUseCase {
 
         Paged<CommunityPostListItem> paged = communityPostQueryPort.search(query);
 
-        // 이 페이지에 등장하는 작성자 userId를 한 번에 별칭으로 변환(N+1 회피).
-        Set<UUID> authorUserIds =
-                paged.content().stream()
-                        .map(CommunityPostListItem::authorUserId)
-                        .collect(Collectors.toSet());
-        Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
-
         // 이 페이지의 글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피). 비로그인(null)이면 조회 생략 → 빈 집합.
         Set<UUID> postIds =
                 paged.content().stream().map(CommunityPostListItem::id).collect(Collectors.toSet());
@@ -79,10 +71,7 @@ public class ListPostUseCase {
                                 item ->
                                         PostListItemResult.of(
                                                 item,
-                                                aliasByUser.getOrDefault(
-                                                        item.authorUserId(),
-                                                        CommunityAliasDisplayResolver
-                                                                .FALLBACK_DISPLAY_NAME),
+                                                communityAliasPolicy.postAuthorAlias(),
                                                 requesterId != null
                                                         && item.authorUserId().equals(requesterId),
                                                 likedPostIds.contains(item.id())))

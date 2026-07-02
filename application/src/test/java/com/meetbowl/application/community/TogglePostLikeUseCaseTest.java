@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.community.CommunityCategory;
@@ -35,11 +36,13 @@ class TogglePostLikeUseCaseTest {
 
     @Mock private PostRepositoryPort postRepositoryPort;
     @Mock private PostLikeRepositoryPort postLikeRepositoryPort;
+    @Mock private DispatchNotificationUseCase dispatchNotificationUseCase;
 
     @BeforeEach
     void setUp() {
         togglePostLikeUseCase =
-                new TogglePostLikeUseCase(postRepositoryPort, postLikeRepositoryPort);
+                new TogglePostLikeUseCase(
+                        postRepositoryPort, postLikeRepositoryPort, dispatchNotificationUseCase);
     }
 
     private void givenPostExists(UUID postId) {

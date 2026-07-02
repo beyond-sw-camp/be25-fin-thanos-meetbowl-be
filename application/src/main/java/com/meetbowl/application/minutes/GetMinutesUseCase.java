@@ -39,9 +39,18 @@ public class GetMinutesUseCase {
                                         new BusinessException(
                                                 ErrorCode.MINUTES_NOT_FOUND, "회의록을 찾을 수 없습니다."));
         MinutesAccessValidator.ensureSameOrganization(minutes, actorOrganizationId);
-        if (!isAdmin && !isMeetingParticipant(minutes.meetingId(), actorUserId)) {
+        if (isAdmin) {
+            return MinutesResult.from(
+                    minutes,
+                    metadataAssembler.assemble(
+                            minutes.meetingId(),
+                            minutes.organizationId(),
+                            minutes.reviewerUserId()));
+        }
+        if (!isMeetingParticipant(minutes.meetingId(), actorUserId)) {
             throw new BusinessException(ErrorCode.COMMON_FORBIDDEN, "회의 참석자만 회의록을 조회할 수 있습니다.");
         }
+        MinutesAccessValidator.ensureReadable(minutes, actorUserId, actorOrganizationId);
         return MinutesResult.from(
                 minutes,
                 metadataAssembler.assemble(

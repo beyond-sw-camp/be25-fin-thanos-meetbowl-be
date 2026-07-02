@@ -2,7 +2,6 @@ package com.meetbowl.application.community;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -25,15 +24,15 @@ import com.meetbowl.domain.community.PostLikeRepositoryPort;
 public class GetHotPostsUseCase {
 
     private final CommunityPostQueryPort communityPostQueryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommunityAliasPolicy communityAliasPolicy;
     private final PostLikeRepositoryPort postLikeRepositoryPort;
 
     public GetHotPostsUseCase(
             CommunityPostQueryPort communityPostQueryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver,
+            CommunityAliasPolicy communityAliasPolicy,
             PostLikeRepositoryPort postLikeRepositoryPort) {
         this.communityPostQueryPort = communityPostQueryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.communityAliasPolicy = communityAliasPolicy;
         this.postLikeRepositoryPort = postLikeRepositoryPort;
     }
 
@@ -51,12 +50,6 @@ public class GetHotPostsUseCase {
         List<CommunityPostListItem> hotItems =
                 communityPostQueryPort.findHot(since, CommunityHotScore.HOT_LIMIT);
 
-        Set<UUID> authorUserIds =
-                hotItems.stream()
-                        .map(CommunityPostListItem::authorUserId)
-                        .collect(Collectors.toSet());
-        Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
-
         // Hot 글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피). 비로그인(null)이면 조회 생략 → 빈 집합.
         Set<UUID> postIds =
                 hotItems.stream().map(CommunityPostListItem::id).collect(Collectors.toSet());
@@ -70,10 +63,7 @@ public class GetHotPostsUseCase {
                         item ->
                                 PostListItemResult.of(
                                         item,
-                                        aliasByUser.getOrDefault(
-                                                item.authorUserId(),
-                                                CommunityAliasDisplayResolver
-                                                        .FALLBACK_DISPLAY_NAME),
+                                        communityAliasPolicy.postAuthorAlias(),
                                         requesterId != null
                                                 && item.authorUserId().equals(requesterId),
                                         likedPostIds.contains(item.id())))

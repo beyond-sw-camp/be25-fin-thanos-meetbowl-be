@@ -3,12 +3,10 @@ package com.meetbowl.application.community;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,8 +32,6 @@ class UpdatePostUseCaseTest {
     @Mock private PostRepositoryPort postRepositoryPort;
     @Mock private PostLikeRepositoryPort postLikeRepositoryPort;
     @Mock private CommentRepositoryPort commentRepositoryPort;
-    @Mock private CommunityAliasDisplayResolver aliasDisplayResolver;
-
     @BeforeEach
     void setUp() {
         updatePostUseCase =
@@ -43,7 +39,7 @@ class UpdatePostUseCaseTest {
                         postRepositoryPort,
                         postLikeRepositoryPort,
                         commentRepositoryPort,
-                        aliasDisplayResolver);
+                        new CommunityAliasPolicy());
     }
 
     @Test
@@ -55,8 +51,6 @@ class UpdatePostUseCaseTest {
         given(postRepositoryPort.save(any(Post.class))).willAnswer(inv -> inv.getArgument(0));
         given(postLikeRepositoryPort.countByPostId(postId)).willReturn(4L);
         given(commentRepositoryPort.countByPostId(postId)).willReturn(2L);
-        given(aliasDisplayResolver.displayNames(anyCollection())).willReturn(Map.of(author, "익명3"));
-
         PostResult result =
                 updatePostUseCase.execute(
                         new UpdatePostCommand(postId, author, "맛집", "새 제목", "새 내용"));
@@ -68,7 +62,7 @@ class UpdatePostUseCaseTest {
         assertEquals(7L, result.viewCount());
         assertEquals(4L, result.likeCount());
         assertEquals(2L, result.commentCount());
-        assertEquals("익명3", result.authorAlias());
+        assertEquals(CommunityAliasPolicy.POST_AUTHOR_ALIAS, result.authorAlias());
     }
 
     @Test

@@ -102,7 +102,8 @@ public class AdminOrganizationMembersExcelApplyService {
                                         new BusinessException(
                                                 ErrorCode.COMMON_NOT_FOUND, "Affiliate not found."));
 
-        preloadExistingReferences(existingDepartments, existingTeams, existingPositions, context);
+        preloadExistingReferences(
+                existingDepartments, existingTeams, existingPositions, context, scopeAffiliate.id());
 
         resolveDepartments(rows.departments(), existingDepartments, context, scopeAffiliate);
         resolveTeams(rows.teams(), existingTeams, context, scopeAffiliate);
@@ -150,6 +151,7 @@ public class AdminOrganizationMembersExcelApplyService {
             Affiliate scopeAffiliate) {
         Map<UUID, Department> byId =
                 existingDepartments.stream()
+                        .filter(item -> Objects.equals(item.affiliateId(), scopeAffiliate.id()))
                         .collect(
                                 LinkedHashMap::new,
                                 (map, item) -> map.put(item.id(), item),
@@ -224,8 +226,15 @@ public class AdminOrganizationMembersExcelApplyService {
             List<Team> existingTeams,
             ImportContext context,
             Affiliate scopeAffiliate) {
+        List<UUID> scopedDepartmentIds =
+                context.resolvedDepartmentsByHierarchy().values().stream()
+                        .filter(item -> Objects.equals(item.affiliateId(), scopeAffiliate.id()))
+                        .map(Department::id)
+                        .distinct()
+                        .toList();
         Map<UUID, Team> byId =
                 existingTeams.stream()
+                        .filter(item -> scopedDepartmentIds.contains(item.departmentId()))
                         .collect(
                                 LinkedHashMap::new,
                                 (map, item) -> map.put(item.id(), item),
@@ -305,12 +314,13 @@ public class AdminOrganizationMembersExcelApplyService {
             Affiliate scopeAffiliate) {
         Map<UUID, Position> byId =
                 existingPositions.stream()
+                        .filter(item -> Objects.equals(item.affiliateId(), scopeAffiliate.id()))
                         .collect(
                                 LinkedHashMap::new,
                                 (map, item) -> map.put(item.id(), item),
                                 Map::putAll);
-        Map<String, Position> byHierarchy = new LinkedHashMap<>();
-        existingPositions.forEach(position -> byHierarchy.put(position.name(), position));
+        Map<String, Position> byHierarchy =
+                new LinkedHashMap<>(context.resolvedPositionsByHierarchy());
         OrganizationCodeGenerator positionCodeGenerator =
                 OrganizationCodeGenerator.forPositionCodes(
                         existingPositions.stream().map(Position::code).toList());
@@ -753,8 +763,14 @@ public class AdminOrganizationMembersExcelApplyService {
             List<Department> departments,
             List<Team> teams,
             List<Position> positions,
-            ImportContext context) {
-        departments.forEach(department -> context.resolvedDepartmentsByHierarchy().put(department.name(), department));
+            ImportContext context,
+            UUID scopeAffiliateId) {
+        departments.stream()
+                .filter(department -> Objects.equals(department.affiliateId(), scopeAffiliateId))
+                .forEach(
+                        department ->
+                                context.resolvedDepartmentsByHierarchy()
+                                        .put(department.name(), department));
         teams.forEach(
                 team -> {
                     Department department =
@@ -762,12 +778,17 @@ public class AdminOrganizationMembersExcelApplyService {
                                     .filter(item -> item.id().equals(team.departmentId()))
                                     .findFirst()
                                     .orElse(null);
-                    if (department != null) {
+                    if (department != null
+                            && Objects.equals(department.affiliateId(), scopeAffiliateId)) {
                         context.resolvedTeamsByHierarchy().put(teamKey(department.name(), team.name()), team);
                     }
                 });
-        positions.forEach(
-                position -> context.resolvedPositionsByHierarchy().put(position.name(), position));
+        positions.stream()
+                .filter(position -> Objects.equals(position.affiliateId(), scopeAffiliateId))
+                .forEach(
+                        position ->
+                                context.resolvedPositionsByHierarchy()
+                                        .put(position.name(), position));
     }
 
     private String teamKey(String departmentName, String teamName) {

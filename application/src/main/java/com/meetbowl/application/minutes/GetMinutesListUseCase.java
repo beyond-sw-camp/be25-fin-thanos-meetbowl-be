@@ -57,6 +57,7 @@ public class GetMinutesListUseCase {
                         minutes.stream().map(Minutes::meetingId).toList(), actorOrganizationId);
 
         return minutes.stream()
+                .filter(item -> MinutesAccessValidator.canRead(item, actorUserId))
                 .map(
                         item ->
                                 MinutesListItemResult.from(

@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import com.meetbowl.application.notification.DispatchNotificationUseCase;
 import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.community.Comment;
@@ -34,11 +35,15 @@ class ToggleCommentLikeUseCaseTest {
 
     @Mock private CommentRepositoryPort commentRepositoryPort;
     @Mock private CommentLikeRepositoryPort commentLikeRepositoryPort;
+    @Mock private DispatchNotificationUseCase dispatchNotificationUseCase;
 
     @BeforeEach
     void setUp() {
         toggleCommentLikeUseCase =
-                new ToggleCommentLikeUseCase(commentRepositoryPort, commentLikeRepositoryPort);
+                new ToggleCommentLikeUseCase(
+                        commentRepositoryPort,
+                        commentLikeRepositoryPort,
+                        dispatchNotificationUseCase);
     }
 
     @Test

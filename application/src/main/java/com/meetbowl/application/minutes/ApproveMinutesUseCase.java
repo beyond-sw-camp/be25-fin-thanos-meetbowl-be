@@ -138,10 +138,7 @@ public class ApproveMinutesUseCase {
     }
 
     private String body(Minutes minutes) {
-        return "승인된 회의록을 공유드립니다.\n\n[AI 요약]\n"
-                + minutes.summary()
-                + "\n\n[회의록 본문]\n"
-                + minutesContentTextExtractor.extract(minutes.content());
+        return "/app/minutes/" + minutes.meetingId();
     }
 
     private UUID deterministicIdempotencyKey(String value) {

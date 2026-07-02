@@ -14,6 +14,7 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.community.CommentLikeRepositoryPort;
 import com.meetbowl.domain.community.CommunityCommentListItem;
 import com.meetbowl.domain.community.CommunityCommentQueryPort;
+import com.meetbowl.domain.community.Post;
 import com.meetbowl.domain.community.PostRepositoryPort;
 
 /**
@@ -28,17 +29,17 @@ public class ListCommentsUseCase {
 
     private final PostRepositoryPort postRepositoryPort;
     private final CommunityCommentQueryPort communityCommentQueryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final CommunityAliasPolicy communityAliasPolicy;
     private final CommentLikeRepositoryPort commentLikeRepositoryPort;
 
     public ListCommentsUseCase(
             PostRepositoryPort postRepositoryPort,
             CommunityCommentQueryPort communityCommentQueryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver,
+            CommunityAliasPolicy communityAliasPolicy,
             CommentLikeRepositoryPort commentLikeRepositoryPort) {
         this.postRepositoryPort = postRepositoryPort;
         this.communityCommentQueryPort = communityCommentQueryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.communityAliasPolicy = communityAliasPolicy;
         this.commentLikeRepositoryPort = commentLikeRepositoryPort;
     }
 
@@ -48,18 +49,18 @@ public class ListCommentsUseCase {
      */
     @Transactional(readOnly = true)
     public List<CommentListItemResult> execute(UUID postId, UUID requesterId) {
-        if (postRepositoryPort.findById(postId).isEmpty()) {
-            throw new BusinessException(ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다.");
-        }
+        Post post =
+                postRepositoryPort
+                        .findById(postId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다."));
 
         List<CommunityCommentListItem> items = communityCommentQueryPort.findByPostId(postId);
 
-        // 댓글 작성자 userId를 한 번에 별칭으로 변환(N+1 회피).
-        Set<UUID> authorUserIds =
-                items.stream()
-                        .map(CommunityCommentListItem::authorUserId)
-                        .collect(Collectors.toSet());
-        Map<UUID, String> aliasByUser = aliasDisplayResolver.displayNames(authorUserIds);
+        Map<UUID, String> aliasByUser =
+                communityAliasPolicy.commentAliases(post.authorUserId(), items);
 
         // 이 목록의 댓글 중 현재 사용자가 좋아요한 것들을 한 번에 배치 조회(N+1 회피).
         Set<UUID> commentIds =
@@ -73,9 +74,7 @@ public class ListCommentsUseCase {
                                 CommentListItemResult.of(
                                         item,
                                         aliasByUser.getOrDefault(
-                                                item.authorUserId(),
-                                                CommunityAliasDisplayResolver
-                                                        .FALLBACK_DISPLAY_NAME),
+                                                item.authorUserId(), "익명"),
                                         item.authorUserId().equals(requesterId),
                                         likedCommentIds.contains(item.id())))
                 .toList();
