@@ -3,12 +3,12 @@ package com.meetbowl.application.community;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.util.Map;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +23,11 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.community.Comment;
 import com.meetbowl.domain.community.CommentLikeRepositoryPort;
 import com.meetbowl.domain.community.CommentRepositoryPort;
+import com.meetbowl.domain.community.CommunityCategory;
+import com.meetbowl.domain.community.CommunityCommentListItem;
+import com.meetbowl.domain.community.CommunityCommentQueryPort;
+import com.meetbowl.domain.community.Post;
+import com.meetbowl.domain.community.PostRepositoryPort;
 
 @ExtendWith(MockitoExtension.class)
 class UpdateCommentUseCaseTest {
@@ -31,32 +36,46 @@ class UpdateCommentUseCaseTest {
 
     @Mock private CommentRepositoryPort commentRepositoryPort;
     @Mock private CommentLikeRepositoryPort commentLikeRepositoryPort;
-    @Mock private CommunityAliasDisplayResolver aliasDisplayResolver;
+    @Mock private PostRepositoryPort postRepositoryPort;
+    @Mock private CommunityCommentQueryPort communityCommentQueryPort;
 
     @BeforeEach
     void setUp() {
         updateCommentUseCase =
                 new UpdateCommentUseCase(
-                        commentRepositoryPort, commentLikeRepositoryPort, aliasDisplayResolver);
+                        commentRepositoryPort,
+                        commentLikeRepositoryPort,
+                        postRepositoryPort,
+                        communityCommentQueryPort,
+                        new CommunityAliasPolicy());
     }
 
     @Test
     void updatesContentWhenRequesterIsAuthor() {
         UUID author = UUID.randomUUID();
+        UUID postAuthor = UUID.randomUUID();
         UUID postId = UUID.randomUUID();
         UUID commentId = UUID.randomUUID();
         given(commentRepositoryPort.findById(commentId))
                 .willReturn(Optional.of(Comment.of(commentId, postId, "old", author)));
         given(commentRepositoryPort.save(any(Comment.class))).willAnswer(inv -> inv.getArgument(0));
         given(commentLikeRepositoryPort.countByCommentId(commentId)).willReturn(3L);
-        given(aliasDisplayResolver.displayNames(anyCollection())).willReturn(Map.of(author, "익명2"));
+        given(postRepositoryPort.findById(postId))
+                .willReturn(
+                        Optional.of(
+                                Post.of(postId, CommunityCategory.FREE, "t", "c", postAuthor, 0L)));
+        given(communityCommentQueryPort.findByPostId(postId))
+                .willReturn(
+                        List.of(
+                                new CommunityCommentListItem(
+                                        commentId, author, "고친 내용", 3L, Instant.now())));
 
         CommentResult result =
                 updateCommentUseCase.execute(
                         new UpdateCommentCommand(postId, commentId, author, "고친 내용"));
 
         assertEquals("고친 내용", result.content());
-        assertEquals("익명2", result.authorAlias());
+        assertEquals("익명1", result.authorAlias());
         // 좋아요 수는 수정 대상이 아니라 현재 값을 읽어 응답.
         assertEquals(3L, result.likeCount());
     }

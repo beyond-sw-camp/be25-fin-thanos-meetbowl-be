@@ -1,7 +1,5 @@
 package com.meetbowl.application.community;
 
-import java.util.Set;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,7 +7,10 @@ import com.meetbowl.common.exception.BusinessException;
 import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.community.Comment;
 import com.meetbowl.domain.community.CommentLikeRepositoryPort;
+import com.meetbowl.domain.community.CommunityCommentQueryPort;
 import com.meetbowl.domain.community.CommentRepositoryPort;
+import com.meetbowl.domain.community.Post;
+import com.meetbowl.domain.community.PostRepositoryPort;
 
 /**
  * 댓글 수정 UseCase다. 작성자 본인만 수정할 수 있고, 수정 항목은 내용뿐이다.
@@ -22,15 +23,21 @@ public class UpdateCommentUseCase {
 
     private final CommentRepositoryPort commentRepositoryPort;
     private final CommentLikeRepositoryPort commentLikeRepositoryPort;
-    private final CommunityAliasDisplayResolver aliasDisplayResolver;
+    private final PostRepositoryPort postRepositoryPort;
+    private final CommunityCommentQueryPort communityCommentQueryPort;
+    private final CommunityAliasPolicy communityAliasPolicy;
 
     public UpdateCommentUseCase(
             CommentRepositoryPort commentRepositoryPort,
             CommentLikeRepositoryPort commentLikeRepositoryPort,
-            CommunityAliasDisplayResolver aliasDisplayResolver) {
+            PostRepositoryPort postRepositoryPort,
+            CommunityCommentQueryPort communityCommentQueryPort,
+            CommunityAliasPolicy communityAliasPolicy) {
         this.commentRepositoryPort = commentRepositoryPort;
         this.commentLikeRepositoryPort = commentLikeRepositoryPort;
-        this.aliasDisplayResolver = aliasDisplayResolver;
+        this.postRepositoryPort = postRepositoryPort;
+        this.communityCommentQueryPort = communityCommentQueryPort;
+        this.communityAliasPolicy = communityAliasPolicy;
     }
 
     @Transactional
@@ -55,12 +62,18 @@ public class UpdateCommentUseCase {
         Comment saved = commentRepositoryPort.save(comment.change(command.content()));
 
         long likeCount = commentLikeRepositoryPort.countByCommentId(saved.id());
+        Post post =
+                postRepositoryPort
+                        .findById(saved.postId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCode.COMMON_NOT_FOUND, "게시글을 찾을 수 없습니다."));
         String authorAlias =
-                aliasDisplayResolver
-                        .displayNames(Set.of(command.requesterId()))
-                        .getOrDefault(
-                                command.requesterId(),
-                                CommunityAliasDisplayResolver.FALLBACK_DISPLAY_NAME);
+                communityAliasPolicy.commentAuthorAlias(
+                        post.authorUserId(),
+                        command.requesterId(),
+                        communityCommentQueryPort.findByPostId(saved.postId()));
 
         return CommentResult.of(saved, authorAlias, likeCount);
     }

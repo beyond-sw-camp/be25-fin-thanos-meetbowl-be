@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,7 +28,6 @@ import com.meetbowl.domain.community.PostLikeRepositoryPort;
 class GetHotPostsUseCaseTest {
 
     @Mock private CommunityPostQueryPort communityPostQueryPort;
-    @Mock private CommunityAliasDisplayResolver aliasDisplayResolver;
     @Mock private PostLikeRepositoryPort postLikeRepositoryPort;
 
     private GetHotPostsUseCase getHotPostsUseCase;
@@ -38,7 +36,7 @@ class GetHotPostsUseCaseTest {
     void setUp() {
         getHotPostsUseCase =
                 new GetHotPostsUseCase(
-                        communityPostQueryPort, aliasDisplayResolver, postLikeRepositoryPort);
+                        communityPostQueryPort, new CommunityAliasPolicy(), postLikeRepositoryPort);
     }
 
     private CommunityPostListItem item(UUID id, UUID author) {
@@ -52,7 +50,6 @@ class GetHotPostsUseCaseTest {
         UUID postId = UUID.randomUUID();
         given(communityPostQueryPort.findHot(any(), anyInt()))
                 .willReturn(List.of(item(postId, author)));
-        given(aliasDisplayResolver.displayNames(any())).willReturn(Map.of(author, "익명1"));
 
         // 비로그인(requesterId=null)도 NPE 없이 조회되고, mine·liked는 모두 false다.
         List<PostListItemResult> results = getHotPostsUseCase.execute(null);
@@ -73,8 +70,6 @@ class GetHotPostsUseCaseTest {
         given(communityPostQueryPort.findHot(any(), anyInt()))
                 .willReturn(
                         List.of(item(minePostId, requester), item(likedOtherPostId, otherAuthor)));
-        given(aliasDisplayResolver.displayNames(any()))
-                .willReturn(Map.of(requester, "익명1", otherAuthor, "익명2"));
         given(postLikeRepositoryPort.findLikedPostIds(eq(requester), any()))
                 .willReturn(Set.of(likedOtherPostId));
 
