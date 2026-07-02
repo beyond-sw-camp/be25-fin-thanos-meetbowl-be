@@ -58,10 +58,18 @@ class AdminOrganizationMembersExcelUseCaseTest {
     private static final UUID ADMIN_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID AFFILIATE_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000010");
+    private static final UUID OTHER_AFFILIATE_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000020");
     private static final UUID DEPARTMENT_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000011");
+    private static final UUID OTHER_DEPARTMENT_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000021");
     private static final UUID TEAM_ID = UUID.fromString("00000000-0000-0000-0000-000000000012");
+    private static final UUID OTHER_TEAM_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000022");
     private static final UUID POSITION_ID = UUID.fromString("00000000-0000-0000-0000-000000000013");
+    private static final UUID OTHER_POSITION_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000023");
     private static final UUID USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000014");
 
     private FakeAffiliateRepository affiliateRepository;
@@ -81,6 +89,7 @@ class AdminOrganizationMembersExcelUseCaseTest {
     void setUp() {
         affiliateRepository = new FakeAffiliateRepository();
         affiliateRepository.save(affiliate(AFFILIATE_ID, "한화시스템", "HSC", 1));
+        affiliateRepository.save(affiliate(OTHER_AFFILIATE_ID, "한화에어로", "AERO", 2));
         departmentRepository = new FakeDepartmentRepository();
         teamRepository = new FakeTeamRepository();
         positionRepository = new FakePositionRepository();
@@ -365,6 +374,100 @@ class AdminOrganizationMembersExcelUseCaseTest {
                                                 && position.code().equals("P002")));
     }
 
+    @Test
+    void importMatchesExistingReferencesOnlyWithinAdminAffiliateScope() {
+        departmentRepository.save(
+                department(OTHER_DEPARTMENT_ID, OTHER_AFFILIATE_ID, "서비스개발부", "OD001", 1));
+        teamRepository.save(team(OTHER_TEAM_ID, OTHER_DEPARTMENT_ID, "플랫폼개발팀", "OT001", 1));
+        positionRepository.save(
+                position(OTHER_POSITION_ID, OTHER_AFFILIATE_ID, "대리", "OP001", 1));
+
+        AdminOrganizationMembersExcelUseCase.ImportResult result =
+                useCase.importExcel(
+                        commandWithBytes(
+                                workbookBytes(
+                                        new WorkbookRows(
+                                                List.of(
+                                                        new DepartmentRow(
+                                                                0, "", "서비스개발부", "2", "ACTIVE")),
+                                                List.of(
+                                                        new TeamRow(
+                                                                0,
+                                                                "",
+                                                                "서비스개발부",
+                                                                "플랫폼개발팀",
+                                                                "3",
+                                                                "ACTIVE")),
+                                                List.of(
+                                                        new PositionRow(0, "", "대리", "4", "ACTIVE")),
+                                                List.of(
+                                                        new UserRow(
+                                                                0,
+                                                                "",
+                                                                "scoped-user",
+                                                                "범위 사용자",
+                                                                "scoped-user@meetbowl.local",
+                                                                "서비스개발부",
+                                                                "플랫폼개발팀",
+                                                                "대리",
+                                                                "ACTIVE"))))));
+
+        assertEquals(1, result.createdDepartments());
+        assertEquals(1, result.createdTeams());
+        assertEquals(1, result.createdPositions());
+        assertEquals(1, result.createdUsers());
+
+        assertEquals(
+                2,
+                departmentRepository.findAll().stream()
+                        .filter(item -> item.name().equals("서비스개발부"))
+                        .count());
+        assertEquals(
+                2,
+                teamRepository.findAll().stream()
+                        .filter(item -> item.name().equals("플랫폼개발팀"))
+                        .count());
+        assertEquals(
+                2,
+                positionRepository.findAll().stream()
+                        .filter(item -> item.name().equals("대리"))
+                        .count());
+
+        Department createdDepartment =
+                departmentRepository.findAll().stream()
+                        .filter(
+                                item ->
+                                        item.name().equals("서비스개발부")
+                                                && item.affiliateId().equals(AFFILIATE_ID))
+                        .findFirst()
+                        .orElseThrow();
+        Team createdTeam =
+                teamRepository.findAll().stream()
+                        .filter(
+                                item ->
+                                        item.name().equals("플랫폼개발팀")
+                                                && item.departmentId().equals(createdDepartment.id()))
+                        .findFirst()
+                        .orElseThrow();
+        Position createdPosition =
+                positionRepository.findAll().stream()
+                        .filter(
+                                item ->
+                                        item.name().equals("대리")
+                                                && item.affiliateId().equals(AFFILIATE_ID))
+                        .findFirst()
+                        .orElseThrow();
+        User createdUser = userRepository.findByLoginId("scoped-user").orElseThrow();
+
+        assertEquals(OTHER_AFFILIATE_ID, departmentRepository.findById(OTHER_DEPARTMENT_ID).orElseThrow().affiliateId());
+        assertEquals(OTHER_DEPARTMENT_ID, teamRepository.findById(OTHER_TEAM_ID).orElseThrow().departmentId());
+        assertEquals(OTHER_AFFILIATE_ID, positionRepository.findById(OTHER_POSITION_ID).orElseThrow().affiliateId());
+        assertEquals(AFFILIATE_ID, createdUser.affiliateId());
+        assertEquals(createdDepartment.id(), createdUser.departmentId());
+        assertEquals(createdTeam.id(), createdUser.teamId());
+        assertEquals(createdPosition.id(), createdUser.positionId());
+    }
+
     private WorkbookRows validWorkbook() {
         return new WorkbookRows(
                 List.of(new DepartmentRow(0, "", "서비스개발부", "1", "ACTIVE")),
@@ -420,6 +523,11 @@ class AdminOrganizationMembersExcelUseCaseTest {
 
     private Position position(UUID id, String name, String code, Integer sortOrder) {
         return new Position(id, AFFILIATE_ID, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
+    }
+
+    private Position position(
+            UUID id, UUID affiliateId, String name, String code, Integer sortOrder) {
+        return new Position(id, affiliateId, name, code, ReferenceStatus.ACTIVE, sortOrder, NOW, NOW);
     }
 
     private User user(UUID id, String loginId, String email, UserRole role, UserStatus status) {
