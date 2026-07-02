@@ -161,7 +161,7 @@ class AdminUserManagementUseCaseTest {
     void createUserIgnoresInactiveRequestStatus() {
         AdminUserManagementUseCase useCase = useCase();
         UUID adminAffiliateId = UUID.randomUUID();
-        stubOrganizationReferences(adminAffiliateId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        stubAffiliate(adminAffiliateId, "Affiliate");
         given(userRepositoryPort.existsByLoginId("user02")).willReturn(false);
         given(userRepositoryPort.findByEmail("user02@example.com")).willReturn(Optional.empty());
         given(userRepositoryPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
