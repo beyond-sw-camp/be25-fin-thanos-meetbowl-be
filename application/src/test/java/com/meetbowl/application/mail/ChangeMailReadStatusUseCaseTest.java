@@ -19,6 +19,9 @@ import com.meetbowl.common.exception.ErrorCode;
 import com.meetbowl.domain.mail.MailboxEntry;
 import com.meetbowl.domain.mail.MailboxEntryRepositoryPort;
 import com.meetbowl.domain.mail.MailboxType;
+import com.meetbowl.domain.notification.Notification;
+import com.meetbowl.domain.notification.NotificationRepositoryPort;
+import com.meetbowl.domain.notification.NotificationType;
 
 class ChangeMailReadStatusUseCaseTest {
 
@@ -31,7 +34,9 @@ class ChangeMailReadStatusUseCaseTest {
         StubMailboxEntryRepository repository = new StubMailboxEntryRepository(entry);
         ChangeMailReadStatusUseCase useCase =
                 new ChangeMailReadStatusUseCase(
-                        repository, Clock.fixed(now, ZoneOffset.UTC));
+                        repository,
+                        new StubNotificationRepository(),
+                        Clock.fixed(now, ZoneOffset.UTC));
 
         useCase.execute(mailId, ownerUserId, true);
 
@@ -49,7 +54,8 @@ class ChangeMailReadStatusUseCaseTest {
                         null, mailId, ownerUserId, MailboxType.INBOX, readAt, null, null);
         StubMailboxEntryRepository repository = new StubMailboxEntryRepository(entry);
         ChangeMailReadStatusUseCase useCase =
-                new ChangeMailReadStatusUseCase(repository, Clock.systemUTC());
+                new ChangeMailReadStatusUseCase(
+                        repository, new StubNotificationRepository(), Clock.systemUTC());
 
         useCase.execute(mailId, ownerUserId, false);
 
@@ -61,7 +67,9 @@ class ChangeMailReadStatusUseCaseTest {
     void changingReadStatusOfInaccessibleMailIsRejected() {
         ChangeMailReadStatusUseCase useCase =
                 new ChangeMailReadStatusUseCase(
-                        new StubMailboxEntryRepository(null), Clock.systemUTC());
+                        new StubMailboxEntryRepository(null),
+                        new StubNotificationRepository(),
+                        Clock.systemUTC());
 
         BusinessException exception =
                 assertThrows(
@@ -140,6 +148,56 @@ class ChangeMailReadStatusUseCaseTest {
         @Override
         public List<MailboxEntry> findTrashEntriesTrashedBefore(Instant cutoff, int limit) {
             return List.of();
+        }
+    }
+
+    private static final class StubNotificationRepository implements NotificationRepositoryPort {
+
+        @Override
+        public Notification save(Notification notification) {
+            return notification;
+        }
+
+        @Override
+        public Optional<Notification> findById(UUID id) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<Notification> findByRecipientUserId(UUID recipientUserId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Notification> findUnreadByRecipientUserId(UUID recipientUserId) {
+            return List.of();
+        }
+
+        @Override
+        public List<Notification> findPageByRecipientUserId(
+                UUID recipientUserId, int offset, int limit) {
+            return List.of();
+        }
+
+        @Override
+        public long countByRecipientUserId(UUID recipientUserId) {
+            return 0;
+        }
+
+        @Override
+        public long countUnreadByRecipientUserId(UUID recipientUserId) {
+            return 0;
+        }
+
+        @Override
+        public List<Notification> findByType(NotificationType type) {
+            return List.of();
+        }
+
+        @Override
+        public Optional<Notification> findLatestByRecipientUserIdAndTypeAndResourceId(
+                UUID recipientUserId, NotificationType type, UUID resourceId) {
+            return Optional.empty();
         }
     }
 }
